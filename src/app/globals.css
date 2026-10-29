@@ -1,26 +1,230 @@
 @import "tailwindcss";
+@config "../../tailwind.config.ts";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --background: #0A0A0A;
+  --foreground: #FAFAFA;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-tajawal), sans-serif;
+  overflow-x: hidden;
 }
+
+/* Global Cursor Pointer Rule for all interactive elements */
+button,
+a,
+select,
+summary,
+[role="button"],
+input[type="submit"],
+input[type="button"],
+input[type="reset"],
+input[type="checkbox"],
+input[type="radio"],
+label[for],
+.cursor-pointer {
+  cursor: pointer !important;
+}
+
+button:disabled,
+input:disabled,
+select:disabled,
+.cursor-not-allowed {
+  cursor: not-allowed !important;
+}
+
+/* Custom Signature Elements (Diagonal Cuts) */
+.clip-diagonal {
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 4vw), 0 100%);
+}
+.clip-diagonal-reverse {
+  clip-path: polygon(0 4vw, 100% 0, 100% 100%, 0 100%);
+}
+.btn-diagonal {
+  border-radius: 9999px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 14px 0 rgba(227, 30, 36, 0.2);
+}
+
+/* Marquee Scroll animation for Trust Bar */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes infinite-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(calc(-50% - 1rem)); } /* Adjust for gap */
+}
+
+.animate-infinite-scroll {
+  display: flex;
+  width: max-content;
+  animation: infinite-scroll 50s linear infinite;
+}
+.animate-infinite-scroll:hover {
+  animation-play-state: paused;
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 25s linear infinite;
+}
+
+/* Seamless Infinite Promo Banner Ticker */
+@keyframes promo-ticker {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.animate-promo-ticker {
+  display: flex;
+  width: max-content;
+  animation: promo-ticker 28s linear infinite;
+  will-change: transform;
+}
+
+.animate-promo-ticker:hover {
+  animation-play-state: paused;
+}
+
+/* ===================================================
+   Scrollbar Rules:
+   - On mobile / touch devices: hidden for clean native feel
+   - On desktop / computer view: sleek custom brand scrollbar on the right side
+   =================================================== */
+
+/* Mobile / Touch screens: Hide scrollbars */
+@media (max-width: 768px), (pointer: coarse) {
+  html, body, *, *::before, *::after {
+    -ms-overflow-style: none !important;
+    scrollbar-width: none !important;
+  }
+
+  *::-webkit-scrollbar,
+  ::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    background: transparent !important;
+  }
+
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-thumb {
+    background: transparent !important;
+    border: none !important;
+  }
+}
+
+/* Force visible, sleek brand scrollbar for drawer even on mobile touch devices */
+.drawer-scrollbar {
+  -ms-overflow-style: auto !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(227, 30, 36, 0.7) rgba(255, 255, 255, 0.08) !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior: contain !important;
+}
+
+.drawer-scrollbar::-webkit-scrollbar {
+  display: block !important;
+  width: 5px !important;
+}
+
+.drawer-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-radius: 9999px !important;
+}
+
+.drawer-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(227, 30, 36, 0.7) !important;
+  border-radius: 9999px !important;
+}
+
+.drawer-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #E31E24 !important;
+}
+
+/* Desktop / Computer view: Sleek Custom Athletic Scrollbar on the Right */
+@media (min-width: 769px) and (pointer: fine) {
+  html {
+    scrollbar-width: thin;
+    scrollbar-color: #27272b #0A0A0A;
+  }
+
+  /* WebKit (Chrome, Edge, Safari, Brave, Opera) */
+  html::-webkit-scrollbar {
+    display: block !important;
+    width: 8px !important;
+  }
+
+  html::-webkit-scrollbar-track {
+    background: #0A0A0A !important;
+    border-left: 1px solid rgba(255, 255, 255, 0.05) !important;
+  }
+
+  html::-webkit-scrollbar-thumb {
+    background: #242429 !important;
+    border-radius: 9999px !important;
+    border: 2px solid #0A0A0A !important;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  html::-webkit-scrollbar-thumb:hover {
+    background: #E31E24 !important;
+    box-shadow: 0 0 10px rgba(227, 30, 36, 0.5) !important;
+  }
+
+  html::-webkit-scrollbar-thumb:active {
+    background: #ff2a32 !important;
+  }
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+}
+.no-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+/* Custom visible scrollbar for modals & scrollable lists */
+.custom-scrollbar {
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(227, 30, 36, 0.6) rgba(255, 255, 255, 0.05) !important;
+  -ms-overflow-style: auto !important;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  display: block !important;
+  width: 6px !important;
+  height: 6px !important;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-radius: 9999px !important;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(227, 30, 36, 0.6) !important;
+  border-radius: 9999px !important;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #E31E24 !important;
+}
+
+/* Instant prevent FOUC / flash of home page during maintenance mode */
+html.is-maintenance:not(.is-admin) #site-layout-container {
+  display: none !important;
+}
+

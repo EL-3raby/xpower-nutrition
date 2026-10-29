@@ -1,65 +1,87 @@
-import Image from "next/image";
+import React from 'react';
+import { Metadata } from 'next';
+import { getProducts } from '@/lib/firebase/products';
+import { getSiteConfig, getCategories } from '@/lib/firebase/admin-actions';
+import HomeClientPage from './HomeClientPage';
+import { getSiteUrl, toPlainObject } from '@/lib/utils/seo';
+import { Product } from '@/lib/types';
 
-export default function Home() {
+export const metadata: Metadata = {
+  title: 'Xpower Nutrition — مكملات رياضية بجودة تستحق ثقتك',
+  description: 'الموقع والمتجر الرسمي لبراند Xpower Nutrition في مصر. تسوق مكملات الكرياتين والكارب والبروتين الأصلية 100% بأفضل الأسعار مع الدفع عند الاستلام.',
+  alternates: {
+    canonical: getSiteUrl('/'),
+  },
+  openGraph: {
+    title: 'Xpower Nutrition — مكملات رياضية بجودة تستحق ثقتك',
+    description: 'الموقع والمتجر الرسمي لبراند Xpower Nutrition في مصر. تسوق مكملات الكرياتين والكارب والبروتين الأصلية 100% بأفضل الأسعار مع الدفع عند الاستلام.',
+    url: getSiteUrl('/'),
+    siteName: 'Xpower Nutrition',
+    images: ['/images/logo-custom.png'],
+    locale: 'ar_EG',
+    type: 'website',
+  },
+};
+
+export default async function HomePage() {
+  const [settings, categories, products] = await Promise.all([
+    getSiteConfig(),
+    getCategories(),
+    getProducts(undefined, true),
+  ]);
+
+  const isAccessory = (val?: string) => {
+    if (!val) return false;
+    const lower = val.toLowerCase().trim();
+    return lower === 'اكسسوارات' || lower.includes('access') || lower === 'accessories';
+  };
+
+  const activeCategories = categories
+    .filter((cat) => cat.isActive)
+    .sort((a, b) => {
+      const aAcc = isAccessory(a.slug) || isAccessory(a.name);
+      const bAcc = isAccessory(b.slug) || isAccessory(b.name);
+      if (aAcc && !bAcc) return 1;
+      if (!aAcc && bAcc) return -1;
+      return 0;
+    });
+
+  const sortedProducts = [...products].sort((a, b) => {
+    const aAcc = isAccessory(a.category);
+    const bAcc = isAccessory(b.category);
+    if (aAcc && !bAcc) return 1;
+    if (!aAcc && bAcc) return -1;
+    return 0;
+  });
+
+  const displayProducts = sortedProducts;
+
+  let flashSaleProduct = null;
+  if (settings.flashSale?.isActive && settings.flashSale.productId) {
+    flashSaleProduct = products.find((p) => p.id === settings.flashSale!.productId) || null;
+  }
+
+  let bestSellers: Product[] = [];
+  if (settings.bestSellers?.isActive) {
+    if (settings.bestSellers.productIds && settings.bestSellers.productIds.length > 0) {
+      bestSellers = settings.bestSellers.productIds
+        .map((id) => products.find((p) => p.id === id))
+        .filter((p): p is Product => Boolean(p));
+    } else {
+      bestSellers = [...products]
+        .filter((p) => p.salesCount && p.salesCount > 0)
+        .sort((a, b) => (b.salesCount || 0) - (a.salesCount || 0))
+        .slice(0, 10);
+    }
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+    <HomeClientPage
+      initialSettings={toPlainObject(settings)}
+      initialCategories={toPlainObject(activeCategories)}
+      initialProducts={toPlainObject(displayProducts)}
+      initialFlashSaleProduct={toPlainObject(flashSaleProduct)}
+      initialBestSellers={toPlainObject(bestSellers)}
+    />
   );
 }

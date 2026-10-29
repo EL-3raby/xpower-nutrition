@@ -1,0 +1,121 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check if the user is authenticated and is registered in the admins collection
+    function isAdmin() {
+      return request.auth != null && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // Products Rules: Public read, Admin write, Public limited updates (stock, sales, reviews)
+    match /products/{productId} {
+      allow read: if true;
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock', 'salesCount', 'avgRating', 'reviewCount'])
+        && request.resource.data.stock is number
+        && request.resource.data.stock >= 0
+        && request.resource.data.price == resource.data.price
+      );
+    }
+
+    // Reviews Rules: Public read, Public create with validation, Admin delete
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if request.resource.data.rating is number
+                    && request.resource.data.rating >= 1
+                    && request.resource.data.rating <= 5
+                    && request.resource.data.comment is string
+                    && request.resource.data.comment.size() >= 5
+                    && request.resource.data.comment.size() <= 500
+                    && request.resource.data.customerName is string
+                    && request.resource.data.customerName.size() >= 2
+                    && request.resource.data.customerName.size() <= 50;
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    // Orders Rules: Validated creation with pending status, single order retrieval, Admin management
+    match /orders/{orderId} {
+      allow create: if request.resource.data.customerName is string
+                    && request.resource.data.customerName.size() >= 2
+                    && request.resource.data.customerName.size() <= 100
+                    && request.resource.data.phone is string
+                    && request.resource.data.phone.size() >= 10
+                    && request.resource.data.phone.size() <= 20
+                    && request.resource.data.items is list
+                    && request.resource.data.items.size() > 0
+                    && request.resource.data.items.size() <= 50
+                    && request.resource.data.totalPrice is number
+                    && request.resource.data.totalPrice >= 0
+                    && request.resource.data.status == 'pending'
+                    && request.resource.data.isReadByAdmin == false;
+      allow get: if true;
+      allow list, update, delete: if isAdmin();
+    }
+
+    // Categories Rules: Public read, Admin write
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Coupons Rules: Public read, Admin write
+    match /coupons/{couponId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Shipping Rates Rules: Public read, Admin write
+    match /shippingRates/{rateId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Settings Rules: Public read, Admin write
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Promo Popup Rules: Public read, Admin write
+    match /promoPopup/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Activity Log Rules: Admin only
+    match /activityLog/{logId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Admins Rules: Authenticated users can read their own, Admin can read/write all
+    match /admins/{adminId} {
+      allow read: if request.auth != null && (request.auth.uid == adminId || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    // Abandoned Checkouts: Validated creation/update by phone, Admin manages & lists
+    match /abandonedCheckouts/{phone} {
+      allow get: if true;
+      allow create, update: if request.resource.data.phone is string
+                            && request.resource.data.phone.size() >= 10
+                            && request.resource.data.phone.size() <= 20
+                            && request.resource.data.items is list
+                            && request.resource.data.items.size() <= 50;
+      allow list, delete: if isAdmin();
+    }
+
+    // Authenticity Codes: Public get (verify a single code by its ID), Admin list/create/delete
+    // Update is allowed only when isUsed is being set to true (never back to false)
+    match /authenticityCodes/{code} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if (
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isUsed', 'usedAt'])
+        && request.resource.data.isUsed == true
+      );
+      allow delete: if isAdmin();
+    }
+  }
+}

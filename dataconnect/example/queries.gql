@@ -1,0 +1,130 @@
+mutation CreateCategory($data: Category_Data!) @auth(level: USER) {
+  category_insert(data: $data)
+}
+
+mutation UpdateCategory($key: Category_Key!, $data: Category_Data!) @auth(level: USER) {
+  category_update(key: $key, data: $data)
+}
+
+mutation DeleteCategory($key: Category_Key!) @auth(level: USER) {
+  category_delete(key: $key)
+}
+
+query GetCategory($key: Category_Key!) @auth(level: USER) {
+  category(key: $key) {
+    name
+    colorCode
+  }
+}
+
+query ListCategories @auth(level: USER) {
+  categories(where: {userId: {eq_expr: "auth.uid"}}) {
+    name
+    colorCode
+  }
+}
+
+mutation CreateTag($data: Tag_Data!) @auth(level: USER) {
+  tag_insert(data: $data)
+}
+
+mutation UpdateTag($key: Tag_Key!, $data: Tag_Data!) @auth(level: USER) {
+  tag_update(key: $key, data: $data)
+}
+
+mutation DeleteTag($key: Tag_Key!) @auth(level: USER) {
+  tag_delete(key: $key)
+}
+
+query GetTag($key: Tag_Key!) @auth(level: USER) {
+  tag(key: $key) {
+    name
+    color
+  }
+}
+
+query ListTags @auth(level: USER) {
+  tags(where: {userId: {eq_expr: "auth.uid"}}) {
+    name
+    color
+  }
+}
+
+mutation CreateTask($data: Task_Data!) @auth(level: USER) {
+  task_insert(data: $data)
+}
+
+mutation UpdateTask($key: Task_Key!, $data: Task_Data!) @auth(level: USER) {
+  task_update(key: $key, data: $data)
+}
+
+mutation DeleteTask($key: Task_Key!) @auth(level: USER) {
+  task_delete(key: $key)
+}
+
+query GetTask($key: Task_Key!) @auth(level: USER) {
+  task(key: $key) {
+    title
+    status
+    description
+  }
+}
+
+query ListTasks @auth(level: USER) {
+  tasks(where: {userId: {eq_expr: "auth.uid"}}) {
+    title
+    status
+  }
+}
+
+mutation CreateTaskTag($data: TaskTag_Data!) @auth(level: USER) {
+  taskTag_insert(data: $data)
+}
+
+mutation UpdateTaskTag($key: TaskTag_Key!, $data: TaskTag_Data!) @auth(level: USER) {
+  taskTag_update(key: $key, data: $data)
+}
+
+mutation DeleteTaskTag($key: TaskTag_Key!) @auth(level: USER) {
+  taskTag_delete(key: $key)
+}
+
+query GetTaskTag($key: TaskTag_Key!) @auth(level: USER) {
+  taskTag(key: $key) {
+    task { title }
+    tag { name }
+  }
+}
+
+query ListTaskTags @auth(level: USER) {
+  taskTags {
+    task { title }
+    tag { name }
+  }
+}
+
+mutation CreateUser($data: User_Data!) @auth(level: USER) {
+  user_insert(data: $data)
+}
+
+mutation UpdateUser($key: User_Key!, $data: User_Data!) @auth(level: USER) {
+  user_update(key: $key, data: $data)
+}
+
+mutation DeleteUser($key: User_Key!) @auth(level: USER) {
+  user_delete(key: $key)
+}
+
+query GetUser($key: User_Key!) @auth(level: USER) {
+  user(key: $key) {
+    email
+    displayName
+  }
+}
+
+query ListUsers @auth(level: USER) {
+  users {
+    email
+    displayName
+  }
+}
