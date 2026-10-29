@@ -1,36 +1,60 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Xpower Nutrition — Official E-Commerce Platform
 
-## Getting Started
+[![CI - Code Quality & Build](https://github.com/EL-3raby/xpower-nutrition/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/EL-3raby/xpower-nutrition/actions/workflows/ci.yml)
+[![Security Scan & Vulnerability Audit](https://github.com/EL-3raby/xpower-nutrition/actions/workflows/security.yml/badge.svg?branch=main)](https://github.com/EL-3raby/xpower-nutrition/actions/workflows/security.yml)
+[![Mobile & Lighthouse Audit](https://github.com/EL-3raby/xpower-nutrition/actions/workflows/lighthouse.yml/badge.svg?branch=main)](https://github.com/EL-3raby/xpower-nutrition/actions/workflows/lighthouse.yml)
 
-First, run the development server:
+الموقع الرسمي والمتجر الإلكتروني المتكامل لبراند **Xpower Nutrition** للمكملات الغذائية والرياضية في مصر.
+
+---
+
+## ⚡ Tech Stack & Architecture
+
+- **Framework**: Next.js 16 (App Router) & React 19
+- **Styling**: Tailwind CSS v4 & Cairo / Tajawal Typography
+- **Database & Auth**: Firebase Firestore (Atomic transactions & security rules) + Firebase Auth
+- **Animations**: Framer Motion
+- **Order Notifications**: EmailJS + Cloudinary Receipt Processing
+- **CI/CD & Security**: GitHub Actions (TruffleHog, Semgrep OWASP, Lighthouse CI Mobile Audit, ESLint 9)
+
+---
+
+## 🚀 Key Features
+
+- **Full E-Commerce Flow**: Cart drawer, multi-step mobile checkout, coupon redemption, shipping calculators.
+- **Real-Time Order Tracking**: Order verification, live WhatsApp dispatch confirmations, staged progress bar.
+- **Enterprise Admin Portal**: Protected login with brute-force lockout, real-time inventory management, sales analytics, review moderation.
+- **Bulletproof Firestore Security Rules**: Enforces non-negative stock deduction, atomic transactions, price tampering locks, and role-based access.
+- **Comprehensive SEO**: 100% crawl budget optimization (`robots.ts`, `sitemap.ts`), schema.org markup, OpenGraph & Twitter Cards.
+- **Mobile-First Experience**: Safe-area bottom tab bar, snap carousel, touch-optimized tap targets.
+
+---
+
+## 🛠️ Local Development
 
 ```bash
+# Install dependencies
+npm install
+
+# Run development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+
+# Run linting
+npm run lint
+
+# Run type checking
+npx tsc --noEmit
+
+# Build production static export
+npm run build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🔒 Security & Rules Deployment
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Rules and indexes are automatically tracked and validated via CI:
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+firebase deploy --only firestore:rules,firestore:indexes
+```
