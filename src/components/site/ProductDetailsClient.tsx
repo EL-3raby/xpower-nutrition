@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Product } from '@/lib/types';
 import { useCart } from '@/hooks/useCart';
@@ -38,6 +38,17 @@ export default function ProductDetailsClient({ product }: ProductDetailsClientPr
 
   // Live Visitor Count Fake State
   const [visitorCount, setVisitorCount] = useState(0);
+
+  // Discount End Date Memo
+  const discountEndDateObj = useMemo(() => {
+    if (!product.discountEndDate) return null;
+    if (product.discountEndDate instanceof Date) return product.discountEndDate;
+    if (typeof (product.discountEndDate as any)?.toDate === 'function') {
+      return (product.discountEndDate as any).toDate() as Date;
+    }
+    const d = new Date(product.discountEndDate as string);
+    return isNaN(d.getTime()) ? null : d;
+  }, [product.discountEndDate]);
 
   useEffect(() => {
     // Generate base random count on mount between 45 and 180
@@ -319,6 +330,16 @@ export default function ProductDetailsClient({ product }: ProductDetailsClientPr
                   </span>
                 )}
               </div>
+
+              {/* Limited Time Offer Expiration Badge */}
+              {discountEndDateObj && discountEndDateObj > new Date() && (
+                <div className="flex items-center gap-2 text-xs text-amber-300 bg-amber-500/10 border border-amber-500/25 px-3 py-1.5 rounded-xl w-fit mb-6" dir="rtl">
+                  <span className="material-symbols-outlined text-sm text-amber-400">schedule</span>
+                  <span className="font-product-title font-bold">
+                    ينتهي هذا العرض الخاص في: {discountEndDateObj.toLocaleDateString('ar-EG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Product Stats (Weight & Servings) */}

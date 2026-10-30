@@ -8,6 +8,7 @@ export interface Product {
   category: string;
   price: number;
   oldPrice?: number;
+  discountEndDate?: string | Timestamp | Date;
   images: string[];
   weight?: string;
   servings?: number;
@@ -154,6 +155,16 @@ export interface SiteConfig {
     title?: string;
     message?: string;
     estimatedEndTime?: string;
+  };
+  bulkDiscount?: {
+    isActive: boolean;
+    type: 'percentage' | 'fixed';
+    value: number;
+    scope: 'all' | string;
+    theme?: 'white' | 'gold' | 'cyan' | 'purple' | 'crimson';
+    endDate?: string | null;
+    appliedAt?: string;
+    itemsCount?: number;
   };
 }
 

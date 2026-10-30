@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { db, isDummyFirebase } from '@/lib/firebase/client';
 import { collection, doc, setDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
 import ConfirmationModal from '@/components/admin/ConfirmationModal';
+import { DEFAULT_SHIPPING_RATES } from '@/lib/firebase/admin-actions';
 
 export default function AdminSeedPage() {
   const [loading, setLoading] = useState(false);
@@ -168,16 +169,10 @@ export default function AdminSeedPage() {
         }
       });
 
-      // 5. Seed Shipping Rates
-      const shippingRates = [
-        { id: 'rate1', cityName: 'القاهرة', rate: 50, isActive: true },
-        { id: 'rate2', cityName: 'الجيزة', rate: 50, isActive: true },
-        { id: 'rate3', cityName: 'الإسكندرية', rate: 60, isActive: true },
-        { id: 'rate4', cityName: 'طنطا', rate: 70, isActive: true }
-      ];
-
-      shippingRates.forEach(rate => {
-        const docRef = doc(db, 'shippingRates', rate.id);
+      // 5. Seed Shipping Rates (27 governorates: 80 / 100 / 120 EGP)
+      DEFAULT_SHIPPING_RATES.forEach(rate => {
+        const rateId = rate.id || `rate_${rate.cityName}`;
+        const docRef = doc(db, 'shippingRates', rateId);
         batch.set(docRef, {
           cityName: rate.cityName,
           rate: rate.rate,

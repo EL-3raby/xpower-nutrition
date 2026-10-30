@@ -423,7 +423,7 @@ export default function CheckoutClientPage() {
     if (subtotal === 0) return 0;
 
     const rateObj = shippingRates.find(r => r.cityName === selectedGovernorate);
-    const baseCost = rateObj ? rateObj.rate : 100; // default 100 EGP (Lower Egypt base)
+    const baseCost = rateObj ? rateObj.rate : 80; // default 80 EGP
 
     // Check admin settings for free shipping
     if (siteConfig?.freeShipping?.isEnabled && siteConfig.freeShipping.thresholdAmount > 0) {

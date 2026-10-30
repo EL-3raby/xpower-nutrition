@@ -7,9 +7,11 @@ import Navbar from '@/components/site/Navbar';
 import Footer from '@/components/site/Footer';
 import BottomTabBar from '@/components/site/BottomTabBar';
 import MaintenancePage from '@/components/site/MaintenancePage';
+import DiscountTopBar from '@/components/site/DiscountTopBar';
 
 const CartDrawer = dynamic(() => import('@/components/site/CartDrawer'), { ssr: false });
 const PromoPopup = dynamic(() => import('@/components/site/PromoPopup'), { ssr: false });
+const GlobalSearchModal = dynamic(() => import('@/components/site/GlobalSearchModal'), { ssr: false });
 import { getSiteConfig } from '@/lib/firebase/admin-actions';
 import { subscribeToAuth, checkIsAdmin } from '@/lib/firebase/auth';
 import { SiteConfig } from '@/lib/types';
@@ -142,7 +144,7 @@ export default function SiteLayoutWrapper({ children }: { children: React.ReactN
     <div id="site-layout-container" className="min-h-screen flex flex-col relative">
       {/* Admin Maintenance Bypass Banner */}
       {isAdminUser && isMaintenanceActive && (
-        <div className="bg-amber-500/20 border-b border-amber-500/40 text-amber-300 px-4 py-2 text-xs md:text-sm font-tajawal flex items-center justify-between sticky top-0 z-[100] backdrop-blur-md">
+        <div className="bg-amber-500/15 border-b border-amber-500/30 text-amber-300 px-4 py-2 text-xs md:text-sm font-body font-medium flex items-center justify-between sticky top-0 z-[100] backdrop-blur-md">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
             <span>وضع الصيانة مفعّل حالياً للزوار — أنت تتصفح الموقع بصفتك مسؤول (Admin Bypass).</span>
@@ -152,7 +154,9 @@ export default function SiteLayoutWrapper({ children }: { children: React.ReactN
           </Link>
         </div>
       )}
+      <DiscountTopBar initialConfig={siteConfig} />
       <PromoPopup />
+      <GlobalSearchModal />
       <Navbar />
       <main className="flex-grow pb-16 md:pb-0">
         {children}

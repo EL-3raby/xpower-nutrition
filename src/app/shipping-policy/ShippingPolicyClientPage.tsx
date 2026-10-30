@@ -225,18 +225,18 @@ export default function ShippingPolicyClientPage() {
           </div>
 
           {/* Regional Summary Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Region 1: Lower Egypt & Capital */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Region 1: Lower Egypt, Capital, Delta, Canal & Red Sea */}
             <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-4 sm:p-5 flex flex-col justify-between hover:border-accent-red/30 transition-all">
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-product-title font-bold text-white text-sm sm:text-base">القاهرة الكبرى، وجه بحري ومدن القناة</span>
+                  <span className="font-product-title font-bold text-white text-sm sm:text-base">القاهرة، الدلتا، القناة والبحر الأحمر</span>
                   <span className="font-mono font-black text-accent-red text-base bg-accent-red/10 px-2.5 py-0.5 rounded-lg border border-accent-red/20">
-                    100 ج.م
+                    80 ج.م
                   </span>
                 </div>
                 <p className="text-text-muted text-xs leading-relaxed font-body">
-                  القاهرة، الجيزة، الإسكندرية، القليوبية، الغربية، الدقهلية، الشرقية، المنوفية، البحيرة، كفر الشيخ، دمياط، بورسعيد، الإسماعيلية، السويس، ومطروح.
+                  القاهرة، الجيزة، الإسكندرية، القليوبية، الغربية، الدقهلية، الشرقية، المنوفية، البحيرة، كفر الشيخ، دمياط، بورسعيد، الإسماعيلية، السويس، والبحر الأحمر.
                 </p>
               </div>
               <div className="flex items-center gap-1.5 text-text-muted text-[11px] mt-4 pt-3 border-t border-white/5">
@@ -245,17 +245,36 @@ export default function ShippingPolicyClientPage() {
               </div>
             </div>
 
-            {/* Region 2: Upper Egypt & Frontiers */}
+            {/* Region 2: Upper Egypt */}
             <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-4 sm:p-5 flex flex-col justify-between hover:border-accent-red/30 transition-all">
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-product-title font-bold text-white text-sm sm:text-base">محافظات الصعيد والمحافظات الحدودية</span>
+                  <span className="font-product-title font-bold text-white text-sm sm:text-base">محافظات خط الصعيد</span>
+                  <span className="font-mono font-black text-accent-red text-base bg-accent-red/10 px-2.5 py-0.5 rounded-lg border border-accent-red/20">
+                    100 ج.م
+                  </span>
+                </div>
+                <p className="text-text-muted text-xs leading-relaxed font-body">
+                  الفيوم، بني سويف، المنيا، أسيوط، سوهاج، قنا، الأقصر، وأسوان.
+                </p>
+              </div>
+              <div className="flex items-center gap-1.5 text-text-muted text-[11px] mt-4 pt-3 border-t border-white/5">
+                <span className="material-symbols-outlined text-sm text-accent-red">schedule</span>
+                <span>مدة التوصيل: <strong className="text-white font-mono">24 - 48 ساعة</strong></span>
+              </div>
+            </div>
+
+            {/* Region 3: Frontier Governorates */}
+            <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-4 sm:p-5 flex flex-col justify-between hover:border-accent-red/30 transition-all">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-product-title font-bold text-white text-sm sm:text-base">المحافظات الحدودية</span>
                   <span className="font-mono font-black text-accent-red text-base bg-accent-red/10 px-2.5 py-0.5 rounded-lg border border-accent-red/20">
                     120 ج.م
                   </span>
                 </div>
                 <p className="text-text-muted text-xs leading-relaxed font-body">
-                  الفيوم، بني سويف، المنيا، أسيوط، سوهاج، قنا، الأقصر، أسوان، البحر الأحمر، الوادي الجديد، شمال سيناء، وجنوب سيناء.
+                  مطروح، شمال سيناء، جنوب سيناء، والوادي الجديد.
                 </p>
               </div>
               <div className="flex items-center gap-1.5 text-text-muted text-[11px] mt-4 pt-3 border-t border-white/5">

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import ProductCard from '@/components/site/ProductCard';
@@ -260,6 +260,21 @@ export default function HomeClientPage({
   const titleAccent = words.length > 1 ? words.pop()! : '';
   const titleMain = words.join(' ');
 
+  const shippingBannerDisplayText = useMemo(() => {
+    const rawText = settings.promoBanner?.text?.trim();
+    if (rawText && !rawText.includes('خصم خاص') && !rawText.includes('%')) {
+      return rawText;
+    }
+    if (settings.freeShipping?.isEnabled) {
+      const threshold = settings.freeShipping.thresholdAmount;
+      if (threshold && threshold > 0) {
+        return `شحن مجاني لجميع محافظات مصر للأوردرات فوق ${threshold.toLocaleString('ar-EG')} ج.م 🚚📦`;
+      }
+      return 'شحن مجاني لجميع محافظات مصر لفترة محدودة 🚚📦';
+    }
+    return rawText || 'شحن سريع لجميع محافظات مصر والتوصيل لحد باب بيتك 🚚⚡';
+  }, [settings.promoBanner?.text, settings.freeShipping]);
+
   return (
     <div className="bg-black text-text-primary overflow-x-hidden" dir="rtl">
       <HomePreloader />
@@ -267,10 +282,12 @@ export default function HomeClientPage({
       {/* Hero Banner Section */}
       <HeroBanner settings={settings} titleMain={titleMain} titleAccent={titleAccent} />
 
-      {/* Promo Banner Strip (Animated Infinite Ticker with Larger Font) */}
-      {settings.promoBanner?.isActive && settings.promoBanner.text && (
-        <div 
-          className="relative w-full overflow-hidden bg-accent-red text-white py-2.5 md:py-3.5 border-y border-white/15 shadow-[0_4px_25px_rgba(227,30,36,0.35)] z-20 select-none group"
+      {/* Shipping Ticker Strip (Animated Infinite Ticker Linked to Shipping) */}
+      {settings.promoBanner?.isActive && (
+        <Link 
+          href="/shipping-policy"
+          title="اضغط لمعرفة تفاصيل الشحن والتوصيل للمحافظات"
+          className="block relative w-full overflow-hidden bg-accent-red hover:bg-[#ff1a22] text-white py-2.5 md:py-3.5 border-y border-white/15 shadow-[0_4px_25px_rgba(227,30,36,0.35)] z-20 select-none group transition-colors"
           dir="ltr"
         >
           <div className="animate-promo-ticker">
@@ -285,17 +302,17 @@ export default function HomeClientPage({
                     key={`promo-item-${trackIdx}-${itemIdx}`}
                     className="flex items-center gap-2.5 md:gap-3.5 text-white font-product-title font-black text-base sm:text-lg md:text-xl lg:text-2xl tracking-wide whitespace-nowrap"
                   >
-                    <span className="material-symbols-outlined text-xl md:text-2xl lg:text-3xl text-white drop-shadow-sm">
-                      campaign
+                    <span className="material-symbols-outlined text-xl md:text-2xl lg:text-3xl text-white drop-shadow-sm group-hover:scale-110 transition-transform">
+                      local_shipping
                     </span>
-                    <span className="drop-shadow-sm">{settings.promoBanner.text}</span>
+                    <span className="drop-shadow-sm">{shippingBannerDisplayText}</span>
                     <span className="text-white/40 text-xs md:text-sm font-bold mx-2">★</span>
                   </div>
                 ))}
               </div>
             ))}
           </div>
-        </div>
+        </Link>
       )}
 
       {/* Flash Sale Banner (Modern Minimal Athletic Design) */}

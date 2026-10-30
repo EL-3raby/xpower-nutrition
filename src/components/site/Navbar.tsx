@@ -39,8 +39,8 @@ export default function Navbar() {
 
       {/* Mobile Top Bar (md:hidden) */}
       <div className="md:hidden grid grid-cols-3 items-center w-full px-4 py-2.5 max-w-[1400px] mx-auto relative z-10" dir="rtl">
-        {/* Right: Cart Button */}
-        <div className="flex items-center justify-start">
+        {/* Right: Cart & Search Buttons */}
+        <div className="flex items-center justify-start gap-1">
           <button 
             type="button"
             onClick={() => setIsDrawerOpen(true)}
@@ -53,6 +53,15 @@ export default function Navbar() {
                 {getCartCount()}
               </span>
             )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent('open-global-search'))}
+            className="text-zinc-100 hover:text-white active:scale-90 transition-all p-1.5 flex items-center justify-center"
+            aria-label="بحث في المتجر"
+          >
+            <span className="material-symbols-outlined text-[24px]">search</span>
           </button>
         </div>
 
@@ -139,9 +148,10 @@ export default function Navbar() {
         {/* 3. Left (End in RTL): Search & Cart Controls - Identical Tab Design */}
         <div className="flex items-center justify-end h-full flex-1 z-10">
           
-          {/* Search Tab */}
-          <Link 
-            href="/products" 
+          {/* Search Tab (Opens Global Instant Search Modal) */}
+          <button 
+            type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent('open-global-search'))}
             className="h-full w-20 lg:w-24 xl:w-28 flex items-center justify-center relative group select-none"
             aria-label="بحث في المنتجات"
           >
@@ -154,11 +164,12 @@ export default function Navbar() {
 
             {/* Tooltip on Hover */}
             <div className="absolute top-[calc(100%+8px)] left-1/2 -translate-x-1/2 pointer-events-none opacity-0 translate-y-1 scale-95 group-hover:opacity-100 group-hover:translate-y-0 group-hover:scale-100 transition-all duration-150 ease-out z-50">
-              <div className="relative bg-[#101014]/95 backdrop-blur-2xl border border-white/[0.12] text-zinc-100 text-[11.5px] font-product-title font-bold px-3 py-1 rounded-lg shadow-[0_10px_25px_rgba(0,0,0,0.85)] whitespace-nowrap">
-                بحث
+              <div className="relative bg-[#101014]/95 backdrop-blur-2xl border border-white/[0.12] text-zinc-100 text-[11.5px] font-product-title font-bold px-3 py-1 rounded-lg shadow-[0_10px_25px_rgba(0,0,0,0.85)] whitespace-nowrap flex items-center gap-1.5">
+                <span>بحث</span>
+                <span className="text-[9.5px] bg-white/10 px-1 py-0.2 rounded font-mono text-zinc-400">Ctrl+K</span>
               </div>
             </div>
-          </Link>
+          </button>
 
           {/* Cart Tab */}
           <button 

@@ -245,6 +245,22 @@ export default function MobileCategoryDrawer({ isOpen, onClose }: MobileCategory
             className="flex-1 overflow-y-auto px-5 py-5 space-y-1.5 drawer-scrollbar overscroll-contain touch-pan-y"
             style={{ WebkitOverflowScrolling: 'touch' }}
           >
+            {/* Quick Search Trigger in Mobile Drawer */}
+            <div className="pb-3">
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  setTimeout(() => {
+                    window.dispatchEvent(new CustomEvent('open-global-search'));
+                  }, 200);
+                }}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-zinc-400 hover:text-white hover:border-accent-red/40 text-xs font-display font-bold transition-all active:scale-95"
+              >
+                <span className="material-symbols-outlined text-accent-red text-lg">search</span>
+                <span>ابحث في المكملات...</span>
+              </button>
+            </div>
             
             {/* الرئيسية */}
             <Link

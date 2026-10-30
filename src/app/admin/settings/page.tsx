@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { getSiteConfig, updateSiteConfig } from '@/lib/firebase/admin-actions';
+import { getSiteConfig, updateSiteConfig, DEFAULT_CONFIG } from '@/lib/firebase/admin-actions';
 import { getProducts } from '@/lib/firebase/products';
 import { SiteConfig, Product } from '@/lib/types';
 import { Timestamp } from 'firebase/firestore';
@@ -20,9 +20,6 @@ export default function AdminSettingsPage() {
   const [heroSub, setHeroSub] = useState('');
   const [heroCtaText, setHeroCtaText] = useState('');
   const [heroCtaLink, setHeroCtaLink] = useState('');
-
-  const [promoIsActive, setPromoIsActive] = useState(true);
-  const [promoText, setPromoText] = useState('');
 
   const [uploadingHero, setUploadingHero] = useState(false);
   const [heroUploadProgress, setHeroUploadProgress] = useState(0);
@@ -93,9 +90,6 @@ export default function AdminSettingsPage() {
         setHeroSub(fetched.heroBanner?.subtitle || '');
         setHeroCtaText(fetched.heroBanner?.ctaText || '');
         setHeroCtaLink(fetched.heroBanner?.ctaLink || '');
-
-        setPromoIsActive(fetched.promoBanner?.isActive ?? true);
-        setPromoText(fetched.promoBanner?.text || '');
 
         setPhone(fetched.contactInfo?.phone || '');
         setWhatsapp(fetched.contactInfo?.whatsapp || '');
@@ -178,10 +172,7 @@ export default function AdminSettingsPage() {
           ctaText: heroCtaText,
           ctaLink: heroCtaLink
         },
-        promoBanner: {
-          isActive: promoIsActive,
-          text: promoText
-        },
+        promoBanner: config?.promoBanner || DEFAULT_CONFIG.promoBanner,
         contactInfo: {
           phone,
           whatsapp,
@@ -554,36 +545,6 @@ export default function AdminSettingsPage() {
                 dir="ltr"
               />
             </div>
-          </div>
-        </div>
-
-        {/* Section 2: Promo Banner */}
-        <div className={sectionClass}>
-          <h2 className={headerClass}>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent-red/20 to-transparent flex items-center justify-center border border-accent-red/20">
-              <span className="material-symbols-outlined text-accent-red">campaign</span>
-            </div>
-            بانر العروض العلوي (Promo Banner)
-          </h2>
-
-          <div className="bg-bg-primary/30 p-4 rounded-xl border border-white/5">
-            <ToggleSwitch
-              id="promoIsActive"
-              checked={promoIsActive}
-              onChange={setPromoIsActive}
-              label="تفعيل وعرض البانر العلوي بالمتجر"
-            />
-          </div>
-
-          <div>
-            <label className={labelClass}>نص الإعلان أو الخصم المعروض</label>
-            <input
-              type="text"
-              placeholder="مثال: خصم 20% احتفالاً بنهاية العام!"
-              value={promoText}
-              onChange={(e) => setPromoText(e.target.value)}
-              className={inputClass}
-            />
           </div>
         </div>
 

@@ -1,15 +1,17 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import ProductCard from '@/components/site/ProductCard';
 import { Product, Category } from '@/lib/types';
 import { getProducts } from '@/lib/firebase/products';
 import { getCategories } from '@/lib/firebase/admin-actions';
 import Spinner from '@/components/ui/Spinner';
+import { searchProductsScored } from '@/lib/search/search-engine';
 
 function ProductsContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -18,8 +20,8 @@ function ProductsContent() {
   // Filter & Sort States
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [minPrice, setMinPrice] = useState<number | ''>('');
-  const [maxPrice, setMaxPrice] = useState<number | ''>('');
+  const [onlyDiscounted, setOnlyDiscounted] = useState(false);
+  const [onlyInStock, setOnlyInStock] = useState(false);
   const [sortBy, setSortBy] = useState('latest');
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -29,18 +31,40 @@ function ProductsContent() {
     { value: 'latest', label: 'الأحدث وصل حديثاً' },
     { value: 'popular', label: 'الأكثر مبيعاً' },
     { value: 'top-rated', label: 'الأكثر تقييماً' },
+    { value: 'discount-desc', label: 'الخصم الأكبر أولاً 🔥' },
     { value: 'price-asc', label: 'السعر: من الأقل للأعلى' },
     { value: 'price-desc', label: 'السعر: من الأعلى للأقل' }
   ];
 
-  // Sync category filter from URL search params if present
+  // 1. Sync filters from URL search params on mount & param changes
   useEffect(() => {
     const catQuery = searchParams.get('category');
     if (catQuery) {
       setSelectedCategory(catQuery);
     }
+
+    const searchVal = searchParams.get('search');
+    if (searchVal) {
+      setSearchQuery(searchVal);
+    }
+
+    const saleVal = searchParams.get('sale') || searchParams.get('discount');
+    if (saleVal === 'true' || saleVal === '1') {
+      setOnlyDiscounted(true);
+    }
+
+    const inStockVal = searchParams.get('inStock');
+    if (inStockVal === 'true' || inStockVal === '1') {
+      setOnlyInStock(true);
+    }
+
+    const sortVal = searchParams.get('sort');
+    if (sortVal) {
+      setSortBy(sortVal);
+    }
   }, [searchParams]);
 
+  // 2. Fetch products and active categories
   useEffect(() => {
     async function loadData() {
       try {
@@ -76,83 +100,64 @@ function ProductsContent() {
     loadData();
   }, []);
 
-// Comprehensive text normalizer for Arabic and English smart search
-function normalizeSearchText(text: string): string {
-  if (!text) return '';
-  return text
-    .toLowerCase()
-    .replace(/[أإآ]/g, 'ا')
-    .replace(/[ة]/g, 'ه')
-    .replace(/[ى]/g, 'ي')
-    .replace(/[\u064B-\u065F]/g, '') // remove Arabic tashkeel
-    .replace(/(\d+)\s*(srv|servings|serving|g|gm|kg|lb|lbs|حصة|جرعة|جرام|كيلو)/gi, '$1 $2') // split 60srv -> 60 srv
-    .replace(/[-_]/g, ' ')
-    .replace(/[^a-z0-9\u0600-\u06FF\s]/gi, ' ')
-    .trim();
-}
+  // Fast Category Map for Search Engine
+  const categoriesMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    categories.forEach(c => {
+      if (c.slug) map[c.slug] = c.name;
+    });
+    return map;
+  }, [categories]);
 
-  // Filter & Sort Logic
+  // Counts for quick badges
+  const discountedCount = useMemo(() => {
+    return products.filter(p => p.oldPrice && p.oldPrice > p.price).length;
+  }, [products]);
+
+  const inStockCount = useMemo(() => {
+    return products.filter(p => p.stock > 0).length;
+  }, [products]);
+
+  // 3. Smart Search & Filter Engine Execution
   const filteredProducts = useMemo(() => {
-    const tokens = searchQuery.trim() ? normalizeSearchText(searchQuery).split(/\s+/).filter(Boolean) : [];
+    let pool = products;
 
-    return products.filter(p => {
-      // Smart Multi-Field Search (Name, Category, Slug, Flavors, Weight, Size, Servings, SRV, Description)
-      if (tokens.length > 0) {
-        const catObj = categories.find(c => c.slug === p.category);
-        const categoryArabic = catObj?.name || '';
-        const categoryAliases = p.category === 'creatine' ? 'كرياتين كرياتين مونوهيدرات طاقة باور قوة' : 
-                                p.category === 'protein' ? 'بروتين واي بروتين مصل اللبن عضلات استشفاء' :
-                                p.category === 'mass-gainer' ? 'ضخامة عضلية جينر كربوهيدرات وزن زيادة' : '';
+    // A. Unified Arabic-Normalized & Scored Search
+    if (searchQuery.trim()) {
+      const scoredResults = searchProductsScored(pool, searchQuery, categoriesMap);
+      pool = scoredResults.map(r => r.product);
+    }
 
-        const flavorsText = Array.isArray(p.flavors) ? p.flavors.join(' ') : '';
-        
-        // Comprehensive weight and size terms
-        const rawWeightNum = p.weight ? p.weight.replace(/[^0-9.]/g, '') : '';
-        const weightText = p.weight 
-          ? `${p.weight} ${rawWeightNum} جرام غرام g gm kg كيلو حجم وزن size weight مقاس` 
-          : '';
+    // B. Category Filter
+    if (selectedCategory !== 'all') {
+      pool = pool.filter(p => p.category === selectedCategory);
+    }
 
-        // Comprehensive servings, SRV, dose, and scoop terms
-        const servingsText = p.servings 
-          ? `${p.servings} ${p.servings}srv ${p.servings} srv ${p.servings}servings ${p.servings} servings srv srvs servings serving حصة جرعة سكوب جرعات حصص سيرفنج سكوبات scoops scoop` 
-          : '';
+    // C. Discounted Only Filter
+    if (onlyDiscounted) {
+      pool = pool.filter(p => p.oldPrice && p.oldPrice > p.price);
+    }
 
-        const haystack = normalizeSearchText(`
-          ${p.name} 
-          ${p.slug || ''} 
-          ${p.category || ''} 
-          ${categoryArabic} 
-          ${categoryAliases} 
-          ${flavorsText} 
-          ${weightText} 
-          ${servingsText} 
-          ${p.description || ''}
-        `);
+    // D. In-Stock Only Filter
+    if (onlyInStock) {
+      pool = pool.filter(p => p.stock > 0);
+    }
 
-        // Check that EVERY search word/token matches the product's combined data
-        const matchesAllTokens = tokens.every(token => haystack.includes(token));
-        if (!matchesAllTokens) return false;
-      }
-
-      // Category
-      if (selectedCategory !== 'all' && p.category !== selectedCategory) {
-        return false;
-      }
-
-      // Price Range
-      if (minPrice !== '' && p.price < minPrice) return false;
-      if (maxPrice !== '' && p.price > maxPrice) return false;
-
-      return true;
-    }).sort((a, b) => {
+    // E. Sorting
+    return [...pool].sort((a, b) => {
       if (sortBy === 'price-asc') return a.price - b.price;
       if (sortBy === 'price-desc') return b.price - a.price;
       if (sortBy === 'popular') return (b.salesCount || 0) - (a.salesCount || 0);
+      if (sortBy === 'discount-desc') {
+        const getSavings = (p: Product) => (p.oldPrice && p.oldPrice > p.price ? p.oldPrice - p.price : 0);
+        return getSavings(b) - getSavings(a);
+      }
       if (sortBy === 'top-rated') {
         const ratingDiff = (b.avgRating || 0) - (a.avgRating || 0);
         if (ratingDiff !== 0) return ratingDiff;
         return (b.reviewCount || 0) - (a.reviewCount || 0);
       }
+
       // 'latest' default: keep main supplements first, accessories at the end
       if (selectedCategory === 'all') {
         const isAcc = (cat?: string) => {
@@ -167,15 +172,23 @@ function normalizeSearchText(text: string): string {
       }
       return 0;
     });
-  }, [products, categories, searchQuery, selectedCategory, minPrice, maxPrice, sortBy]);
+  }, [products, categoriesMap, searchQuery, selectedCategory, onlyDiscounted, onlyInStock, sortBy]);
 
   const clearFilters = () => {
     setSearchQuery('');
     setSelectedCategory('all');
-    setMinPrice('');
-    setMaxPrice('');
+    setOnlyDiscounted(false);
+    setOnlyInStock(false);
     setSortBy('latest');
+    router.replace('/products');
   };
+
+  const hasActiveFilters = Boolean(
+    searchQuery.trim() ||
+    selectedCategory !== 'all' ||
+    onlyDiscounted ||
+    onlyInStock
+  );
 
   if (loading) {
     return (
@@ -216,21 +229,31 @@ function normalizeSearchText(text: string): string {
               placeholder="ابحث بالاسم، القسم، النكهة، الحجم..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#0a0a0a] border border-white/10 rounded-2xl text-white px-5 py-3.5 pr-11 focus:border-accent-red focus:ring-1 focus:ring-accent-red focus:outline-none text-sm transition-all shadow-inner"
+              className="w-full bg-[#0a0a0a] border border-white/10 rounded-2xl text-white px-5 py-3.5 pr-11 focus:border-accent-red focus:ring-1 focus:ring-accent-red focus:outline-none text-sm font-display font-medium transition-all shadow-inner"
             />
             <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-text-muted">
               search
             </span>
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white"
+                aria-label="مسح البحث"
+              >
+                <span className="material-symbols-outlined text-base">close</span>
+              </button>
+            )}
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="text-xs text-text-muted">الترتيب:</span>
+            <span className="text-xs text-text-muted font-display">الترتيب:</span>
             
             {/* Custom Sort Dropdown */}
             <div className="relative">
               <button 
                 onClick={() => setIsSortOpen(!isSortOpen)}
-                className="bg-[#0a0a0a] border border-white/10 rounded-xl text-white px-4 py-3 text-sm flex items-center justify-between min-w-[200px] hover:border-accent-red/50 transition-colors"
+                className="bg-[#0a0a0a] border border-white/10 rounded-xl text-white px-4 py-3 text-sm flex items-center justify-between min-w-[210px] hover:border-accent-red/50 transition-colors font-display font-bold"
               >
                 <span>{sortOptions.find(o => o.value === sortBy)?.label || 'الترتيب'}</span>
                 <span className="material-symbols-outlined text-sm">{isSortOpen ? 'expand_less' : 'expand_more'}</span>
@@ -244,7 +267,7 @@ function normalizeSearchText(text: string): string {
                       <button
                         key={option.value}
                         onClick={() => { setSortBy(option.value); setIsSortOpen(false); }}
-                        className={`w-full text-right px-4 py-3 text-sm transition-colors ${sortBy === option.value ? 'bg-accent-red text-white font-bold' : 'text-text-muted hover:bg-white/5 hover:text-white'}`}
+                        className={`w-full text-right px-4 py-3 text-sm transition-colors font-display ${sortBy === option.value ? 'bg-accent-red text-white font-bold' : 'text-text-muted hover:bg-white/5 hover:text-white'}`}
                       >
                         {option.label}
                       </button>
@@ -282,17 +305,31 @@ function normalizeSearchText(text: string): string {
               placeholder="ابحث بالاسم، القسم، النكهة، الحجم..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#0a0a0a] border border-white/10 text-white rounded-2xl px-4 py-3.5 pr-11 focus:border-accent-red focus:ring-1 focus:ring-accent-red focus:outline-none text-sm transition-all shadow-inner"
+              className="w-full bg-[#0a0a0a] border border-white/10 text-white rounded-2xl px-4 py-3.5 pr-11 focus:border-accent-red focus:ring-1 focus:ring-accent-red focus:outline-none text-sm font-display font-medium transition-all shadow-inner"
             />
             <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-text-muted text-lg">
               search
             </span>
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white"
+                aria-label="مسح البحث"
+              >
+                <span className="material-symbols-outlined text-base">close</span>
+              </button>
+            )}
           </div>
           <button
             onClick={() => setIsMobileFilterOpen(true)}
-            className="bg-gradient-to-r from-accent-red to-red-600 text-white w-14 rounded-2xl shrink-0 flex items-center justify-center shadow-[0_0_15px_rgba(227,30,36,0.3)] active:scale-95 transition-transform"
+            className="bg-gradient-to-r from-accent-red to-red-600 text-white w-14 rounded-2xl shrink-0 flex items-center justify-center shadow-[0_0_15px_rgba(227,30,36,0.3)] active:scale-95 transition-transform relative"
+            aria-label="فتح الفلاتر"
           >
             <span className="material-symbols-outlined text-xl">tune</span>
+            {hasActiveFilters && (
+              <span className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-white ring-2 ring-accent-red animate-ping" />
+            )}
           </button>
         </div>
 
@@ -332,11 +369,11 @@ function normalizeSearchText(text: string): string {
 
               {/* Mobile Sort */}
               <div>
-                <label className="text-[11px] text-text-muted mb-2 block font-bold">الترتيب حسب:</label>
+                <label className="text-[11px] text-text-muted mb-2 block font-bold font-display">الترتيب حسب:</label>
                 <div className="relative">
                   <button 
                     onClick={() => setIsSortOpen(!isSortOpen)}
-                    className="w-full bg-[#050505] border border-white/10 rounded-xl text-white px-4 py-3 text-sm flex items-center justify-between hover:border-accent-red/50 transition-colors"
+                    className="w-full bg-[#050505] border border-white/10 rounded-xl text-white px-4 py-3 text-sm flex items-center justify-between hover:border-accent-red/50 transition-colors font-display"
                   >
                     <span>{sortOptions.find(o => o.value === sortBy)?.label || 'الترتيب'}</span>
                     <span className="material-symbols-outlined text-sm">{isSortOpen ? 'expand_less' : 'expand_more'}</span>
@@ -350,7 +387,7 @@ function normalizeSearchText(text: string): string {
                           <button
                             key={option.value}
                             onClick={() => { setSortBy(option.value); setIsSortOpen(false); }}
-                            className={`w-full text-right px-4 py-3 text-sm transition-colors ${sortBy === option.value ? 'bg-accent-red text-white font-bold' : 'text-text-muted hover:bg-white/5 hover:text-white'}`}
+                            className={`w-full text-right px-4 py-3 text-sm transition-colors font-display ${sortBy === option.value ? 'bg-accent-red text-white font-bold' : 'text-text-muted hover:bg-white/5 hover:text-white'}`}
                           >
                             {option.label}
                           </button>
@@ -362,22 +399,72 @@ function normalizeSearchText(text: string): string {
               </div>
             </div>
 
+            {/* Quick Status Filters: Discounted & In Stock */}
+            <div className="space-y-2.5">
+              <h3 className="font-display text-xs font-black text-white uppercase tracking-wider mb-3 flex items-center gap-2">
+                <span className="w-1.5 h-1.5 bg-accent-red rounded-full"></span>
+                عروض وحالة التوفر
+              </h3>
+
+              {/* Discounted / On-Sale Filter (طلب المستخدم: إضافة المنتجات اللي عليها خصم) */}
+              <button
+                type="button"
+                onClick={() => setOnlyDiscounted(!onlyDiscounted)}
+                className={`w-full text-right px-4 py-3 rounded-2xl text-xs sm:text-sm font-display font-black transition-all flex items-center justify-between border active:scale-98 ${
+                  onlyDiscounted
+                    ? 'bg-accent-red text-white border-accent-red shadow-[0_0_15px_rgba(227,30,36,0.4)]'
+                    : 'bg-white/[0.03] border-white/10 text-zinc-300 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className={`material-symbols-outlined text-base ${onlyDiscounted ? 'text-white' : 'text-accent-red'}`}>
+                    local_fire_department
+                  </span>
+                  <span>عروض وخصومات فقط 🔥</span>
+                </div>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${onlyDiscounted ? 'bg-white/20' : 'bg-black/60 text-zinc-400'}`}>
+                  {discountedCount}
+                </span>
+              </button>
+
+              {/* In-Stock Only Filter */}
+              <button
+                type="button"
+                onClick={() => setOnlyInStock(!onlyInStock)}
+                className={`w-full text-right px-4 py-3 rounded-2xl text-xs sm:text-sm font-display font-black transition-all flex items-center justify-between border active:scale-98 ${
+                  onlyInStock
+                    ? 'bg-emerald-600 text-white border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.35)]'
+                    : 'bg-white/[0.03] border-white/10 text-zinc-300 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className={`material-symbols-outlined text-base ${onlyInStock ? 'text-white' : 'text-emerald-400'}`}>
+                    check_circle
+                  </span>
+                  <span>المتوفر بالمخزون فقط</span>
+                </div>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${onlyInStock ? 'bg-white/20' : 'bg-black/60 text-zinc-400'}`}>
+                  {inStockCount}
+                </span>
+              </button>
+            </div>
+
             {/* Categories Filter */}
-            <div>
-              <h3 className="font-product-title text-xs font-bold text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+            <div className="md:border-t md:border-white/5 md:pt-6 pt-2">
+              <h3 className="font-display text-xs font-black text-white uppercase tracking-wider mb-4 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 bg-accent-red rounded-full"></span>
                 الأقسام
               </h3>
               <div className="flex flex-col gap-1.5">
                 <button
                   onClick={() => setSelectedCategory('all')}
-                  className={`w-full text-right px-4 py-3 rounded-xl text-sm transition-all flex items-center justify-between ${selectedCategory === 'all'
+                  className={`w-full text-right px-4 py-3 rounded-xl text-sm transition-all flex items-center justify-between font-display ${selectedCategory === 'all'
                       ? 'bg-accent-red text-white font-bold shadow-[0_0_15px_rgba(227,30,36,0.3)]'
                       : 'bg-white/5 text-text-muted hover:bg-white/10'
                     }`}
                 >
                   <span>الكل</span>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full ${selectedCategory === 'all' ? 'bg-white/20' : 'bg-black/50'}`}>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${selectedCategory === 'all' ? 'bg-white/20' : 'bg-black/50'}`}>
                     {products.length}
                   </span>
                 </button>
@@ -387,13 +474,13 @@ function normalizeSearchText(text: string): string {
                     <button
                       key={cat.id}
                       onClick={() => setSelectedCategory(cat.slug)}
-                      className={`w-full text-right px-4 py-3 rounded-xl text-sm transition-all flex items-center justify-between ${selectedCategory === cat.slug
+                      className={`w-full text-right px-4 py-3 rounded-xl text-sm transition-all flex items-center justify-between font-display ${selectedCategory === cat.slug
                           ? 'bg-accent-red text-white font-bold shadow-[0_0_15px_rgba(227,30,36,0.3)]'
                           : 'bg-white/5 text-text-muted hover:bg-white/10'
                         }`}
                     >
                       <span>{cat.name}</span>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full ${selectedCategory === cat.slug ? 'bg-white/20' : 'bg-black/50'}`}>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${selectedCategory === cat.slug ? 'bg-white/20' : 'bg-black/50'}`}>
                         {count}
                       </span>
                     </button>
@@ -402,67 +489,95 @@ function normalizeSearchText(text: string): string {
               </div>
             </div>
 
-            {/* Price Filter */}
-            <div className="md:border-t md:border-white/5 md:pt-6 pt-2">
-              <h3 className="font-product-title text-xs font-bold text-white uppercase tracking-wider mb-4 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 bg-accent-red rounded-full"></span>
-                نطاق السعر (ج.م)
-              </h3>
-              <div className="flex items-center gap-3">
-                <div className="flex-1">
-                  <label className="text-[10px] text-text-muted mb-1 block">من</label>
-                  <input
-                    type="number"
-                    placeholder="0"
-                    value={minPrice}
-                    onChange={(e) => setMinPrice(e.target.value ? Number(e.target.value) : '')}
-                    className="w-full bg-[#050505] border border-white/10 rounded-xl text-white text-sm px-3 py-3 focus:border-accent-red focus:ring-1 focus:ring-accent-red focus:outline-none"
-                  />
-                </div>
-                <div className="flex-1">
-                  <label className="text-[10px] text-text-muted mb-1 block">إلى</label>
-                  <input
-                    type="number"
-                    placeholder="10000"
-                    value={maxPrice}
-                    onChange={(e) => setMaxPrice(e.target.value ? Number(e.target.value) : '')}
-                    className="w-full bg-[#050505] border border-white/10 rounded-xl text-white text-sm px-3 py-3 focus:border-accent-red focus:ring-1 focus:ring-accent-red focus:outline-none"
-                  />
-                </div>
-              </div>
-            </div>
-
             {/* Actions */}
             <div className="md:border-t md:border-white/5 md:pt-6 pt-2 space-y-3 pb-6 md:pb-0">
               <button
                 onClick={() => setIsMobileFilterOpen(false)}
-                className="w-full md:hidden py-4 rounded-xl bg-gradient-to-r from-accent-red to-red-600 text-white font-bold text-sm shadow-[0_0_20px_rgba(227,30,36,0.3)] active:scale-95 transition-transform"
+                className="w-full md:hidden py-4 rounded-xl bg-gradient-to-r from-accent-red to-red-600 text-white font-display font-black text-sm shadow-[0_0_20px_rgba(227,30,36,0.3)] active:scale-95 transition-transform"
               >
                 عرض النتائج ({filteredProducts.length})
               </button>
 
-              <button
-                onClick={clearFilters}
-                className="w-full py-3.5 rounded-xl bg-white/5 border border-white/10 text-text-muted hover:text-white hover:bg-white/10 text-xs font-bold transition-colors flex items-center justify-center gap-2 active:scale-95"
-              >
-                <span className="material-symbols-outlined text-[16px]">restart_alt</span>
-                إعادة ضبط              </button>
+              {hasActiveFilters && (
+                <button
+                  onClick={clearFilters}
+                  className="w-full py-3 rounded-xl bg-white/5 border border-white/10 text-text-muted hover:text-white hover:bg-white/10 text-xs font-display font-bold transition-colors flex items-center justify-center gap-2 active:scale-95"
+                >
+                  <span className="material-symbols-outlined text-[16px]">restart_alt</span>
+                  إعادة ضبط الفلاتر
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Product Grid */}
+          {/* Product Grid & Active Filters Bar */}
           <div className="md:col-span-3">
+
+            {/* Active Filter Chips & Live Count */}
+            <div className="flex items-center justify-between gap-3 mb-5 flex-wrap bg-[#0a0a0c] border border-white/5 px-4 py-3 rounded-2xl">
+              <div className="text-xs text-zinc-400 font-display font-medium">
+                عرض <span className="text-white font-black">{filteredProducts.length}</span> من إجمالي <span className="text-white font-black">{products.length}</span> منتج
+              </div>
+
+              {hasActiveFilters && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  {searchQuery && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-xs font-display text-white">
+                      <span>بحث: {searchQuery}</span>
+                      <button onClick={() => setSearchQuery('')} className="text-zinc-400 hover:text-white" aria-label="حذف بحث">
+                        <span className="material-symbols-outlined text-[13px]">close</span>
+                      </button>
+                    </span>
+                  )}
+                  {selectedCategory !== 'all' && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-xs font-display text-white">
+                      <span>القسم: {categories.find(c => c.slug === selectedCategory)?.name || selectedCategory}</span>
+                      <button onClick={() => setSelectedCategory('all')} className="text-zinc-400 hover:text-white" aria-label="حذف قسم">
+                        <span className="material-symbols-outlined text-[13px]">close</span>
+                      </button>
+                    </span>
+                  )}
+                  {onlyDiscounted && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-accent-red/20 border border-accent-red/40 text-xs font-display text-accent-red">
+                      <span>عروض وخصومات</span>
+                      <button onClick={() => setOnlyDiscounted(false)} className="text-accent-red hover:text-white" aria-label="إلغاء خصومات">
+                        <span className="material-symbols-outlined text-[13px]">close</span>
+                      </button>
+                    </span>
+                  )}
+                  {onlyInStock && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-xs font-display text-emerald-400">
+                      <span>المتوفر بالمخزون</span>
+                      <button onClick={() => setOnlyInStock(false)} className="text-emerald-400 hover:text-white" aria-label="إلغاء المتوفر">
+                        <span className="material-symbols-outlined text-[13px]">close</span>
+                      </button>
+                    </span>
+                  )}
+                  <button
+                    onClick={clearFilters}
+                    className="text-[11px] font-body text-accent-red hover:underline mr-1 font-bold"
+                  >
+                    مسح الكل
+                  </button>
+                </div>
+              )}
+            </div>
+
             {filteredProducts.length === 0 ? (
-              <div className="bg-[#0a0a0a] border border-white/5 p-12 text-center my-8 rounded-3xl">
-                <span className="material-symbols-outlined text-text-muted text-5xl mb-4 block">search_off</span>
-                <h3 className="text-lg font-bold text-white mb-2">لا توجد منتجات تطابق خيارات البحث</h3>
-                <p className="text-text-muted text-sm mb-6">جرب تغيير الفلاتر أو البحث عن منتج آخر.</p>
-                <button
-                  onClick={clearFilters}
-                  className="px-6 py-2.5 bg-accent-red text-white font-bold text-xs rounded-xl shadow-[0_0_15px_rgba(227,30,36,0.2)] active:scale-95 transition-transform"
-                >
-                  إعادة ضبط البحث
-                </button>
+              <div className="bg-[#0a0a0a] border border-white/5 p-12 text-center my-4 rounded-3xl space-y-4">
+                <span className="material-symbols-outlined text-text-muted text-5xl block">search_off</span>
+                <h3 className="text-lg font-display font-black text-white">لا توجد منتجات تطابق خيارات البحث</h3>
+                <p className="text-text-muted text-xs sm:text-sm font-body max-w-md mx-auto">
+                  جرب تغيير الفلاتر أو تصفح قسم آخر أو البحث عن مكمل باسم مختلف.
+                </p>
+                <div className="flex justify-center gap-3 pt-2">
+                  <button
+                    onClick={clearFilters}
+                    className="px-6 py-2.5 bg-accent-red text-white font-display font-black text-xs rounded-xl shadow-[0_0_15px_rgba(227,30,36,0.3)] active:scale-95 transition-transform"
+                  >
+                    إعادة ضبط الفلاتر
+                  </button>
+                </div>
               </div>
             ) : (
               <div dir="ltr" className={viewMode === 'grid' ? "grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-6" : "flex flex-col gap-4"}>

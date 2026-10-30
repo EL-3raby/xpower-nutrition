@@ -142,7 +142,7 @@ export const DEFAULT_CONFIG: SiteConfig = {
   },
   promoBanner: {
     isActive: true,
-    text: 'شحن مجاني للطلبات فوق 1000 جنيه!'
+    text: 'شحن مجاني لجميع محافظات مصر للأوردرات فوق 1000 ج.م! 🚚📦'
   },
   contactInfo: {
     phone: '01012345678',
@@ -186,40 +186,56 @@ export const DEFAULT_CONFIG: SiteConfig = {
     title: 'الموقع تحت الصيانة والتطوير',
     message: 'نعمل حالياً على تحسين وتطوير تجربة التسوق لنقدم لكم أفضل خدمة مكملات غذائية. سنعود للعمل قريباً جداً.',
     estimatedEndTime: ''
+  },
+  bulkDiscount: {
+    isActive: false,
+    type: 'percentage',
+    value: 0,
+    scope: 'all',
+    endDate: null
   }
 };
 
 export const UPPER_EGYPT_GOVERNORATES = [
-  'الفيوم', 'بني سويف', 'المنيا', 'أسيوط', 'سوهاج', 'قنا', 'الأقصر', 'أسوان', 'الوادي الجديد'
+  'الفيوم', 'بني سويف', 'المنيا', 'أسيوط', 'سوهاج', 'قنا', 'الأقصر', 'أسوان'
 ];
 
-const DEFAULT_SHIPPING_RATES: ShippingRate[] = [
-  { id: 'rate1', cityName: 'القاهرة', rate: 100, isActive: true },
-  { id: 'rate2', cityName: 'الجيزة', rate: 100, isActive: true },
-  { id: 'rate3', cityName: 'القليوبية', rate: 100, isActive: true },
-  { id: 'rate4', cityName: 'الإسكندرية', rate: 100, isActive: true },
-  { id: 'rate5', cityName: 'الدقهلية', rate: 100, isActive: true },
-  { id: 'rate6', cityName: 'البحيرة', rate: 100, isActive: true },
-  { id: 'rate7', cityName: 'الغربية', rate: 100, isActive: true },
-  { id: 'rate8', cityName: 'المنوفية', rate: 100, isActive: true },
-  { id: 'rate9', cityName: 'الشرقية', rate: 100, isActive: true },
-  { id: 'rate10', cityName: 'كفر الشيخ', rate: 100, isActive: true },
-  { id: 'rate11', cityName: 'دمياط', rate: 100, isActive: true },
-  { id: 'rate12', cityName: 'بورسعيد', rate: 100, isActive: true },
-  { id: 'rate13', cityName: 'الإسماعيلية', rate: 100, isActive: true },
-  { id: 'rate14', cityName: 'السويس', rate: 100, isActive: true },
-  { id: 'rate15', cityName: 'مطروح', rate: 100, isActive: true },
-  { id: 'rate16', cityName: 'شمال سيناء', rate: 100, isActive: true },
-  { id: 'rate17', cityName: 'جنوب سيناء', rate: 100, isActive: true },
-  { id: 'rate18', cityName: 'البحر الأحمر', rate: 100, isActive: true },
-  { id: 'rate19', cityName: 'الفيوم', rate: 120, isActive: true },
-  { id: 'rate20', cityName: 'بني سويف', rate: 120, isActive: true },
-  { id: 'rate21', cityName: 'المنيا', rate: 120, isActive: true },
-  { id: 'rate22', cityName: 'أسيوط', rate: 120, isActive: true },
-  { id: 'rate23', cityName: 'سوهاج', rate: 120, isActive: true },
-  { id: 'rate24', cityName: 'قنا', rate: 120, isActive: true },
-  { id: 'rate25', cityName: 'الأقصر', rate: 120, isActive: true },
-  { id: 'rate26', cityName: 'أسوان', rate: 120, isActive: true },
+export const FRONTIER_GOVERNORATES = [
+  'مطروح', 'شمال سيناء', 'جنوب سيناء', 'الوادي الجديد'
+];
+
+export const DEFAULT_SHIPPING_RATES: ShippingRate[] = [
+  // 1. الدلتا، القناة، القاهرة الكبرى، والبحر الأحمر (80 ج.م)
+  { id: 'rate1', cityName: 'القاهرة', rate: 80, isActive: true },
+  { id: 'rate2', cityName: 'الجيزة', rate: 80, isActive: true },
+  { id: 'rate3', cityName: 'القليوبية', rate: 80, isActive: true },
+  { id: 'rate4', cityName: 'الإسكندرية', rate: 80, isActive: true },
+  { id: 'rate5', cityName: 'الدقهلية', rate: 80, isActive: true },
+  { id: 'rate6', cityName: 'البحيرة', rate: 80, isActive: true },
+  { id: 'rate7', cityName: 'الغربية', rate: 80, isActive: true },
+  { id: 'rate8', cityName: 'المنوفية', rate: 80, isActive: true },
+  { id: 'rate9', cityName: 'الشرقية', rate: 80, isActive: true },
+  { id: 'rate10', cityName: 'كفر الشيخ', rate: 80, isActive: true },
+  { id: 'rate11', cityName: 'دمياط', rate: 80, isActive: true },
+  { id: 'rate12', cityName: 'بورسعيد', rate: 80, isActive: true },
+  { id: 'rate13', cityName: 'الإسماعيلية', rate: 80, isActive: true },
+  { id: 'rate14', cityName: 'السويس', rate: 80, isActive: true },
+  { id: 'rate15', cityName: 'البحر الأحمر', rate: 80, isActive: true },
+
+  // 2. خط الصعيد (100 ج.م)
+  { id: 'rate16', cityName: 'الفيوم', rate: 100, isActive: true },
+  { id: 'rate17', cityName: 'بني سويف', rate: 100, isActive: true },
+  { id: 'rate18', cityName: 'المنيا', rate: 100, isActive: true },
+  { id: 'rate19', cityName: 'أسيوط', rate: 100, isActive: true },
+  { id: 'rate20', cityName: 'سوهاج', rate: 100, isActive: true },
+  { id: 'rate21', cityName: 'قنا', rate: 100, isActive: true },
+  { id: 'rate22', cityName: 'الأقصر', rate: 100, isActive: true },
+  { id: 'rate23', cityName: 'أسوان', rate: 100, isActive: true },
+
+  // 3. المحافظات الحدودية (120 ج.م)
+  { id: 'rate24', cityName: 'مطروح', rate: 120, isActive: true },
+  { id: 'rate25', cityName: 'شمال سيناء', rate: 120, isActive: true },
+  { id: 'rate26', cityName: 'جنوب سيناء', rate: 120, isActive: true },
   { id: 'rate27', cityName: 'الوادي الجديد', rate: 120, isActive: true }
 ];
 
@@ -246,6 +262,10 @@ export async function getSiteConfig(): Promise<SiteConfig> {
         maintenanceMode: {
           ...DEFAULT_CONFIG.maintenanceMode,
           ...(data.maintenanceMode || {})
+        },
+        bulkDiscount: {
+          ...DEFAULT_CONFIG.bulkDiscount,
+          ...(data.bulkDiscount || {})
         }
       } as SiteConfig;
     }
@@ -603,3 +623,44 @@ export async function getAvailableCodesCSV(productName?: string): Promise<string
   return rows.join('\n');
 }
 
+
+export async function syncStandardShippingRates(): Promise<{ count: number }> {
+  if (isDummyFirebase) {
+    return { count: DEFAULT_SHIPPING_RATES.length };
+  }
+  try {
+    const colRef = collection(db, 'shippingRates');
+    const snapshot = await getDocs(colRef);
+    const existingMap = new Map<string, string>(); // cityName -> docId
+    snapshot.forEach(docSnap => {
+      const d = docSnap.data();
+      if (d.cityName) {
+        existingMap.set(d.cityName.trim(), docSnap.id);
+      }
+    });
+
+    const batch = writeBatch(db);
+    DEFAULT_SHIPPING_RATES.forEach(rate => {
+      const existingId = existingMap.get(rate.cityName);
+      if (existingId) {
+        batch.update(doc(db, 'shippingRates', existingId), {
+          rate: rate.rate,
+          isActive: true
+        });
+      } else {
+        batch.set(doc(colRef, rate.id), {
+          cityName: rate.cityName,
+          rate: rate.rate,
+          isActive: true
+        });
+      }
+    });
+
+    await batch.commit();
+    await logAdminActivity('تحديث أسعار الشحن للأسعار الرسمية المعتمدة (80 / 100 / 120)', 'shipping');
+    return { count: DEFAULT_SHIPPING_RATES.length };
+  } catch (error) {
+    console.error('Error syncing standard shipping rates:', error);
+    throw error;
+  }
+}

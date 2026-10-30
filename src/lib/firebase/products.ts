@@ -13,7 +13,8 @@ import {
   orderBy, 
   serverTimestamp,
   Timestamp,
-  deleteField
+  deleteField,
+  writeBatch
 } from 'firebase/firestore';
 
 import { Product } from '../types';
@@ -218,6 +219,156 @@ export async function deleteProductImage(imageUrl: string) {
   // Deletion requires API Secret, which is kept private on a backend server.
   // Images are removed from the Firestore document list only.
   console.log(`Unsigned Cloudinary mode: Removed image reference: ${imageUrl}`);
+}
+
+// ==========================================
+// Bulk Discount Actions (تطبيق وإلغاء الخصم الجماعي)
+// ==========================================
+export interface BulkDiscountOptions {
+  type: 'percentage' | 'fixed';
+  value: number;
+  scope: 'all' | string; // 'all' or category slug
+  theme?: 'white' | 'gold' | 'cyan' | 'purple' | 'crimson';
+  endDate?: string | null; // ISO string e.g. "2026-11-05T23:59"
+  excludeDiscounted?: boolean;
+}
+
+export async function applyBulkDiscount(options: BulkDiscountOptions): Promise<{ updatedCount: number }> {
+  if (isDummyFirebase) {
+    console.log('Mock Mode: applyBulkDiscount', options);
+    return { updatedCount: 0 };
+  }
+
+  const allProducts = await getProducts();
+  const targetProducts = allProducts.filter(p => {
+    if (!p.id) return false;
+    // Check scope
+    if (options.scope !== 'all' && p.category !== options.scope) {
+      return false;
+    }
+    // Check if already discounted and exclude is checked
+    if (options.excludeDiscounted && p.oldPrice && p.oldPrice > p.price) {
+      return false;
+    }
+    return true;
+  });
+
+  if (targetProducts.length === 0) {
+    return { updatedCount: 0 };
+  }
+
+  const siteConfigRef = doc(db, 'settings', 'siteConfig');
+  const bulkConfigPayload: any = {
+    bulkDiscount: {
+      isActive: true,
+      type: options.type,
+      value: options.value,
+      scope: options.scope,
+      theme: options.theme || 'white',
+      endDate: options.endDate || null,
+      appliedAt: new Date().toISOString(),
+      itemsCount: targetProducts.length
+    }
+  };
+
+  const BATCH_SIZE = 400;
+  for (let i = 0; i < targetProducts.length; i += BATCH_SIZE) {
+    const chunk = targetProducts.slice(i, i + BATCH_SIZE);
+    const batch = writeBatch(db);
+
+    chunk.forEach(product => {
+      // If product already had oldPrice > price, base price is oldPrice; otherwise base price is price
+      const basePrice = (product.oldPrice && product.oldPrice > product.price) 
+        ? product.oldPrice 
+        : product.price;
+
+      let newPrice = basePrice;
+      if (options.type === 'percentage') {
+        const discount = Math.round(basePrice * (options.value / 100));
+        newPrice = Math.max(10, basePrice - discount);
+      } else {
+        newPrice = Math.max(10, Math.round(basePrice - options.value));
+      }
+
+      const docRef = doc(db, 'products', product.id!);
+      batch.update(docRef, {
+        price: newPrice,
+        oldPrice: basePrice,
+        ...(options.endDate ? { discountEndDate: options.endDate } : { discountEndDate: deleteField() })
+      });
+    });
+
+    if (i === 0) {
+      batch.set(siteConfigRef, bulkConfigPayload, { merge: true });
+    }
+
+    await batch.commit();
+  }
+
+  const discountText = options.type === 'percentage' ? `${options.value}%` : `${options.value} ج.م`;
+  await logAdminActivity(
+    `طبّق خصم جماعي (${discountText}) على ${targetProducts.length} منتج`,
+    'products'
+  );
+
+  return { updatedCount: targetProducts.length };
+}
+
+export async function revertBulkDiscount(): Promise<{ revertedCount: number }> {
+  if (isDummyFirebase) {
+    console.log('Mock Mode: revertBulkDiscount');
+    return { revertedCount: 0 };
+  }
+
+  const allProducts = await getProducts();
+  const discountedProducts = allProducts.filter(p => p.id && p.oldPrice && p.oldPrice > p.price);
+
+  if (discountedProducts.length === 0) {
+    // Just deactivate bulkDiscount in config if set
+    const siteConfigRef = doc(db, 'settings', 'siteConfig');
+    await setDoc(siteConfigRef, {
+      bulkDiscount: {
+        isActive: false,
+        revertedAt: new Date().toISOString()
+      }
+    }, { merge: true });
+    return { revertedCount: 0 };
+  }
+
+  const siteConfigRef = doc(db, 'settings', 'siteConfig');
+  const BATCH_SIZE = 400;
+
+  for (let i = 0; i < discountedProducts.length; i += BATCH_SIZE) {
+    const chunk = discountedProducts.slice(i, i + BATCH_SIZE);
+    const batch = writeBatch(db);
+
+    chunk.forEach(product => {
+      const docRef = doc(db, 'products', product.id!);
+      batch.update(docRef, {
+        price: product.oldPrice!,
+        oldPrice: deleteField(),
+        discountEndDate: deleteField()
+      });
+    });
+
+    if (i === 0) {
+      batch.set(siteConfigRef, {
+        bulkDiscount: {
+          isActive: false,
+          revertedAt: new Date().toISOString()
+        }
+      }, { merge: true });
+    }
+
+    await batch.commit();
+  }
+
+  await logAdminActivity(
+    `استعاد الأسعار الأصلية وألغى الخصم لـ ${discountedProducts.length} منتج`,
+    'products'
+  );
+
+  return { revertedCount: discountedProducts.length };
 }
 
 const DEFAULT_PRODUCTS: Product[] = [

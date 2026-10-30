@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { getSiteConfig, updateSiteConfig, getShippingRates, addShippingRate, updateShippingRate, deleteShippingRate } from '@/lib/firebase/admin-actions';
+import { getSiteConfig, updateSiteConfig, getShippingRates, addShippingRate, updateShippingRate, deleteShippingRate, syncStandardShippingRates } from '@/lib/firebase/admin-actions';
 import { SiteConfig, ShippingRate } from '@/lib/types';
 import ConfirmationModal from '@/components/admin/ConfirmationModal';
 import Spinner from '@/components/ui/Spinner';
@@ -17,6 +17,8 @@ export default function AdminShippingPage() {
   const [freeShippingEnabled, setFreeShippingEnabled] = useState(false);
   const [freeShippingThreshold, setFreeShippingThreshold] = useState(0);
   const [freeShippingDepositAmount, setFreeShippingDepositAmount] = useState(100);
+  const [shippingBannerActive, setShippingBannerActive] = useState(true);
+  const [shippingBannerText, setShippingBannerText] = useState('');
 
   // Rate CRUD form states
   const [cityName, setCityName] = useState('');
@@ -47,6 +49,19 @@ export default function AdminShippingPage() {
       setFreeShippingEnabled(fetchedConfig.freeShipping?.isEnabled ?? false);
       setFreeShippingThreshold(fetchedConfig.freeShipping?.thresholdAmount ?? 0);
       setFreeShippingDepositAmount(fetchedConfig.freeShipping?.depositAmountWhenFree ?? 100);
+
+      setShippingBannerActive(fetchedConfig.promoBanner?.isActive ?? (fetchedConfig.freeShipping?.isEnabled ?? true));
+      const existingBanner = fetchedConfig.promoBanner?.text?.trim() || '';
+      const thresholdVal = fetchedConfig.freeShipping?.thresholdAmount ?? 0;
+      if (!existingBanner || existingBanner.includes('خصم خاص') || existingBanner.includes('%')) {
+        setShippingBannerText(thresholdVal > 0
+          ? `شحن مجاني لجميع محافظات مصر للأوردرات فوق ${thresholdVal} ج.م! 🚚📦`
+          : 'شحن مجاني لجميع محافظات مصر لفترة محدودة! 🚚📦');
+      } else if (thresholdVal > 0 && existingBanner.match(/\d+/) && !existingBanner.includes(String(thresholdVal))) {
+        setShippingBannerText(existingBanner.replace(/\d+/, String(thresholdVal)));
+      } else {
+        setShippingBannerText(existingBanner);
+      }
     } catch (err) {
       console.error('Error loading shipping data:', err);
       setErrorMsg('حدث خطأ أثناء تحميل إعدادات الشحن.');
@@ -58,6 +73,38 @@ export default function AdminShippingPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  const generateDefaultShippingText = (enabled: boolean, threshold: number) => {
+    if (enabled && threshold > 0) {
+      return `شحن مجاني لجميع محافظات مصر للأوردرات فوق ${threshold} ج.م! 🚚📦`;
+    } else if (enabled) {
+      return 'شحن مجاني لجميع محافظات مصر لفترة محدودة! 🚚📦';
+    }
+    return 'شحن سريع لجميع محافظات مصر والتوصيل لحد باب بيتك! 🚚⚡';
+  };
+
+  const handleThresholdChange = (val: number) => {
+    setFreeShippingThreshold(val);
+    if (val > 0) {
+      if (shippingBannerText && shippingBannerText.match(/\d+/)) {
+        setShippingBannerText(shippingBannerText.replace(/\d+/, String(val)));
+      } else {
+        setShippingBannerText(`شحن مجاني لجميع محافظات مصر للأوردرات فوق ${val} ج.م! 🚚📦`);
+      }
+    }
+  };
+
+  const handleFreeShippingToggle = (enabled: boolean) => {
+    setFreeShippingEnabled(enabled);
+    setShippingBannerActive(enabled);
+    if (enabled && freeShippingThreshold > 0) {
+      if (shippingBannerText && shippingBannerText.match(/\d+/)) {
+        setShippingBannerText(shippingBannerText.replace(/\d+/, String(freeShippingThreshold)));
+      } else {
+        setShippingBannerText(`شحن مجاني لجميع محافظات مصر للأوردرات فوق ${freeShippingThreshold} ج.م! 🚚📦`);
+      }
+    }
+  };
 
   const handleSaveFreeShipping = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,6 +121,12 @@ export default function AdminShippingPage() {
           isEnabled: freeShippingEnabled,
           thresholdAmount: Number(freeShippingThreshold),
           depositAmountWhenFree: Number(freeShippingDepositAmount) || 100
+        },
+        promoBanner: {
+          isActive: shippingBannerActive,
+          text: shippingBannerText.trim() || ((freeShippingEnabled && Number(freeShippingThreshold) > 0)
+            ? `شحن مجاني لجميع محافظات مصر للأوردرات فوق ${freeShippingThreshold} ج.م! 🚚📦`
+            : 'شحن سريع لجميع محافظات مصر والتوصيل لحد باب بيتك! 🚚⚡')
         }
       };
 
@@ -154,45 +207,24 @@ export default function AdminShippingPage() {
     }
   };
 
-  const UPPER_EGYPT_LIST = [
-    'الفيوم', 'بني سويف', 'المنيا', 'أسيوط', 'سوهاج', 'قنا', 'الأقصر', 'أسوان', 'الوادي الجديد'
-  ];
+  const FRONTIER_LIST = ['مطروح', 'شمال سيناء', 'جنوب سيناء', 'الوادي الجديد'];
+  const UPPER_EGYPT_LIST = ['الفيوم', 'بني سويف', 'المنيا', 'أسيوط', 'سوهاج', 'قنا', 'الأقصر', 'أسوان'];
+
+  const getStandardRateForGov = (gov: string) => {
+    if (FRONTIER_LIST.includes(gov)) return 120;
+    if (UPPER_EGYPT_LIST.includes(gov)) return 100;
+    return 80; // كل المحافظات الأخرى ب 80
+  };
 
   const handleApplyStandardRates = async () => {
-    const GOVERNORATES = [
-      'القاهرة', 'الجيزة', 'الإسكندرية', 'الدقهلية', 'البحر الأحمر', 'البحيرة', 'الفيوم', 'الغربية', 'الإسماعيلية', 'المنوفية', 'المنيا', 'القليوبية', 'الوادي الجديد', 'السويس', 'أسوان', 'أسيوط', 'بني سويف', 'بورسعيد', 'دمياط', 'الشرقية', 'جنوب سيناء', 'كفر الشيخ', 'مطروح', 'الأقصر', 'قنا', 'شمال سيناء', 'سوهاج'
-    ];
-
     setSubmittingRate(true);
     setSuccessMsg('');
     setErrorMsg('');
 
     try {
-      const existingMap = new Map<string, ShippingRate>();
-      rates.forEach(r => existingMap.set(r.cityName.trim(), r));
-
-      for (const gov of GOVERNORATES) {
-        const isUpper = UPPER_EGYPT_LIST.includes(gov);
-        const targetRate = isUpper ? 120 : 100;
-        const existing = existingMap.get(gov);
-
-        if (existing && existing.id) {
-          await updateShippingRate(existing.id, {
-            cityName: gov,
-            rate: targetRate,
-            isActive: true
-          });
-        } else {
-          await addShippingRate({
-            cityName: gov,
-            rate: targetRate,
-            isActive: true
-          });
-        }
-      }
-
+      await syncStandardShippingRates();
       await loadData();
-      setSuccessMsg('تم تحديث وتهيئة أسعار جميع المحافظات بنجاح! (وجه بحري: 100 ج | وجه قبلي: 120 ج)');
+      setSuccessMsg('تم تحديث أسعار جميع المحافظات للأسعار الرسمية بنجاح! (كل المحافظات: 80 ج | خط الصعيد: 100 ج | مطروح وسيناء والوادي الجديد: 120 ج)');
     } catch (err: any) {
       console.error('Error applying standard rates:', err);
       setErrorMsg('حدث خطأ أثناء تطبيق أسعار الشحن القياسية.');
@@ -221,10 +253,10 @@ export default function AdminShippingPage() {
       }
 
       for (const gov of missing) {
-        const isUpper = UPPER_EGYPT_LIST.includes(gov);
+        const targetRate = getStandardRateForGov(gov);
         await addShippingRate({
           cityName: gov,
-          rate: isUpper ? 120 : 100,
+          rate: targetRate,
           isActive: true
         });
       }
@@ -289,44 +321,97 @@ export default function AdminShippingPage() {
                   type="checkbox" 
                   id="freeShippingEnabled"
                   checked={freeShippingEnabled}
-                  onChange={(e) => setFreeShippingEnabled(e.target.checked)}
+                  onChange={(e) => handleFreeShippingToggle(e.target.checked)}
                   className="accent-accent-red w-5 h-5 cursor-pointer bg-bg-primary border-text-muted/20"
                 />
-                <label htmlFor="freeShippingEnabled" className="font-body text-sm text-white cursor-pointer select-none">شغّل الشحن المجاني للأوردرات اللي معدية مبلغ معين</label>
+                <label htmlFor="freeShippingEnabled" className="font-body text-sm text-white cursor-pointer select-none">
+                  شغّل الشحن المجاني للأوردرات اللي معدية مبلغ معين
+                </label>
               </div>
 
               {freeShippingEnabled && (
-                <div className="flex flex-col gap-2 animate-fadeIn">
-                  <label className="font-body text-xs text-text-muted font-bold">الحد الأدنى لقيمة الأوردر للشحن المجاني (EGP)</label>
-                  <input 
-                    type="number" 
-                    placeholder="1000"
-                    value={freeShippingThreshold}
-                    onChange={(e) => setFreeShippingThreshold(Number(e.target.value))}
-                    min="1"
-                    required
-                    className="bg-bg-primary text-white border border-text-muted/20 px-4 py-2.5 font-body text-sm focus:border-accent-red focus:outline-none text-left"
-                    dir="ltr"
-                  />
+                <div className="space-y-4 animate-fadeIn">
+                  <div className="flex flex-col gap-2">
+                    <label className="font-body text-xs text-text-muted font-bold">
+                      الحد الأدنى لقيمة الأوردر للشحن المجاني (EGP)
+                    </label>
+                    <input 
+                      type="number" 
+                      placeholder="1000"
+                      value={freeShippingThreshold}
+                      onChange={(e) => handleThresholdChange(Number(e.target.value))}
+                      min="1"
+                      required
+                      className="bg-bg-primary text-white border border-text-muted/20 px-4 py-2.5 font-body text-sm focus:border-accent-red focus:outline-none text-left"
+                      dir="ltr"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2 pt-2 border-t border-text-muted/10">
+                    <label className="font-body text-xs text-text-muted font-bold">
+                      قيمة الديبوزيت المطلوبة لو الشحن مجاني (جنيه)
+                    </label>
+                    <input 
+                      type="number" 
+                      placeholder="100"
+                      value={freeShippingDepositAmount}
+                      onChange={(e) => setFreeShippingDepositAmount(Number(e.target.value))}
+                      min="0"
+                      required
+                      className="bg-bg-primary text-white border border-text-muted/20 px-4 py-2.5 font-body text-sm focus:border-accent-red focus:outline-none text-left"
+                      dir="ltr"
+                    />
+                    <span className="text-[11px] text-text-muted leading-relaxed">
+                      مبلغ الديبوزيت التأميني الثابت عند اختيار الدفع عند الاستلام لو الشحن مجاني (افتراضياً 100 جنيه، ويُخصم من إجمالي الأوردر).
+                    </span>
+                  </div>
+
+                  {/* Shipping Ticker Strip (Directly linked to Free Shipping) */}
+                  <div className="pt-3 border-t border-text-muted/10 space-y-3">
+                    <div className="flex items-center gap-3 py-1">
+                      <input 
+                        type="checkbox" 
+                        id="shippingBannerActive"
+                        checked={shippingBannerActive}
+                        onChange={(e) => setShippingBannerActive(e.target.checked)}
+                        className="accent-accent-red w-5 h-5 cursor-pointer bg-bg-primary border-text-muted/20"
+                      />
+                      <label htmlFor="shippingBannerActive" className="font-body text-xs sm:text-sm text-white cursor-pointer select-none">
+                        تفعيل وعرض شريط الشحن المتحرك أسفل الهيرو في الصفحة الرئيسية
+                      </label>
+                    </div>
+
+                    {shippingBannerActive && (
+                      <div className="space-y-3 animate-fadeIn">
+                        <div className="flex flex-col gap-1.5">
+                          <label className="font-body text-xs text-text-muted font-bold">
+                            نص شريط الشحن المعروض للزوار
+                          </label>
+                          <input 
+                            type="text" 
+                            placeholder="مثال: شحن مجاني لجميع محافظات مصر للأوردرات فوق 1000 ج.م!"
+                            value={shippingBannerText}
+                            onChange={(e) => setShippingBannerText(e.target.value)}
+                            className="bg-bg-primary text-white border border-text-muted/20 px-4 py-2.5 font-body text-sm focus:border-accent-red focus:outline-none"
+                          />
+                        </div>
+
+                        {/* Live Preview Box */}
+                        <div className="p-3 bg-black/40 border border-white/5 rounded-xl space-y-1.5">
+                          <span className="text-[10px] text-text-muted font-body font-bold block">
+                            معاينة حية لشريط الشحن كما يظهر في المتجر:
+                          </span>
+                          <div className="bg-accent-red text-white py-2 px-3 rounded-lg flex items-center justify-center gap-2 font-product-title font-black text-xs shadow-sm overflow-hidden select-none">
+                            <span className="material-symbols-outlined text-sm">local_shipping</span>
+                            <span className="truncate">{shippingBannerText || 'شحن مجاني لجميع محافظات مصر!'}</span>
+                            <span className="text-white/40 text-[10px]">★</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
-
-              <div className="flex flex-col gap-2 pt-2 border-t border-text-muted/10">
-                <label className="font-body text-xs text-text-muted font-bold">قيمة الديبوزيت المطلوبة لو الشحن مجاني (جنيه)</label>
-                <input 
-                  type="number" 
-                  placeholder="100"
-                  value={freeShippingDepositAmount}
-                  onChange={(e) => setFreeShippingDepositAmount(Number(e.target.value))}
-                  min="0"
-                  required
-                  className="bg-bg-primary text-white border border-text-muted/20 px-4 py-2.5 font-body text-sm focus:border-accent-red focus:outline-none text-left"
-                  dir="ltr"
-                />
-                <span className="text-[11px] text-text-muted leading-relaxed">
-                  مبلغ الديبوزيت التأميني الثابت عند اختيار الدفع عند الاستلام لو الشحن مجاني (افتراضياً 100 جنيه، ويُخصم من إجمالي الأوردر).
-                </span>
-              </div>
 
               <div className="pt-2">
                 <button 
@@ -436,10 +521,10 @@ export default function AdminShippingPage() {
                 disabled={submittingRate}
                 type="button"
                 className="bg-accent-red/10 hover:bg-accent-red/20 border border-accent-red/40 text-accent-red hover:text-white font-product-title font-bold text-xs py-2.5 px-4 transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-50"
-                title="تطبيق 100ج لوجه بحري والقاهرة والقناة وسينا ومطروح و 120ج لوجه قبلي"
+                title="تطبيق 80ج لكل المحافظات، 100ج لخط الصعيد، 120ج لمطروح وسيناء والوادي الجديد"
               >
                 <span className="material-symbols-outlined text-[16px]">bolt</span>
-                تطبيق أسعار (وجه بحري 100 | وجه قبلي 120)
+                تطبيق الأسعار الرسمية (80 / 100 / 120 ج.م)
               </button>
 
               {rates.length < 27 && (
