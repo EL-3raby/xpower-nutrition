@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Product } from '@/lib/types';
@@ -9,15 +9,17 @@ import { toEgyptTime } from '@/lib/date-utils';
 import CountdownTimer from '@/components/site/CountdownTimer';
 import ScrollReveal from '@/components/site/ScrollReveal';
 
+export type FlashSaleDateInput = string | Date | { seconds: number; nanoseconds?: number } | { toDate: () => Date } | null | undefined;
+
 export interface FlashSaleOfferItem {
   product: Product;
-  endDateTime?: any;
+  endDateTime?: FlashSaleDateInput;
   badgeText?: string;
 }
 
 interface FlashSaleBigCardProps {
   offers: FlashSaleOfferItem[];
-  defaultEndDateTime?: any;
+  defaultEndDateTime?: FlashSaleDateInput;
 }
 
 const slideVariants = {
@@ -38,7 +40,7 @@ const slideVariants = {
 export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSaleBigCardProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState(1);
-  const [isHovered, setIsHovered] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
 
   // Touch swipe support for mobile
   const touchStartX = useRef<number | null>(null);
@@ -47,26 +49,41 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
   const offersCount = offers ? offers.length : 0;
   const hasMultipleOffers = offersCount > 1;
 
-  const handleNext = useCallback(() => {
+  // Auto-play timer: slides automatically every 3 seconds if multiple offers exist
+  useEffect(() => {
+    if (!hasMultipleOffers || isPaused) return;
+
+    const timer = setInterval(() => {
+      setDirection(1);
+      setCurrentIndex((prev) => (prev + 1) % offersCount);
+    }, 3000);
+
+    return () => clearInterval(timer);
+  }, [hasMultipleOffers, isPaused, offersCount]);
+
+  if (!offers || offers.length === 0) return null;
+
+  const currentOffer = offers[currentIndex] || offers[0];
+  const product = currentOffer.product;
+  const hasDiscount = Boolean(product.oldPrice && product.oldPrice > product.price);
+  const savings = hasDiscount ? (product.oldPrice! - product.price) : 0;
+  const discountPercentage = hasDiscount 
+    ? Math.round(((product.oldPrice! - product.price) / product.oldPrice!) * 100) 
+    : 0;
+  const cleanProductName = product.name.replace(/_/g, ' ');
+  const targetEndDate = currentOffer.endDateTime || defaultEndDateTime;
+
+  const handleNext = () => {
     if (offersCount === 0) return;
     setDirection(1);
     setCurrentIndex((prev) => (prev + 1) % offersCount);
-  }, [offersCount]);
+  };
 
-  const handlePrev = useCallback(() => {
+  const handlePrev = () => {
     if (offersCount === 0) return;
     setDirection(-1);
     setCurrentIndex((prev) => (prev - 1 + offersCount) % offersCount);
-  }, [offersCount]);
-
-  // Auto-play interval: rotates every 5 seconds, pauses when user hovers
-  useEffect(() => {
-    if (!hasMultipleOffers || isHovered) return;
-    const interval = setInterval(() => {
-      handleNext();
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [hasMultipleOffers, isHovered, handleNext]);
+  };
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.targetTouches[0].clientX;
@@ -91,18 +108,6 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
     touchEndX.current = null;
   };
 
-  if (!offers || offers.length === 0) return null;
-
-  const currentOffer = offers[currentIndex] || offers[0];
-  const product = currentOffer.product;
-  const hasDiscount = Boolean(product.oldPrice && product.oldPrice > product.price);
-  const savings = hasDiscount ? (product.oldPrice! - product.price) : 0;
-  const discountPercentage = hasDiscount 
-    ? Math.round(((product.oldPrice! - product.price) / product.oldPrice!) * 100) 
-    : 0;
-  const cleanProductName = product.name.replace(/_/g, ' ');
-  const targetEndDate = currentOffer.endDateTime || defaultEndDateTime;
-
   return (
     <section className="relative w-full border-y border-white/[0.08] bg-[#070707] py-6 sm:py-10 lg:py-16 overflow-hidden select-none">
       {/* Soft Subtle Ambient Radial Lighting */}
@@ -112,11 +117,17 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
         <ScrollReveal>
           {/* Big Athletic Showcase Ad Card (الكارت الإعلاني الكبير) */}
           <div 
-            onTouchStart={handleTouchStart}
+            onMouseEnter={() => setIsPaused(true)}
+            onMouseLeave={() => setIsPaused(false)}
+            onTouchStart={(e) => {
+              setIsPaused(true);
+              handleTouchStart(e);
+            }}
             onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
+            onTouchEnd={() => {
+              handleTouchEnd();
+              setTimeout(() => setIsPaused(false), 2500);
+            }}
             className="relative rounded-2xl sm:rounded-3xl border border-white/10 hover:border-accent-red/35 bg-gradient-to-b from-[#141414] via-[#0f0f0f] to-[#080808] p-4 sm:p-8 lg:p-12 overflow-hidden shadow-2xl transition-all duration-300"
           >
             {/* Inner subtle red backlight */}
@@ -138,7 +149,7 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
                 </span>
               </div>
 
-              {/* Left: Mobile Counter Badge / Desktop Dot Indicators */}
+              {/* Left: Mobile Counter Badge / Desktop Full Controls */}
               {hasMultipleOffers && (
                 <div className="flex items-center gap-2 sm:gap-3" dir="ltr">
                   
@@ -147,7 +158,7 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
                     {currentIndex + 1} / {offers.length}
                   </span>
 
-                  {/* Desktop Only: Dot Indicators in Header */}
+                  {/* Desktop Only: Dot Indicators & Arrows in Header */}
                   <div className="hidden sm:flex items-center gap-1.5 px-1">
                     {offers.map((_, i) => (
                       <button
@@ -165,9 +176,50 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
                     ))}
                   </div>
 
+                  <div className="hidden sm:flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={handlePrev}
+                      aria-label="العرض السابق"
+                      className="w-8 h-8 rounded-full bg-white/5 hover:bg-accent-red text-white flex items-center justify-center border border-white/10 hover:border-accent-red transition-all active:scale-90 cursor-pointer shadow-md"
+                    >
+                      <span className="material-symbols-outlined text-base">chevron_left</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleNext}
+                      aria-label="العرض التالي"
+                      className="w-8 h-8 rounded-full bg-white/5 hover:bg-accent-red text-white flex items-center justify-center border border-white/10 hover:border-accent-red transition-all active:scale-90 cursor-pointer shadow-md"
+                    >
+                      <span className="material-symbols-outlined text-base">chevron_right</span>
+                    </button>
+                  </div>
+
                 </div>
               )}
             </div>
+
+            {/* Desktop Floating Side Arrows */}
+            {hasMultipleOffers && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleNext}
+                  className="hidden xl:flex absolute right-4 top-1/2 -translate-y-1/2 z-30 w-11 h-11 rounded-full bg-black/75 hover:bg-accent-red text-white border border-white/15 hover:border-accent-red items-center justify-center transition-all active:scale-95 shadow-xl backdrop-blur-md cursor-pointer"
+                  aria-label="العرض التالي"
+                >
+                  <span className="material-symbols-outlined text-xl">arrow_forward_ios</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePrev}
+                  className="hidden xl:flex absolute left-4 top-1/2 -translate-y-1/2 z-30 w-11 h-11 rounded-full bg-black/75 hover:bg-accent-red text-white border border-white/15 hover:border-accent-red items-center justify-center transition-all active:scale-95 shadow-xl backdrop-blur-md cursor-pointer"
+                  aria-label="العرض السابق"
+                >
+                  <span className="material-symbols-outlined text-xl">arrow_back_ios</span>
+                </button>
+              </>
+            )}
 
             {/* Slide Body with AnimatePresence */}
             <AnimatePresence mode="wait" custom={direction}>
@@ -325,6 +377,28 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
                           </div>
                         </div>
                       </div>
+
+                      {/* Floating In-Stage Mobile Arrows */}
+                      {hasMultipleOffers && (
+                        <div className="flex items-center justify-between w-full absolute inset-y-0 -px-2 pointer-events-none z-30">
+                          <button
+                            type="button"
+                            onClick={handlePrev}
+                            className="pointer-events-auto w-8 h-8 rounded-full bg-black/75 border border-white/15 hover:border-accent-red text-white flex items-center justify-center active:scale-90 transition-transform shadow-lg backdrop-blur-md cursor-pointer"
+                            aria-label="العرض السابق"
+                          >
+                            <span className="material-symbols-outlined text-base">chevron_right</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleNext}
+                            className="pointer-events-auto w-8 h-8 rounded-full bg-black/75 border border-white/15 hover:border-accent-red text-white flex items-center justify-center active:scale-90 transition-transform shadow-lg backdrop-blur-md cursor-pointer"
+                            aria-label="العرض التالي"
+                          >
+                            <span className="material-symbols-outlined text-base">chevron_left</span>
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     {/* Mobile Dots Indicator under image */}
