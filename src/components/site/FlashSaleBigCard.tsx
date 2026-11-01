@@ -115,7 +115,7 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
 
       <div className="max-w-6xl mx-auto px-3 sm:px-6 relative z-10">
         <ScrollReveal>
-          {/* Big Athletic Showcase Ad Card (الكارت الإعلاني الكبير) */}
+          {/* Big Athletic Showcase Ad Card (الكارت الإعلاني العالمي) */}
           <div 
             onMouseEnter={() => setIsPaused(true)}
             onMouseLeave={() => setIsPaused(false)}
@@ -128,17 +128,19 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
               handleTouchEnd();
               setTimeout(() => setIsPaused(false), 2500);
             }}
-            className="relative rounded-2xl sm:rounded-3xl border border-white/10 hover:border-accent-red/35 bg-gradient-to-b from-[#141414] via-[#0f0f0f] to-[#080808] p-4 sm:p-8 lg:p-12 overflow-hidden shadow-2xl transition-all duration-300"
+            className="relative rounded-3xl border border-white/[0.12] hover:border-accent-red/40 bg-gradient-to-b from-[#111113] via-[#0b0b0c] to-[#070708] p-5 sm:p-8 lg:p-10 overflow-hidden shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9),0_0_40px_-20px_rgba(227,30,36,0.2)] transition-all duration-300"
           >
-            {/* Inner subtle red backlight */}
-            <div className="absolute -top-20 -left-20 w-48 sm:w-64 h-48 sm:h-64 bg-accent-red/[0.08] rounded-full blur-3xl pointer-events-none" />
+            {/* Athletic micro-grid pattern & glow line */}
+            <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff04_1px,transparent_1px),linear-gradient(to_bottom,#ffffff04_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
+            <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-accent-red/60 to-transparent pointer-events-none" />
+            <div className="absolute top-1/2 left-1/4 -translate-y-1/2 -translate-x-1/2 w-[380px] h-[380px] bg-accent-red/[0.10] rounded-full blur-[110px] pointer-events-none" />
 
             {/* ============================================================ */}
             {/* Top Bar: Clean & Balanced on both Mobile & Desktop           */}
             {/* ============================================================ */}
-            <div className="w-full flex items-center justify-between pb-3 sm:pb-4 mb-3 sm:mb-6 border-b border-white/[0.08] relative z-20" dir="rtl">
+            <div className="w-full flex items-center justify-between pb-3 sm:pb-4 mb-4 sm:mb-6 border-b border-white/[0.08] relative z-20" dir="rtl">
               
-              {/* Right: Enlarged Athletic Special Offer Badge (تم تكبير وتطوير ديزاين عرض خاص وحذف المتجر الرسمي) */}
+              {/* Right: Enlarged Athletic Special Offer Badge */}
               <div className="flex items-center gap-2">
                 <div className="inline-flex items-center gap-2 sm:gap-2.5 bg-gradient-to-r from-accent-red/20 via-black/80 to-[#141414] border border-accent-red/50 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl shadow-[0_0_20px_rgba(227,30,36,0.3)] backdrop-blur-md">
                   <span className="relative flex h-2.5 w-2.5 sm:h-3 sm:w-3 items-center justify-center">
@@ -154,11 +156,11 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
                 </div>
               </div>
 
-              {/* Left: Mobile Counter Badge / Desktop Dot Indicators (تم حذف الأسهم العلوية على الكمبيوتر) */}
+              {/* Left: Mobile Counter Badge / Desktop Dot Indicators */}
               {hasMultipleOffers && (
                 <div className="flex items-center gap-2 sm:gap-3" dir="ltr">
                   
-                  {/* Counter badge (Shows cleanly on both) */}
+                  {/* Counter badge */}
                   <span className="text-xs sm:text-sm font-product-title font-bold text-accent-red bg-accent-red/10 border border-accent-red/25 px-2.5 sm:px-3 py-1 rounded-full" dir="rtl">
                     {currentIndex + 1} / {offers.length}
                   </span>
@@ -220,157 +222,193 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
                 className="w-full"
               >
                 {/* ============================================================ */}
-                {/* 1. DESKTOP VIEW (hidden md:grid) — 2 Columns Inside Big Card */}
+                {/* 1. DESKTOP VIEW (hidden lg:grid) — Cinematic Balanced Arena  */}
                 {/* ============================================================ */}
-                <div className="hidden md:grid md:grid-cols-12 items-center gap-8 lg:gap-14 relative z-10" dir="rtl">
+                <div className="hidden lg:grid lg:grid-cols-12 gap-8 xl:gap-12 items-center relative z-10" dir="rtl">
                   
-                  {/* Right Column: Offer Details & Actions (7 cols) */}
-                  <div className="col-span-7 flex flex-col items-start text-right gap-4 lg:gap-5">
+                  {/* Right Column: Offer Command & Conversion Deck (7 cols) */}
+                  <div className="lg:col-span-7 flex flex-col items-start text-right gap-4 xl:gap-5">
                     
+                    {/* Eyebrow & Category Tag */}
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1.5 text-xs font-product-title font-black uppercase text-accent-red tracking-wider">
+                        <span className="w-1.5 h-1.5 rounded-full bg-accent-red animate-pulse" />
+                        ⚡ بكج العرض الحصري • X-POWER FLASH SALE
+                      </span>
+                      {product.category && (
+                        <>
+                          <span className="text-zinc-600 text-xs">•</span>
+                          <span className="text-xs text-zinc-400 font-medium">{product.category}</span>
+                        </>
+                      )}
+                    </div>
+
                     {/* Product Headline */}
-                    <h2 className="font-product-title text-3xl lg:text-5xl font-black text-white uppercase tracking-tight leading-tight">
-                      <Link href={`/products/${product.slug || product.id}`} className="hover:text-accent-red transition-colors">
+                    <h2 className="font-display font-black text-3xl sm:text-4xl lg:text-5xl text-white uppercase tracking-tight leading-[1.15] hover:text-accent-red transition-colors">
+                      <Link href={`/products/${product.slug || product.id}`}>
                         {cleanProductName}
                       </Link>
                     </h2>
 
-                    {/* Pricing Display */}
-                    <div className="flex items-baseline gap-4 py-3 border-y border-white/[0.06] w-full">
-                      <div className="flex items-baseline gap-2" dir="ltr">
-                        <span className="font-product-title text-3xl lg:text-4xl font-black text-white">
-                          {product.price} <span className="text-xs font-bold text-accent-red ml-1">EGP</span>
-                        </span>
-                        {hasDiscount && (
-                          <span className="font-product-title text-lg text-text-muted/50 line-through">
-                            {product.oldPrice} EGP
+                    {/* Punchy Narrative Pitch */}
+                    <p className="text-sm lg:text-base text-zinc-300/90 leading-relaxed font-body line-clamp-2 max-w-xl">
+                      {product.description || 'بكج متكامل مصمم خصيصاً لتحقيق أقصى ضخ دموي وزيادة الكتلة العضلية وتحفيز الطاقة والاستشفاء بدون هبوط.'}
+                    </p>
+
+                    {/* Highlights Bar (3 Athletic Badges) */}
+                    <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs font-medium text-zinc-200">
+                        <span className="material-symbols-outlined text-accent-red text-sm">fitness_center</span>
+                        <span>أعلى تركيز للمكونات الفعالة</span>
+                      </div>
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs font-medium text-zinc-200">
+                        <span className="material-symbols-outlined text-accent-red text-sm">bolt</span>
+                        <span>طاقة وضخ دم متفجر</span>
+                      </div>
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs font-medium text-zinc-200">
+                        <span className="material-symbols-outlined text-emerald-400 text-sm">verified</span>
+                        <span>مفحوص ومعتمد 100%</span>
+                      </div>
+                    </div>
+
+                    {/* Integrated Pricing & Telemetry Deck */}
+                    <div className="p-4 sm:p-5 rounded-2xl bg-white/[0.03] border border-white/[0.08] backdrop-blur-md flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full">
+                      {/* Price section */}
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-baseline gap-2" dir="ltr">
+                          <span className="font-display font-black text-3xl sm:text-4xl text-white tracking-tight">
+                            {product.price}
                           </span>
+                          <span className="font-display font-bold text-accent-red text-base sm:text-lg">ج.م</span>
+                          {hasDiscount && (
+                            <span className="font-display text-zinc-500 line-through text-base sm:text-lg ml-2">
+                              {product.oldPrice} ج.م
+                            </span>
+                          )}
+                        </div>
+                        {hasDiscount && (
+                          <div className="inline-flex items-center gap-1.5 self-start px-2.5 py-0.5 rounded-md bg-accent-red/20 border border-accent-red/30 text-accent-red font-bold text-xs">
+                            <span className="material-symbols-outlined text-xs">trending_down</span>
+                            <span>وفرت {savings} ج.م (خصم {discountPercentage}%)</span>
+                          </div>
                         )}
                       </div>
 
-                      {hasDiscount && (
-                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-accent-red text-white text-xs font-bold font-product-title">
-                          <span>وفر {savings} EGP</span>
-                          <span className="text-[10px] opacity-90">({discountPercentage}%-)</span>
+                      {/* Countdown Timer Block */}
+                      <div className="flex flex-col items-start sm:items-end gap-1.5">
+                        <div className="flex items-center gap-1 text-[11px] font-medium text-zinc-400">
+                          <span className="material-symbols-outlined text-accent-red text-xs">timer</span>
+                          <span>ينتهي العرض خلال:</span>
                         </div>
-                      )}
+                        <CountdownTimer
+                          endDate={toEgyptTime(targetEndDate)}
+                          itemClassName="flex flex-col items-center justify-center bg-black/70 border border-white/10 px-3 py-1.5 rounded-xl min-w-[54px] shadow-inner"
+                          numberClassName="font-product-title text-xl font-black text-white leading-none"
+                          labelClassName="text-[9px] text-zinc-400 mt-1 uppercase font-body"
+                        />
+                      </div>
                     </div>
 
-                    {/* Countdown Timer Block */}
-                    <div className="flex flex-col gap-2">
-                      <span className="text-xs text-text-muted font-medium tracking-wide">
-                        الوقت المتبقي قبل انتهاء العرض:
-                      </span>
-                      <CountdownTimer
-                        endDate={toEgyptTime(targetEndDate)}
-                        itemClassName="flex flex-col items-center justify-center bg-[#121212] border border-white/[0.08] px-4 py-2.5 rounded-xl min-w-[65px]"
-                        numberClassName="font-product-title text-2xl lg:text-3xl font-black text-white leading-none tracking-tight"
-                        labelClassName="text-[10px] text-zinc-400 mt-1 uppercase font-medium"
-                      />
-                    </div>
-
-                    {/* Action Button & Trust Guarantee */}
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mt-2 w-full">
+                    {/* CTA Button & Trust Guarantees */}
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 pt-1 w-full">
                       <Link
                         href={`/products/${product.slug || product.id}`}
-                        className="inline-flex items-center justify-center gap-2.5 bg-accent-red hover:bg-accent-red-hover text-white px-8 py-3.5 rounded-xl font-product-title text-sm sm:text-base font-bold tracking-wider transition-all duration-200 active:scale-[0.98] shadow-md shadow-accent-red/20 hover:shadow-lg hover:shadow-accent-red/35 cursor-pointer"
+                        className="inline-flex items-center justify-center gap-3 bg-gradient-to-r from-accent-red via-[#e31e24] to-[#b31419] hover:from-[#ff2d33] hover:to-accent-red text-white px-8 py-3.5 sm:py-4 rounded-xl font-display font-black text-base sm:text-lg tracking-wide transition-all duration-300 shadow-[0_10px_25px_rgba(227,30,36,0.35)] hover:shadow-[0_12px_35px_rgba(227,30,36,0.5)] active:scale-[0.98] group/btn cursor-pointer"
                       >
                         <span>اطلب العرض الآن</span>
-                        <span className="material-symbols-outlined text-lg rtl:rotate-180">arrow_forward</span>
+                        <span className="material-symbols-outlined text-xl transition-transform duration-300 group-hover/btn:-translate-x-1">
+                          arrow_back
+                        </span>
                       </Link>
 
-                      <div className="flex flex-col text-xs text-text-muted/80 gap-0.5 font-body">
-                        <span className="flex items-center gap-1.5 text-white/90 font-medium">
-                          <span className="material-symbols-outlined text-sm text-emerald-400">verified</span>
-                          <span>منتج أصلي 100% معتمد</span>
-                        </span>
-                        <span className="text-[11px] text-text-muted/70">معاينة وفحص الطلب قبل الاستلام والدفع</span>
+                      <div className="flex items-center gap-4 text-xs text-zinc-400 font-body">
+                        <div className="flex items-center gap-1.5">
+                          <span className="material-symbols-outlined text-emerald-400 text-base">verified_user</span>
+                          <span>أصلي 100% ومضمون</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="material-symbols-outlined text-accent-red text-base">local_shipping</span>
+                          <span>معاينة قبل الدفع</span>
+                        </div>
                       </div>
                     </div>
 
                   </div>
 
-                  {/* Left Column: Product Presentation Stage (5 cols) */}
-                  <div className="col-span-5 flex items-center justify-center relative">
-                    <div className="relative w-72 h-72 lg:w-96 lg:h-96 flex items-center justify-center">
+                  {/* Left Column: 3D Elevated Product Showcase Stage (5 cols) */}
+                  <div className="lg:col-span-5 relative rounded-3xl bg-gradient-to-b from-white/[0.04] via-white/[0.02] to-black/60 border border-white/[0.08] p-6 lg:p-8 flex items-center justify-center overflow-hidden group/stage min-h-[360px] lg:min-h-[410px]">
+                    {/* Stage Ambient Radial Backlight */}
+                    <div className="absolute inset-0 bg-radial-gradient from-accent-red/20 via-transparent to-transparent opacity-60 group-hover/stage:opacity-100 transition-opacity duration-500 pointer-events-none" />
+
+                    {/* 3D Stage Pedestal Ellipse */}
+                    <div className="absolute bottom-5 inset-x-10 h-8 bg-accent-red/25 rounded-full blur-xl pointer-events-none" />
+                    <div className="absolute bottom-7 inset-x-16 h-3 bg-white/10 rounded-full blur-sm pointer-events-none" />
+
+                    {/* Floating Top Discount Badge */}
+                    {hasDiscount && (
+                      <div className="absolute top-4 right-4 z-20 inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-black/80 border border-accent-red/40 backdrop-blur-md shadow-lg shadow-accent-red/20">
+                        <span className="w-2 h-2 rounded-full bg-accent-red animate-pulse" />
+                        <span className="font-product-title font-black text-xs text-white">
+                          خصم {discountPercentage}%-
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Floating Bottom Trust Badge */}
+                    <div className="absolute bottom-4 left-4 z-20 hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-black/80 border border-white/15 backdrop-blur-md text-[11px] text-zinc-300">
+                      <span className="material-symbols-outlined text-emerald-400 text-xs">health_and_safety</span>
+                      <span>معتمد أصلي 100%</span>
+                    </div>
+
+                    {/* Product Bundle Image */}
+                    <Link href={`/products/${product.slug || product.id}`} className="relative z-10 w-full aspect-square max-h-[350px] flex items-center justify-center transition-transform duration-500 ease-out group-hover/stage:scale-105">
                       <img
-                        src={getOptimizedImageUrl(product.images[0], { width: 600, height: 600 })}
+                        src={getOptimizedImageUrl(product.images[0], { width: 650, height: 650 })}
                         alt={cleanProductName}
                         loading="lazy"
-                        className="w-full h-full object-contain relative z-10 drop-shadow-[0_15px_30px_rgba(0,0,0,0.8)]"
+                        className="w-full h-full object-contain drop-shadow-[0_20px_35px_rgba(0,0,0,0.9)]"
                       />
-
-                      {/* Official Special Offer Circular Stamp (ختم عرض خاص) */}
-                      <div className="absolute top-0 left-0 lg:top-2 lg:left-2 z-20 pointer-events-none select-none rotate-[-12deg] drop-shadow-[0_10px_25px_rgba(0,0,0,0.85)]">
-                        <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-full border-2 border-accent-red/90 p-1 flex items-center justify-center bg-black/80 backdrop-blur-md shadow-[0_0_25px_rgba(227,30,36,0.3)]">
-                          <div className="w-full h-full rounded-full border border-dashed border-accent-red/70 flex flex-col items-center justify-center p-1.5 text-center">
-                            <span className="text-[8px] sm:text-[9px] font-product-title uppercase font-black tracking-widest text-accent-red leading-none">
-                              ★ XPOWER ★
-                            </span>
-                            <span className="font-display font-black text-white text-sm sm:text-base leading-tight my-0.5 drop-shadow-sm">
-                              عرض خاص
-                            </span>
-                            {hasDiscount ? (
-                              <span className="text-[10px] sm:text-[11px] font-product-title font-black text-accent-red leading-none tracking-wider">
-                                خصم {discountPercentage}%-
-                              </span>
-                            ) : (
-                              <span className="text-[8px] sm:text-[9px] font-product-title font-bold text-text-muted/80 leading-none tracking-wider uppercase">
-                                LIMITED DEAL
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                    </Link>
                   </div>
 
                 </div>
 
                 {/* ============================================================ */}
-                {/* 2. MOBILE VIEW (block md:hidden) — Premium Compact Touch     */}
+                {/* 2. MOBILE VIEW (block lg:hidden) — App-Like Punchy Touch     */}
                 {/* ============================================================ */}
-                <div className="block md:hidden relative w-full">
-                  <div className="flex flex-col items-center text-center gap-3 relative z-10">
+                <div className="block lg:hidden relative w-full">
+                  <div className="flex flex-col items-center text-center gap-3.5 relative z-10">
                     
-                    {/* Mobile Visual Stage with In-stage Floating Arrows */}
-                    <div className="relative w-full max-w-[270px] h-48 my-1 flex items-center justify-center">
-                      <img
-                        src={getOptimizedImageUrl(product.images[0], { width: 450, height: 450 })}
-                        alt={cleanProductName}
-                        loading="lazy"
-                        className="w-full h-full object-contain relative z-10 drop-shadow-[0_10px_22px_rgba(0,0,0,0.85)]"
-                      />
+                    {/* Mobile Stage Pedestal with Swipe Arrows */}
+                    <div className="relative w-full max-w-[320px] aspect-square max-h-[250px] rounded-2xl bg-gradient-to-b from-white/[0.04] to-black/60 border border-white/[0.08] p-4 flex items-center justify-center overflow-hidden">
+                      {/* Ambient Stage Glow */}
+                      <div className="absolute bottom-3 inset-x-8 h-6 bg-accent-red/25 rounded-full blur-lg pointer-events-none" />
 
-                      {/* Official Special Offer Circular Stamp Mobile */}
-                      <div className="absolute -top-1 left-2 z-20 pointer-events-none select-none rotate-[-12deg] drop-shadow-[0_8px_16px_rgba(0,0,0,0.85)]">
-                        <div className="relative w-16 h-16 rounded-full border-2 border-accent-red p-0.5 flex items-center justify-center bg-black/90 backdrop-blur-md">
-                          <div className="w-full h-full rounded-full border border-dashed border-accent-red/80 flex flex-col items-center justify-center p-0.5 text-center">
-                            <span className="text-[6px] font-product-title uppercase font-black tracking-widest text-accent-red leading-none">
-                              XPOWER
-                            </span>
-                            <span className="font-display font-black text-white text-[11px] leading-tight my-0.5">
-                              عرض خاص
-                            </span>
-                            {hasDiscount ? (
-                              <span className="text-[8px] font-product-title font-black text-accent-red leading-none tracking-wider">
-                                {discountPercentage}%-
-                              </span>
-                            ) : (
-                              <span className="text-[6px] font-product-title font-bold text-text-muted/80 leading-none uppercase">
-                                DEAL
-                              </span>
-                            )}
-                          </div>
+                      {/* Floating Discount Tag */}
+                      {hasDiscount && (
+                        <div className="absolute top-3 right-3 z-20 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-black/80 border border-accent-red/40 backdrop-blur-md shadow-md text-white font-product-title font-black text-[11px]">
+                          <span className="w-1.5 h-1.5 rounded-full bg-accent-red animate-pulse" />
+                          <span>خصم {discountPercentage}%-</span>
                         </div>
-                      </div>
+                      )}
+
+                      {/* Mobile Product Image */}
+                      <Link href={`/products/${product.slug || product.id}`} className="relative z-10 w-full h-full flex items-center justify-center">
+                        <img
+                          src={getOptimizedImageUrl(product.images[0], { width: 450, height: 450 })}
+                          alt={cleanProductName}
+                          loading="lazy"
+                          className="w-full h-full object-contain drop-shadow-[0_12px_25px_rgba(0,0,0,0.85)]"
+                        />
+                      </Link>
 
                       {/* Floating In-Stage Mobile Arrows */}
                       {hasMultipleOffers && (
-                        <div className="flex items-center justify-between w-full absolute inset-y-0 -px-2 pointer-events-none z-30">
+                        <div className="flex items-center justify-between w-full absolute inset-y-0 -px-1 pointer-events-none z-30">
                           <button
                             type="button"
                             onClick={handlePrev}
-                            className="pointer-events-auto w-8 h-8 rounded-full bg-black/75 border border-white/15 hover:border-accent-red text-white flex items-center justify-center active:scale-90 transition-transform shadow-lg backdrop-blur-md cursor-pointer"
+                            className="pointer-events-auto w-8 h-8 rounded-full bg-black/80 border border-white/15 hover:border-accent-red text-white flex items-center justify-center active:scale-90 transition-transform shadow-lg backdrop-blur-md cursor-pointer"
                             aria-label="العرض السابق"
                           >
                             <span className="material-symbols-outlined text-base">chevron_right</span>
@@ -378,7 +416,7 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
                           <button
                             type="button"
                             onClick={handleNext}
-                            className="pointer-events-auto w-8 h-8 rounded-full bg-black/75 border border-white/15 hover:border-accent-red text-white flex items-center justify-center active:scale-90 transition-transform shadow-lg backdrop-blur-md cursor-pointer"
+                            className="pointer-events-auto w-8 h-8 rounded-full bg-black/80 border border-white/15 hover:border-accent-red text-white flex items-center justify-center active:scale-90 transition-transform shadow-lg backdrop-blur-md cursor-pointer"
                             aria-label="العرض التالي"
                           >
                             <span className="material-symbols-outlined text-base">chevron_left</span>
@@ -389,7 +427,7 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
 
                     {/* Mobile Dots Indicator under image */}
                     {hasMultipleOffers && (
-                      <div className="flex items-center justify-center gap-1.5 pb-1">
+                      <div className="flex items-center justify-center gap-1.5">
                         {offers.map((_, i) => (
                           <button
                             key={i}
@@ -398,8 +436,8 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
                               setDirection(i > currentIndex ? 1 : -1);
                               setCurrentIndex(i);
                             }}
-                            className={`h-1 rounded-full transition-all duration-300 cursor-pointer ${
-                              i === currentIndex ? 'w-5 bg-accent-red' : 'w-1.5 bg-white/20'
+                            className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
+                              i === currentIndex ? 'w-5 bg-accent-red shadow-[0_0_8px_#E31E24]' : 'w-1.5 bg-white/20'
                             }`}
                             aria-label={`العرض ${i + 1}`}
                           />
@@ -407,60 +445,79 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
                       </div>
                     )}
 
-                    {/* Mobile Product Title */}
-                    <h2 className="font-product-title text-xl font-black text-white uppercase tracking-tight leading-tight">
+                    {/* Super-tag */}
+                    <div className="inline-flex items-center gap-1.5 text-[11px] font-product-title font-black uppercase text-accent-red tracking-wider">
+                      <span className="w-1.5 h-1.5 rounded-full bg-accent-red animate-pulse" />
+                      <span>⚡ بكج العرض الحصري</span>
+                    </div>
+
+                    {/* Mobile Title */}
+                    <h2 className="font-display font-black text-2xl text-white uppercase tracking-tight leading-tight">
                       <Link href={`/products/${product.slug || product.id}`}>
                         {cleanProductName}
                       </Link>
                     </h2>
 
-                    {/* Mobile Modern Pricing Display (Clean, No bulky boxes) */}
-                    <div className="flex items-center justify-center gap-2.5 w-full">
-                      <div className="flex items-baseline gap-1" dir="ltr">
-                        <span className="font-product-title text-2xl font-black text-white">
-                          {product.price}
-                        </span>
-                        <span className="text-xs font-bold text-accent-red">EGP</span>
+                    {/* Quick Benefits Chips */}
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-white/[0.04] border border-white/[0.08] text-[11px] text-zinc-300 font-medium">
+                        <span className="material-symbols-outlined text-accent-red text-xs">bolt</span>
+                        <span>ضخ دم متفجر</span>
+                      </span>
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-white/[0.04] border border-white/[0.08] text-[11px] text-zinc-300 font-medium">
+                        <span className="material-symbols-outlined text-emerald-400 text-xs">verified</span>
+                        <span>أصلي 100%</span>
+                      </span>
+                    </div>
+
+                    {/* Pricing Card */}
+                    <div className="w-full max-w-sm p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.08] flex items-center justify-between gap-2">
+                      <div className="flex flex-col items-start gap-0.5">
+                        <div className="flex items-baseline gap-1" dir="ltr">
+                          <span className="font-display font-black text-2xl text-white">
+                            {product.price}
+                          </span>
+                          <span className="font-display font-bold text-accent-red text-sm">ج.م</span>
+                          {hasDiscount && (
+                            <span className="font-display text-xs text-zinc-500 line-through ml-1.5">
+                              {product.oldPrice} ج.م
+                            </span>
+                          )}
+                        </div>
                         {hasDiscount && (
-                          <span className="text-xs font-product-title text-text-muted/50 line-through ml-1.5">
-                            {product.oldPrice} EGP
+                          <span className="text-[10px] text-accent-red font-bold">
+                            وفرت {savings} ج.م ({discountPercentage}%-)
                           </span>
                         )}
                       </div>
 
-                      {hasDiscount && (
-                        <span className="bg-accent-red text-white text-[10px] font-product-title font-bold px-2 py-0.5 rounded-md shadow-sm">
-                          وفر {savings} EGP ({discountPercentage}%-)
-                        </span>
-                      )}
+                      {/* Mobile Countdown Timer */}
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="text-[9px] text-zinc-400 font-medium">ينتهي خلال:</span>
+                        <CountdownTimer
+                          endDate={toEgyptTime(targetEndDate)}
+                          className="flex items-center gap-1"
+                          itemClassName="flex flex-col items-center justify-center bg-black/80 border border-white/10 px-1.5 py-0.5 rounded-lg min-w-[34px]"
+                          numberClassName="font-product-title text-sm font-black text-white leading-none"
+                          labelClassName="text-[7px] text-zinc-400 mt-0.5 uppercase font-body"
+                        />
+                      </div>
                     </div>
 
-                    {/* Mobile Countdown Timer (Compact & Crisp) */}
-                    <div className="w-full max-w-xs flex flex-col items-center gap-1 pt-1">
-                      <span className="text-[10px] text-text-muted/70 font-medium">الوقت المتبقي قبل انتهاء العرض:</span>
-                      <CountdownTimer
-                        endDate={toEgyptTime(targetEndDate)}
-                        className="flex items-center justify-center gap-2 w-full"
-                        itemClassName="flex-1 flex flex-col items-center justify-center bg-[#121212] border border-white/[0.08] py-1.5 rounded-xl"
-                        numberClassName="font-product-title text-lg font-black text-white leading-none"
-                        labelClassName="text-[9px] text-zinc-400 mt-0.5 uppercase font-medium"
-                      />
-                    </div>
-
-                    {/* Mobile Full-Width CTA Button */}
+                    {/* Mobile Full-Width High-Impact CTA Button */}
                     <Link
                       href={`/products/${product.slug || product.id}`}
-                      className="w-full max-w-xs bg-gradient-to-r from-accent-red to-[#ff2b33] hover:from-accent-red-hover hover:to-accent-red text-white py-3 rounded-xl font-product-title font-bold text-sm tracking-wider flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-md shadow-accent-red/25 mt-1 cursor-pointer"
+                      className="w-full max-w-sm bg-gradient-to-r from-accent-red via-[#e31e24] to-[#b31419] hover:from-[#ff2d33] hover:to-accent-red text-white py-3.5 rounded-xl font-display font-black text-base tracking-wide flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-lg shadow-accent-red/30 cursor-pointer"
                     >
                       <span>اطلب العرض الآن</span>
-                      <span className="material-symbols-outlined text-lg rtl:rotate-180">arrow_forward</span>
+                      <span className="material-symbols-outlined text-lg">arrow_back</span>
                     </Link>
 
-                    {/* Mobile Trust Micro-Perks */}
-                    <div className="flex items-center justify-center gap-3 text-[10px] text-text-muted/70 font-body pt-0.5">
-                      <span className="flex items-center gap-1 text-white/90 font-medium">
+                    {/* Trust indicators */}
+                    <div className="flex items-center justify-center gap-3 text-[11px] text-zinc-400 font-body">
+                      <span className="flex items-center gap-1 text-white/90">
                         <span className="material-symbols-outlined text-xs text-emerald-400">verified</span>
-                        <span>أصلي 100% معتمد</span>
+                        <span>أصلي ومضمون</span>
                       </span>
                       <span>•</span>
                       <span>معاينة قبل الدفع</span>
