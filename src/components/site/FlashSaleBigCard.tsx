@@ -138,27 +138,32 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
             {/* ============================================================ */}
             <div className="w-full flex items-center justify-between pb-3 sm:pb-4 mb-3 sm:mb-6 border-b border-white/[0.08] relative z-20" dir="rtl">
               
-              {/* Right: Badge */}
+              {/* Right: Enlarged Athletic Special Offer Badge (تم تكبير وتطوير ديزاين عرض خاص وحذف المتجر الرسمي) */}
               <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 bg-white/[0.05] border border-white/10 px-2.5 sm:px-3 py-1 rounded-full text-white/90 font-product-title font-semibold text-[11px] sm:text-xs tracking-wider">
-                  <span className="w-1.5 h-1.5 rounded-full bg-accent-red animate-ping" />
-                  <span>{currentOffer.badgeText || 'عرض خاص لفترة محدودة'}</span>
-                </span>
-                <span className="text-text-muted/60 text-[11px] sm:text-xs font-medium hidden sm:inline">
-                  المتجر الرسمي
-                </span>
+                <div className="inline-flex items-center gap-2 sm:gap-2.5 bg-gradient-to-r from-accent-red/20 via-black/80 to-[#141414] border border-accent-red/50 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl sm:rounded-2xl shadow-[0_0_20px_rgba(227,30,36,0.3)] backdrop-blur-md">
+                  <span className="relative flex h-2.5 w-2.5 sm:h-3 sm:w-3 items-center justify-center">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-red opacity-80" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 sm:h-2.5 sm:w-2.5 bg-accent-red shadow-[0_0_8px_#E31E24]" />
+                  </span>
+                  <span className="material-symbols-outlined text-accent-red text-lg sm:text-xl select-none">
+                    local_fire_department
+                  </span>
+                  <span className="font-display font-black text-sm sm:text-base md:text-lg text-white tracking-wide">
+                    {currentOffer.badgeText || 'عرض خاص'}
+                  </span>
+                </div>
               </div>
 
-              {/* Left: Mobile Counter Badge / Desktop Full Controls */}
+              {/* Left: Mobile Counter Badge / Desktop Dot Indicators (تم حذف الأسهم العلوية على الكمبيوتر) */}
               {hasMultipleOffers && (
                 <div className="flex items-center gap-2 sm:gap-3" dir="ltr">
                   
                   {/* Counter badge (Shows cleanly on both) */}
-                  <span className="text-[10px] sm:text-[11px] font-product-title font-bold text-accent-red bg-accent-red/10 border border-accent-red/20 px-2 sm:px-2.5 py-0.5 rounded-full" dir="rtl">
+                  <span className="text-xs sm:text-sm font-product-title font-bold text-accent-red bg-accent-red/10 border border-accent-red/25 px-2.5 sm:px-3 py-1 rounded-full" dir="rtl">
                     {currentIndex + 1} / {offers.length}
                   </span>
 
-                  {/* Desktop Only: Dot Indicators & Arrows in Header */}
+                  {/* Desktop Only: Dot Indicators in Header */}
                   <div className="hidden sm:flex items-center gap-1.5 px-1">
                     {offers.map((_, i) => (
                       <button
@@ -168,44 +173,25 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
                           setDirection(i > currentIndex ? 1 : -1);
                           setCurrentIndex(i);
                         }}
-                        className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
-                          i === currentIndex ? 'w-6 bg-accent-red' : 'w-2 bg-white/20 hover:bg-white/40'
+                        className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
+                          i === currentIndex ? 'w-7 bg-accent-red shadow-[0_0_10px_#E31E24]' : 'w-2 bg-white/20 hover:bg-white/40'
                         }`}
                         aria-label={`الانتقال للعرض ${i + 1}`}
                       />
                     ))}
                   </div>
 
-                  <div className="hidden sm:flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={handlePrev}
-                      aria-label="العرض السابق"
-                      className="w-8 h-8 rounded-full bg-white/5 hover:bg-accent-red text-white flex items-center justify-center border border-white/10 hover:border-accent-red transition-all active:scale-90 cursor-pointer shadow-md"
-                    >
-                      <span className="material-symbols-outlined text-base">chevron_left</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleNext}
-                      aria-label="العرض التالي"
-                      className="w-8 h-8 rounded-full bg-white/5 hover:bg-accent-red text-white flex items-center justify-center border border-white/10 hover:border-accent-red transition-all active:scale-90 cursor-pointer shadow-md"
-                    >
-                      <span className="material-symbols-outlined text-base">chevron_right</span>
-                    </button>
-                  </div>
-
                 </div>
               )}
             </div>
 
-            {/* Desktop Floating Side Arrows */}
+            {/* Desktop & Tablet Floating Side Arrows */}
             {hasMultipleOffers && (
               <>
                 <button
                   type="button"
                   onClick={handleNext}
-                  className="hidden xl:flex absolute right-4 top-1/2 -translate-y-1/2 z-30 w-11 h-11 rounded-full bg-black/75 hover:bg-accent-red text-white border border-white/15 hover:border-accent-red items-center justify-center transition-all active:scale-95 shadow-xl backdrop-blur-md cursor-pointer"
+                  className="hidden md:flex absolute right-4 top-1/2 -translate-y-1/2 z-30 w-11 h-11 rounded-full bg-black/75 hover:bg-accent-red text-white border border-white/15 hover:border-accent-red items-center justify-center transition-all active:scale-95 shadow-xl backdrop-blur-md cursor-pointer"
                   aria-label="العرض التالي"
                 >
                   <span className="material-symbols-outlined text-xl">arrow_forward_ios</span>
@@ -213,7 +199,7 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
                 <button
                   type="button"
                   onClick={handlePrev}
-                  className="hidden xl:flex absolute left-4 top-1/2 -translate-y-1/2 z-30 w-11 h-11 rounded-full bg-black/75 hover:bg-accent-red text-white border border-white/15 hover:border-accent-red items-center justify-center transition-all active:scale-95 shadow-xl backdrop-blur-md cursor-pointer"
+                  className="hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 z-30 w-11 h-11 rounded-full bg-black/75 hover:bg-accent-red text-white border border-white/15 hover:border-accent-red items-center justify-center transition-all active:scale-95 shadow-xl backdrop-blur-md cursor-pointer"
                   aria-label="العرض السابق"
                 >
                   <span className="material-symbols-outlined text-xl">arrow_back_ios</span>
