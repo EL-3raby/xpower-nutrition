@@ -93,6 +93,13 @@ export interface Coupon {
   lastPaidAt?: Timestamp | Date;
 }
 
+export interface FlashSaleItem {
+  id?: string;
+  productId: string;
+  endDateTime?: Timestamp | Date | string;
+  badgeText?: string;
+}
+
 export interface SiteConfig {
   heroBanner: {
     imageUrl: string;
@@ -125,8 +132,9 @@ export interface SiteConfig {
   };
   flashSale?: {
     isActive: boolean;
-    productId: string;
-    endDateTime: Timestamp | Date;
+    productId?: string;
+    endDateTime?: Timestamp | Date;
+    items?: FlashSaleItem[];
   };
   bestSellers?: {
     isActive: boolean;

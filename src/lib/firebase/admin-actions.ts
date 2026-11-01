@@ -163,7 +163,8 @@ export const DEFAULT_CONFIG: SiteConfig = {
   flashSale: {
     isActive: false,
     productId: '',
-    endDateTime: new Date(new Date().getTime() + 24 * 60 * 60 * 1000)
+    endDateTime: new Date(new Date().getTime() + 24 * 60 * 60 * 1000),
+    items: []
   },
   bestSellers: {
     isActive: true

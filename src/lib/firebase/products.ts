@@ -189,7 +189,19 @@ export async function deleteProduct(id: string) {
       const configData = configSnap.data();
       let updated = false;
 
-      if (configData.flashSale?.productId === id) {
+      if (configData.flashSale?.items && Array.isArray(configData.flashSale.items)) {
+        const prevLen = configData.flashSale.items.length;
+        configData.flashSale.items = configData.flashSale.items.filter((item: any) => item.productId !== id);
+        if (configData.flashSale.items.length !== prevLen) {
+          updated = true;
+          if (configData.flashSale.items.length === 0) {
+            configData.flashSale.isActive = false;
+            configData.flashSale.productId = '';
+          } else {
+            configData.flashSale.productId = configData.flashSale.items[0].productId;
+          }
+        }
+      } else if (configData.flashSale?.productId === id) {
         configData.flashSale.productId = '';
         configData.flashSale.isActive = false;
         updated = true;

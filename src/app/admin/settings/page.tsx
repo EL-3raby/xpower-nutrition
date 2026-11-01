@@ -51,10 +51,42 @@ export default function AdminSettingsPage() {
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Flash Sale States
+  // Flash Sale States (Supports multiple offers)
   const [flashSaleActive, setFlashSaleActive] = useState(false);
-  const [flashSaleProductId, setFlashSaleProductId] = useState('');
-  const [flashSaleEndDate, setFlashSaleEndDate] = useState('');
+  const [flashSaleItems, setFlashSaleItems] = useState<Array<{
+    id: string;
+    productId: string;
+    endDateTime: string;
+    badgeText: string;
+  }>>([]);
+
+  const addFlashSaleItem = () => {
+    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const year = tomorrow.getFullYear();
+    const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+    const day = String(tomorrow.getDate()).padStart(2, '0');
+    const hours = String(tomorrow.getHours()).padStart(2, '0');
+    const minutes = String(tomorrow.getMinutes()).padStart(2, '0');
+    const defaultDateStr = `${year}-${month}-${day}T${hours}:${minutes}`;
+
+    setFlashSaleItems(prev => [
+      ...prev,
+      {
+        id: `fs_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        productId: '',
+        endDateTime: defaultDateStr,
+        badgeText: 'عرض خاص',
+      }
+    ]);
+  };
+
+  const removeFlashSaleItem = (id: string) => {
+    setFlashSaleItems(prev => prev.filter(item => item.id !== id));
+  };
+
+  const updateFlashSaleItem = (id: string, updates: Partial<{ productId: string; endDateTime: string; badgeText: string }>) => {
+    setFlashSaleItems(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item));
+  };
 
   // Best Sellers States
   const [bestSellersActive, setBestSellersActive] = useState(true);
@@ -110,20 +142,36 @@ export default function AdminSettingsPage() {
 
         setTrustBadgesRaw(fetched.trustBadges?.join(', ') || '');
 
-        // Prepopulate Flash Sale
+        // Prepopulate Flash Sale (supports multiple offers and single fallback)
         setFlashSaleActive(fetched.flashSale?.isActive ?? false);
-        setFlashSaleProductId(fetched.flashSale?.productId || '');
-        if (fetched.flashSale?.endDateTime) {
-          const dt = fetched.flashSale.endDateTime instanceof Timestamp
-            ? fetched.flashSale.endDateTime.toDate()
-            : new Date(fetched.flashSale.endDateTime as any);
-
+        const parseDateToStr = (rawDate: any) => {
+          if (!rawDate) return '';
+          const dt = rawDate instanceof Timestamp ? rawDate.toDate() : new Date(rawDate as any);
+          if (isNaN(dt.getTime())) return '';
           const year = dt.getFullYear();
           const month = String(dt.getMonth() + 1).padStart(2, '0');
           const day = String(dt.getDate()).padStart(2, '0');
           const hours = String(dt.getHours()).padStart(2, '0');
           const minutes = String(dt.getMinutes()).padStart(2, '0');
-          setFlashSaleEndDate(`${year}-${month}-${day}T${hours}:${minutes}`);
+          return `${year}-${month}-${day}T${hours}:${minutes}`;
+        };
+
+        if (fetched.flashSale?.items && Array.isArray(fetched.flashSale.items) && fetched.flashSale.items.length > 0) {
+          setFlashSaleItems(fetched.flashSale.items.map((it, idx) => ({
+            id: it.id || `fs_${idx}_${Date.now()}`,
+            productId: it.productId || '',
+            endDateTime: parseDateToStr(it.endDateTime || fetched.flashSale?.endDateTime),
+            badgeText: it.badgeText || '',
+          })));
+        } else if (fetched.flashSale?.productId) {
+          setFlashSaleItems([{
+            id: `fs_0_${Date.now()}`,
+            productId: fetched.flashSale.productId,
+            endDateTime: parseDateToStr(fetched.flashSale.endDateTime),
+            badgeText: '',
+          }]);
+        } else {
+          setFlashSaleItems([]);
         }
 
         // Prepopulate Best Sellers
@@ -163,6 +211,13 @@ export default function AdminSettingsPage() {
         ? trustBadgesRaw.split(',').map(b => b.trim()).filter(Boolean)
         : [];
 
+      const validFlashSaleItems = flashSaleItems.filter(item => Boolean(item.productId));
+      if (flashSaleActive && validFlashSaleItems.length === 0) {
+        setErrorMsg('يرجى اختيار منتج واحد على الأقل في قسم عروض الفلاش سيل أو إلغاء تفعيل القسم.');
+        setSubmitting(false);
+        return;
+      }
+
       const updatedPayload: SiteConfig = {
         heroBanner: {
           imageUrl: heroImg,
@@ -186,8 +241,13 @@ export default function AdminSettingsPage() {
         trustBadges,
         flashSale: {
           isActive: flashSaleActive,
-          productId: flashSaleProductId,
-          endDateTime: flashSaleEndDate ? new Date(flashSaleEndDate) : new Date()
+          productId: validFlashSaleItems[0]?.productId || '',
+          endDateTime: validFlashSaleItems[0]?.endDateTime ? new Date(validFlashSaleItems[0].endDateTime) : new Date(),
+          items: validFlashSaleItems.map(item => ({
+            productId: item.productId,
+            endDateTime: item.endDateTime ? new Date(item.endDateTime) : new Date(),
+            badgeText: item.badgeText?.trim() || '',
+          }))
         },
         bestSellers: {
           isActive: bestSellersActive
@@ -901,50 +961,176 @@ export default function AdminSettingsPage() {
           </div>
         </div>
 
-        {/* Section 5: Flash Sale */}
+        {/* Section 5: Flash Sale (Multiple Offers Support) */}
         <div className={sectionClass}>
-          <h2 className={headerClass}>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent-red/20 to-transparent flex items-center justify-center border border-accent-red/20">
-              <span className="material-symbols-outlined text-accent-red">bolt</span>
-            </div>
-            عروض لفترة محدودة (Flash Sale)
-          </h2>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-white/5">
+            <h2 className={headerClass}>
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent-red/20 to-transparent flex items-center justify-center border border-accent-red/20">
+                <span className="material-symbols-outlined text-accent-red">bolt</span>
+              </div>
+              <span>عروض لفترة محدودة (Flash Sale)</span>
+              {flashSaleItems.length > 0 && (
+                <span className="text-xs bg-accent-red/10 text-accent-red border border-accent-red/20 px-2.5 py-0.5 rounded-full font-product-title font-bold">
+                  {flashSaleItems.length} {flashSaleItems.length === 1 ? 'عرض' : 'عروض'}
+                </span>
+              )}
+            </h2>
 
-          <div className="bg-bg-primary/30 p-4 rounded-xl border border-white/5 mb-2">
+            {flashSaleActive && (
+              <button
+                type="button"
+                onClick={addFlashSaleItem}
+                className="inline-flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white border border-white/10 px-4 py-2 rounded-xl text-xs font-bold font-product-title transition-all active:scale-95"
+              >
+                <span className="material-symbols-outlined text-sm text-accent-red">add_circle</span>
+                <span>إضافة عرض جديد</span>
+              </button>
+            )}
+          </div>
+
+          <div className="bg-bg-primary/30 p-4 rounded-xl border border-white/5 mb-4">
             <ToggleSwitch
               id="flashSaleActive"
               checked={flashSaleActive}
               onChange={setFlashSaleActive}
-              label="تفعيل قسم الـ Flash Sale في الصفحة الرئيسية"
+              label="تفعيل قسم العروض (Flash Sale) في الصفحة الرئيسية"
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className={labelClass}>المنتج (Product)</label>
-              <select
-                value={flashSaleProductId}
-                onChange={(e) => setFlashSaleProductId(e.target.value)}
-                className={inputClass}
-              >
-                <option value="">-- اختر منتج --</option>
-                {products.map(p => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
-            </div>
+          {flashSaleActive && (
+            <div className="space-y-4">
+              {flashSaleItems.length === 0 ? (
+                <div className="text-center py-10 bg-bg-primary/20 border border-dashed border-white/10 rounded-2xl flex flex-col items-center justify-center gap-3">
+                  <span className="material-symbols-outlined text-4xl text-text-muted/40">shopping_bag</span>
+                  <p className="text-text-muted text-sm font-body">لم تقم بإضافة أي عروض بعد.</p>
+                  <button
+                    type="button"
+                    onClick={addFlashSaleItem}
+                    className="inline-flex items-center gap-2 bg-accent-red hover:bg-accent-red-hover text-white px-5 py-2.5 rounded-xl text-xs font-bold font-product-title transition-all active:scale-95 shadow-md shadow-accent-red/20"
+                  >
+                    <span className="material-symbols-outlined text-sm">add</span>
+                    <span>أضف أول عرض الآن</span>
+                  </button>
+                </div>
+              ) : (
+                flashSaleItems.map((item, index) => {
+                  const selectedProd = products.find(p => p.id === item.productId);
+                  return (
+                    <div
+                      key={item.id}
+                      className="bg-bg-primary/40 border border-white/10 hover:border-white/20 rounded-2xl p-5 relative transition-all"
+                    >
+                      {/* Top Item Bar */}
+                      <div className="flex items-center justify-between pb-3 mb-4 border-b border-white/5">
+                        <div className="flex items-center gap-2.5">
+                          <span className="w-6 h-6 rounded-lg bg-accent-red/15 text-accent-red font-product-title font-black text-xs flex items-center justify-center border border-accent-red/20">
+                            {index + 1}
+                          </span>
+                          <span className="font-product-title font-bold text-sm text-white">
+                            {selectedProd ? selectedProd.name : `عرض جديد #${index + 1}`}
+                          </span>
+                          {selectedProd && (
+                            <span className="text-xs text-text-muted font-body" dir="ltr">
+                              ({selectedProd.price} EGP {selectedProd.oldPrice ? `| قبل الخصم: ${selectedProd.oldPrice} EGP` : ''})
+                            </span>
+                          )}
+                        </div>
 
-            <div>
-              <label className={labelClass}>تاريخ ووقت انتهاء العرض (End Date)</label>
-              <input
-                type="datetime-local"
-                value={flashSaleEndDate}
-                onChange={(e) => setFlashSaleEndDate(e.target.value)}
-                className={`${inputClass} text-left`}
-                dir="ltr"
-              />
+                        <button
+                          type="button"
+                          onClick={() => removeFlashSaleItem(item.id)}
+                          className="text-text-muted/60 hover:text-accent-red text-xs flex items-center gap-1 transition-colors p-1.5 rounded-lg hover:bg-accent-red/10 cursor-pointer"
+                          title="حذف هذا العرض"
+                        >
+                          <span className="material-symbols-outlined text-base">delete</span>
+                          <span className="hidden sm:inline">حذف</span>
+                        </button>
+                      </div>
+
+                      {/* Fields */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                        {/* Product Selection */}
+                        <div className="md:col-span-1">
+                          <label className={labelClass}>المنتج (Product) *</label>
+                          <select
+                            value={item.productId}
+                            onChange={(e) => updateFlashSaleItem(item.id, { productId: e.target.value })}
+                            className={inputClass}
+                            required
+                          >
+                            <option value="">-- اختر منتج --</option>
+                            {products.map(p => (
+                              <option key={p.id} value={p.id}>
+                                {p.name} ({p.price} EGP)
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* End Date */}
+                        <div className="md:col-span-1">
+                          <label className={labelClass}>تاريخ ووقت انتهاء العرض *</label>
+                          <input
+                            type="datetime-local"
+                            value={item.endDateTime}
+                            onChange={(e) => updateFlashSaleItem(item.id, { endDateTime: e.target.value })}
+                            className={`${inputClass} text-left`}
+                            dir="ltr"
+                            required
+                          />
+                        </div>
+
+                        {/* Custom Badge Text */}
+                        <div className="md:col-span-1">
+                          <label className={labelClass}>نص الشارة (اختياري)</label>
+                          <input
+                            type="text"
+                            value={item.badgeText}
+                            onChange={(e) => updateFlashSaleItem(item.id, { badgeText: e.target.value })}
+                            placeholder="مثال: عرض خاص، وفر 30%..."
+                            className={inputClass}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Product Preview Thumbnail if selected */}
+                      {selectedProd && selectedProd.images && selectedProd.images[0] && (
+                        <div className="mt-4 pt-3 border-t border-white/5 flex items-center gap-3">
+                          <img
+                            src={selectedProd.images[0]}
+                            alt={selectedProd.name}
+                            className="w-12 h-12 rounded-lg object-contain bg-black/40 border border-white/10 p-1"
+                          />
+                          <div className="text-xs font-body text-text-muted">
+                            <span className="text-white/90 font-medium">معاينة الصورة المعتمدة للعرض</span>
+                            <p className="text-[11px] text-text-muted/60">
+                              سيتم عرض الختم الدائري والعد التنازلي التفاعلي تلقائياً على كارت هذا المنتج في الصفحة الرئيسية.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+
+              {flashSaleItems.length > 0 && (
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={addFlashSaleItem}
+                    className="inline-flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white border border-white/10 px-4 py-2.5 rounded-xl text-xs font-bold font-product-title transition-all active:scale-95 cursor-pointer w-fit"
+                  >
+                    <span className="material-symbols-outlined text-sm text-accent-red">add</span>
+                    <span>إضافة عرض إضافي (+ كارت جديد)</span>
+                  </button>
+                  <span className="text-xs text-text-muted/60 font-body">
+                    يتم عرض الكروت بتصميم رياضي مميز تلقائياً في الصفحة الرئيسية.
+                  </span>
+                </div>
+              )}
             </div>
-          </div>
+          )}
         </div>
 
         {/* Section 6: Best Sellers */}

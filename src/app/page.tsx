@@ -56,10 +56,38 @@ export default async function HomePage() {
 
   const displayProducts = sortedProducts;
 
-  let flashSaleProduct = null;
-  if (settings.flashSale?.isActive && settings.flashSale.productId) {
-    flashSaleProduct = products.find((p) => p.id === settings.flashSale!.productId) || null;
+  // Flash sale offers (supports single and multiple offers)
+  const flashSaleOffers: Array<{
+    product: Product;
+    endDateTime?: any;
+    badgeText?: string;
+  }> = [];
+
+  if (settings.flashSale?.isActive) {
+    if (settings.flashSale.items && Array.isArray(settings.flashSale.items) && settings.flashSale.items.length > 0) {
+      for (const item of settings.flashSale.items) {
+        const prod = products.find((p) => p.id === item.productId);
+        if (prod) {
+          flashSaleOffers.push({
+            product: prod,
+            endDateTime: item.endDateTime || settings.flashSale.endDateTime,
+            badgeText: item.badgeText || '',
+          });
+        }
+      }
+    } else if (settings.flashSale.productId) {
+      const prod = products.find((p) => p.id === settings.flashSale!.productId);
+      if (prod) {
+        flashSaleOffers.push({
+          product: prod,
+          endDateTime: settings.flashSale.endDateTime,
+          badgeText: '',
+        });
+      }
+    }
   }
+
+  const flashSaleProduct = flashSaleOffers[0]?.product || null;
 
   let bestSellers: Product[] = [];
   if (settings.bestSellers?.isActive) {
@@ -81,6 +109,7 @@ export default async function HomePage() {
       initialCategories={toPlainObject(activeCategories)}
       initialProducts={toPlainObject(displayProducts)}
       initialFlashSaleProduct={toPlainObject(flashSaleProduct)}
+      initialFlashSaleOffers={toPlainObject(flashSaleOffers)}
       initialBestSellers={toPlainObject(bestSellers)}
     />
   );

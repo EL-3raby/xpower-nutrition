@@ -158,11 +158,18 @@ function HeroBanner({ settings, titleMain, titleAccent }: { settings: SiteConfig
   );
 }
 
+export interface FlashSaleOffer {
+  product: Product;
+  endDateTime?: any;
+  badgeText?: string;
+}
+
 interface HomeClientPageProps {
   initialSettings: SiteConfig;
   initialCategories: Category[];
   initialProducts: Product[];
   initialFlashSaleProduct: Product | null;
+  initialFlashSaleOffers?: FlashSaleOffer[];
   initialBestSellers: Product[];
 }
 
@@ -171,12 +178,24 @@ export default function HomeClientPage({
   initialCategories,
   initialProducts,
   initialFlashSaleProduct,
+  initialFlashSaleOffers,
   initialBestSellers,
 }: HomeClientPageProps) {
   const [settings, setSettings] = useState<SiteConfig>(initialSettings);
   const [activeCategories, setActiveCategories] = useState<Category[]>(initialCategories || []);
   const [displayProducts, setDisplayProducts] = useState<Product[]>(initialProducts || []);
   const [allProducts, setAllProducts] = useState<Product[]>(initialProducts || []);
+  const [flashSaleOffers, setFlashSaleOffers] = useState<FlashSaleOffer[]>(() => {
+    if (initialFlashSaleOffers && initialFlashSaleOffers.length > 0) return initialFlashSaleOffers;
+    if (initialFlashSaleProduct) {
+      return [{
+        product: initialFlashSaleProduct,
+        endDateTime: initialSettings.flashSale?.endDateTime,
+        badgeText: '',
+      }];
+    }
+    return [];
+  });
   const [flashSaleProduct, setFlashSaleProduct] = useState<Product | null>(initialFlashSaleProduct || null);
   const [bestSellers, setBestSellers] = useState<Product[]>(initialBestSellers || []);
   const [hasMounted, setHasMounted] = useState(false);
@@ -222,10 +241,33 @@ export default function HomeClientPage({
         setAllProducts(prods);
         setDisplayProducts(sortedProducts);
 
-        if (cfg.flashSale?.isActive && cfg.flashSale.productId) {
-          const flashProd = prods.find((p) => p.id === cfg.flashSale!.productId);
-          setFlashSaleProduct(flashProd || null);
+        if (cfg.flashSale?.isActive) {
+          const offers: FlashSaleOffer[] = [];
+          if (cfg.flashSale.items && Array.isArray(cfg.flashSale.items) && cfg.flashSale.items.length > 0) {
+            for (const item of cfg.flashSale.items) {
+              const prod = prods.find((p) => p.id === item.productId);
+              if (prod) {
+                offers.push({
+                  product: prod,
+                  endDateTime: item.endDateTime || cfg.flashSale.endDateTime,
+                  badgeText: item.badgeText,
+                });
+              }
+            }
+          } else if (cfg.flashSale.productId) {
+            const prod = prods.find((p) => p.id === cfg.flashSale!.productId);
+            if (prod) {
+              offers.push({
+                product: prod,
+                endDateTime: cfg.flashSale.endDateTime,
+                badgeText: '',
+              });
+            }
+          }
+          setFlashSaleOffers(offers);
+          setFlashSaleProduct(offers[0]?.product || null);
         } else {
+          setFlashSaleOffers([]);
           setFlashSaleProduct(null);
         }
 
@@ -315,253 +357,425 @@ export default function HomeClientPage({
         </Link>
       )}
 
-      {/* Flash Sale Banner (Modern Minimal Athletic Design) */}
-      {settings.flashSale?.isActive && flashSaleProduct && (() => {
-        const hasDiscount = Boolean(flashSaleProduct.oldPrice && flashSaleProduct.oldPrice > flashSaleProduct.price);
-        const savings = hasDiscount ? (flashSaleProduct.oldPrice! - flashSaleProduct.price) : 0;
-        const discountPercentage = hasDiscount ? Math.round(((flashSaleProduct.oldPrice! - flashSaleProduct.price) / flashSaleProduct.oldPrice!) * 100) : 0;
-        const cleanProductName = flashSaleProduct.name.replace(/_/g, ' ');
+      {/* Flash Sale Banner / Cards (Supports Single Featured Card & Multiple Cards) */}
+      {settings.flashSale?.isActive && flashSaleOffers.length > 0 && (() => {
+        if (flashSaleOffers.length === 1) {
+          const singleOffer = flashSaleOffers[0];
+          const singleProduct = singleOffer.product;
+          const hasDiscount = Boolean(singleProduct.oldPrice && singleProduct.oldPrice > singleProduct.price);
+          const savings = hasDiscount ? (singleProduct.oldPrice! - singleProduct.price) : 0;
+          const discountPercentage = hasDiscount ? Math.round(((singleProduct.oldPrice! - singleProduct.price) / singleProduct.oldPrice!) * 100) : 0;
+          const cleanProductName = singleProduct.name.replace(/_/g, ' ');
+          const targetEndDate = singleOffer.endDateTime || settings.flashSale?.endDateTime;
 
-        return (
-          <section className="relative w-full border-y border-white/[0.08] bg-[#090909] overflow-hidden select-none">
-            
-            {/* ============================================================ */}
-            {/* 1. DESKTOP VIEW (hidden md:block) — Modern Clean Showcase   */}
-            {/* ============================================================ */}
-            <div className="hidden md:block relative w-full py-12 lg:py-16 bg-[#0a0a0a]">
+          return (
+            <section className="relative w-full border-y border-white/[0.08] bg-[#070707] py-8 sm:py-12 lg:py-16 overflow-hidden select-none">
               {/* Soft Subtle Ambient Radial Lighting */}
-              <div className="absolute top-1/2 left-1/3 -translate-y-1/2 w-[420px] h-[420px] bg-accent-red/[0.06] rounded-full blur-[140px] pointer-events-none" />
+              <div className="absolute top-1/2 left-1/3 -translate-y-1/2 w-[450px] h-[450px] bg-accent-red/[0.06] rounded-full blur-[150px] pointer-events-none" />
 
-              <div className="max-w-7xl mx-auto px-6 lg:px-10 relative z-10">
+              <div className="max-w-6xl mx-auto px-4 sm:px-6 relative z-10">
                 <ScrollReveal>
-                  <div className="grid grid-cols-12 items-center gap-8 lg:gap-14" dir="rtl">
-                    
-                    {/* Right Column: Offer Details & Actions (7 cols) */}
-                    <div className="col-span-7 flex flex-col items-start text-right gap-4 lg:gap-5">
+                  {/* Athletic Featured Offer Card */}
+                  <div className="relative rounded-3xl border border-white/10 hover:border-accent-red/35 bg-gradient-to-b from-[#141414] via-[#0f0f0f] to-[#080808] p-6 sm:p-8 lg:p-12 overflow-hidden shadow-2xl transition-all duration-300">
+                    {/* Inner subtle glow */}
+                    <div className="absolute -top-24 -left-24 w-60 h-60 bg-accent-red/[0.08] rounded-full blur-3xl pointer-events-none" />
+
+                    {/* ============================================================ */}
+                    {/* 1. DESKTOP VIEW (hidden md:grid) — 2 Columns Inside Card     */}
+                    {/* ============================================================ */}
+                    <div className="hidden md:grid md:grid-cols-12 items-center gap-8 lg:gap-14 relative z-10" dir="rtl">
                       
-                      {/* Top Status & Category Row */}
-                      <div className="flex items-center gap-2.5">
-                        <span className="inline-flex items-center gap-1.5 bg-white/[0.04] border border-white/10 px-3 py-1 rounded-full text-white/90 font-product-title font-semibold text-xs tracking-wider">
-                          <span className="w-1.5 h-1.5 rounded-full bg-accent-red" />
-                          <span>عرض خاص لفترة محدودة</span>
-                        </span>
-                        <span className="text-text-muted/60 text-xs font-medium">
-                          المتجر الرسمي
-                        </span>
-                      </div>
-
-                      {/* Product Headline (Human Clean Typography) */}
-                      <h2 className="font-product-title text-3xl lg:text-5xl font-black text-white uppercase tracking-tight leading-tight">
-                        {cleanProductName}
-                      </h2>
-
-                      {/* Pricing Display */}
-                      <div className="flex items-baseline gap-4 py-3 border-y border-white/[0.06] w-full">
-                        <div className="flex items-baseline gap-2" dir="ltr">
-                          <span className="font-product-title text-3xl lg:text-4xl font-black text-white">
-                            {flashSaleProduct.price} <span className="text-xs font-bold text-accent-red ml-1">EGP</span>
+                      {/* Right Column: Offer Details & Actions (7 cols) */}
+                      <div className="col-span-7 flex flex-col items-start text-right gap-4 lg:gap-5">
+                        
+                        {/* Top Status & Category Row */}
+                        <div className="flex items-center gap-2.5">
+                          <span className="inline-flex items-center gap-1.5 bg-white/[0.04] border border-white/10 px-3 py-1 rounded-full text-white/90 font-product-title font-semibold text-xs tracking-wider">
+                            <span className="w-1.5 h-1.5 rounded-full bg-accent-red" />
+                            <span>{singleOffer.badgeText || 'عرض خاص لفترة محدودة'}</span>
                           </span>
-                          {hasDiscount && (
-                            <span className="font-product-title text-lg text-text-muted/50 line-through">
-                              {flashSaleProduct.oldPrice} EGP
+                          <span className="text-text-muted/60 text-xs font-medium">
+                            المتجر الرسمي
+                          </span>
+                        </div>
+
+                        {/* Product Headline */}
+                        <h2 className="font-product-title text-3xl lg:text-5xl font-black text-white uppercase tracking-tight leading-tight">
+                          {cleanProductName}
+                        </h2>
+
+                        {/* Pricing Display */}
+                        <div className="flex items-baseline gap-4 py-3 border-y border-white/[0.06] w-full">
+                          <div className="flex items-baseline gap-2" dir="ltr">
+                            <span className="font-product-title text-3xl lg:text-4xl font-black text-white">
+                              {singleProduct.price} <span className="text-xs font-bold text-accent-red ml-1">EGP</span>
                             </span>
+                            {hasDiscount && (
+                              <span className="font-product-title text-lg text-text-muted/50 line-through">
+                                {singleProduct.oldPrice} EGP
+                              </span>
+                            )}
+                          </div>
+
+                          {hasDiscount && (
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-accent-red text-white text-xs font-bold font-product-title">
+                              <span>وفر {savings} EGP</span>
+                              <span className="text-[10px] opacity-90">({discountPercentage}%-)</span>
+                            </div>
                           )}
                         </div>
 
-                        {hasDiscount && (
-                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-accent-red text-white text-xs font-bold font-product-title">
-                            <span>وفر {savings} EGP</span>
-                            <span className="text-[10px] opacity-90">({discountPercentage}%-)</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Countdown Timer Block */}
-                      <div className="flex flex-col gap-2">
-                        <span className="text-xs text-text-muted font-medium tracking-wide">
-                          الوقت المتبقي قبل انتهاء العرض:
-                        </span>
-                        <CountdownTimer
-                          endDate={toEgyptTime(settings.flashSale?.endDateTime)}
-                          itemClassName="flex flex-col items-center justify-center bg-[#121212] border border-white/[0.08] px-4 py-2.5 rounded-xl min-w-[65px]"
-                          numberClassName="font-product-title text-2xl lg:text-3xl font-black text-white leading-none tracking-tight"
-                          labelClassName="text-[10px] text-zinc-400 mt-1 uppercase font-medium"
-                        />
-                      </div>
-
-                      {/* Action Button & Trust Guarantee */}
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mt-2 w-full">
-                        <Link
-                          href={`/products/${flashSaleProduct.slug || flashSaleProduct.id}`}
-                          className="inline-flex items-center justify-center gap-2.5 bg-accent-red hover:bg-accent-red-hover text-white px-8 py-3.5 rounded-xl font-product-title text-sm sm:text-base font-bold tracking-wider transition-all duration-200 active:scale-[0.98] shadow-md shadow-accent-red/20 hover:shadow-lg hover:shadow-accent-red/35 cursor-pointer"
-                        >
-                          <span>اطلب العرض الآن</span>
-                          <span className="material-symbols-outlined text-lg rtl:rotate-180">arrow_forward</span>
-                        </Link>
-
-                        <div className="flex flex-col text-xs text-text-muted/80 gap-0.5 font-body">
-                          <span className="flex items-center gap-1.5 text-white/90 font-medium">
-                            <span className="material-symbols-outlined text-sm text-emerald-400">verified</span>
-                            <span>منتج أصلي 100% معتمد</span>
+                        {/* Countdown Timer Block */}
+                        <div className="flex flex-col gap-2">
+                          <span className="text-xs text-text-muted font-medium tracking-wide">
+                            الوقت المتبقي قبل انتهاء العرض:
                           </span>
-                          <span className="text-[11px] text-text-muted/70">معاينة وفحص الطلب قبل الاستلام والدفع</span>
+                          <CountdownTimer
+                            endDate={toEgyptTime(targetEndDate)}
+                            itemClassName="flex flex-col items-center justify-center bg-[#121212] border border-white/[0.08] px-4 py-2.5 rounded-xl min-w-[65px]"
+                            numberClassName="font-product-title text-2xl lg:text-3xl font-black text-white leading-none tracking-tight"
+                            labelClassName="text-[10px] text-zinc-400 mt-1 uppercase font-medium"
+                          />
+                        </div>
+
+                        {/* Action Button & Trust Guarantee */}
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mt-2 w-full">
+                          <Link
+                            href={`/products/${singleProduct.slug || singleProduct.id}`}
+                            className="inline-flex items-center justify-center gap-2.5 bg-accent-red hover:bg-accent-red-hover text-white px-8 py-3.5 rounded-xl font-product-title text-sm sm:text-base font-bold tracking-wider transition-all duration-200 active:scale-[0.98] shadow-md shadow-accent-red/20 hover:shadow-lg hover:shadow-accent-red/35 cursor-pointer"
+                          >
+                            <span>اطلب العرض الآن</span>
+                            <span className="material-symbols-outlined text-lg rtl:rotate-180">arrow_forward</span>
+                          </Link>
+
+                          <div className="flex flex-col text-xs text-text-muted/80 gap-0.5 font-body">
+                            <span className="flex items-center gap-1.5 text-white/90 font-medium">
+                              <span className="material-symbols-outlined text-sm text-emerald-400">verified</span>
+                              <span>منتج أصلي 100% معتمد</span>
+                            </span>
+                            <span className="text-[11px] text-text-muted/70">معاينة وفحص الطلب قبل الاستلام والدفع</span>
+                          </div>
+                        </div>
+
+                      </div>
+
+                      {/* Left Column: Product Presentation Stage (5 cols) */}
+                      <div className="col-span-5 flex items-center justify-center relative">
+                        <div className="relative w-72 h-72 lg:w-96 lg:h-96 flex items-center justify-center">
+                          <img
+                            src={getOptimizedImageUrl(singleProduct.images[0], { width: 600, height: 600 })}
+                            alt={cleanProductName}
+                            loading="lazy"
+                            className="w-full h-full object-contain relative z-10 drop-shadow-[0_15px_30px_rgba(0,0,0,0.8)]"
+                          />
+
+                          {/* Official Special Offer Circular Stamp (ختم عرض خاص) */}
+                          <div className="absolute top-0 left-0 lg:top-2 lg:left-2 z-20 pointer-events-none select-none rotate-[-12deg] drop-shadow-[0_10px_25px_rgba(0,0,0,0.85)]">
+                            <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-full border-2 border-accent-red/90 p-1 flex items-center justify-center bg-black/80 backdrop-blur-md shadow-[0_0_25px_rgba(227,30,36,0.3)]">
+                              <div className="w-full h-full rounded-full border border-dashed border-accent-red/70 flex flex-col items-center justify-center p-1.5 text-center">
+                                <span className="text-[8px] sm:text-[9px] font-product-title uppercase font-black tracking-widest text-accent-red leading-none">
+                                  ★ XPOWER ★
+                                </span>
+                                <span className="font-display font-black text-white text-sm sm:text-base leading-tight my-0.5 drop-shadow-sm">
+                                  عرض خاص
+                                </span>
+                                {hasDiscount ? (
+                                  <span className="text-[10px] sm:text-[11px] font-product-title font-black text-accent-red leading-none tracking-wider">
+                                    خصم {discountPercentage}%-
+                                  </span>
+                                ) : (
+                                  <span className="text-[8px] sm:text-[9px] font-product-title font-bold text-text-muted/80 leading-none tracking-wider uppercase">
+                                    LIMITED DEAL
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </div>
 
                     </div>
 
-                    {/* Left Column: Product Presentation Stage (5 cols) */}
-                    <div className="col-span-5 flex items-center justify-center relative">
-                      <div className="relative w-72 h-72 lg:w-96 lg:h-96 flex items-center justify-center">
-                        <img
-                          src={getOptimizedImageUrl(flashSaleProduct.images[0], { width: 600, height: 600 })}
-                          alt={cleanProductName}
-                          loading="lazy"
-                          className="w-full h-full object-contain relative z-10 drop-shadow-[0_15px_30px_rgba(0,0,0,0.8)]"
-                        />
+                    {/* ============================================================ */}
+                    {/* 2. MOBILE VIEW (block md:hidden) — Clean Mobile Card Inside  */}
+                    {/* ============================================================ */}
+                    <div className="block md:hidden relative w-full">
+                      <div className="flex flex-col items-center text-center gap-4 relative z-10">
+                        
+                        {/* Mobile Top Bar */}
+                        <div className="w-full flex items-center justify-between pb-3 border-b border-white/[0.08]" dir="rtl">
+                          <span className="inline-flex items-center gap-1.5 bg-white/[0.04] border border-white/10 px-3 py-1 rounded-full text-white/90 text-xs font-semibold font-product-title">
+                            <span className="w-1.5 h-1.5 rounded-full bg-accent-red" />
+                            <span>{singleOffer.badgeText || 'عرض خاص لفترة محدودة'}</span>
+                          </span>
+                          <span className="text-[11px] text-text-muted/70 font-medium">
+                            المتجر الرسمي
+                          </span>
+                        </div>
 
-                        {/* Official Special Offer Circular Stamp (ختم عرض خاص) */}
-                        <div className="absolute top-0 left-0 lg:top-2 lg:left-2 z-20 pointer-events-none select-none rotate-[-12deg] drop-shadow-[0_10px_25px_rgba(0,0,0,0.85)]">
-                          <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-full border-2 border-accent-red/90 p-1 flex items-center justify-center bg-black/80 backdrop-blur-md shadow-[0_0_25px_rgba(227,30,36,0.3)]">
-                            {/* Inner dashed ring */}
-                            <div className="w-full h-full rounded-full border border-dashed border-accent-red/70 flex flex-col items-center justify-center p-1.5 text-center">
-                              <span className="text-[8px] sm:text-[9px] font-product-title uppercase font-black tracking-widest text-accent-red leading-none">
-                                ★ XPOWER ★
-                              </span>
-                              <span className="font-display font-black text-white text-sm sm:text-base leading-tight my-0.5 drop-shadow-sm">
-                                عرض خاص
-                              </span>
-                              {hasDiscount ? (
-                                <span className="text-[10px] sm:text-[11px] font-product-title font-black text-accent-red leading-none tracking-wider">
-                                  خصم {discountPercentage}%-
+                        {/* Mobile Product Visual */}
+                        <div className="relative w-56 h-56 my-2 flex items-center justify-center">
+                          <img
+                            src={getOptimizedImageUrl(singleProduct.images[0], { width: 450, height: 450 })}
+                            alt={cleanProductName}
+                            loading="lazy"
+                            className="w-full h-full object-contain relative z-10 drop-shadow-[0_15px_25px_rgba(0,0,0,0.8)]"
+                          />
+
+                          {/* Official Special Offer Circular Stamp Mobile */}
+                          <div className="absolute top-0 -left-1 z-20 pointer-events-none select-none rotate-[-12deg] drop-shadow-[0_8px_20px_rgba(0,0,0,0.85)]">
+                            <div className="relative w-20 h-20 rounded-full border-2 border-accent-red p-1 flex items-center justify-center bg-black/85 backdrop-blur-md">
+                              <div className="w-full h-full rounded-full border border-dashed border-accent-red/80 flex flex-col items-center justify-center p-1 text-center">
+                                <span className="text-[7px] font-product-title uppercase font-black tracking-widest text-accent-red leading-none">
+                                  ★ XPOWER ★
                                 </span>
-                              ) : (
-                                <span className="text-[8px] sm:text-[9px] font-product-title font-bold text-text-muted/80 leading-none tracking-wider uppercase">
-                                  LIMITED DEAL
+                                <span className="font-display font-black text-white text-xs leading-tight my-0.5">
+                                  عرض خاص
                                 </span>
-                              )}
+                                {hasDiscount ? (
+                                  <span className="text-[9px] font-product-title font-black text-accent-red leading-none tracking-wider">
+                                    خصم {discountPercentage}%-
+                                  </span>
+                                ) : (
+                                  <span className="text-[7px] font-product-title font-bold text-text-muted/80 leading-none tracking-wider uppercase">
+                                    LIMITED
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
+
+                        {/* Mobile Product Title */}
+                        <h2 className="font-product-title text-2xl font-black text-white uppercase tracking-tight leading-tight">
+                          {cleanProductName}
+                        </h2>
+
+                        {/* Mobile Price Row */}
+                        <div className="flex items-center justify-center gap-3 bg-white/[0.03] border border-white/[0.08] py-2 px-5 rounded-xl w-full max-w-sm">
+                          <span className="font-product-title text-2xl font-black text-white" dir="ltr">
+                            {singleProduct.price} <span className="text-xs font-bold text-accent-red ml-1">EGP</span>
+                          </span>
+                          {hasDiscount && (
+                            <>
+                              <span className="text-sm text-text-muted/60 line-through font-product-title" dir="ltr">
+                                {singleProduct.oldPrice} EGP
+                              </span>
+                              <span className="bg-accent-red text-white text-[10px] font-bold px-1.5 py-0.5 rounded font-product-title">
+                                {discountPercentage}%-
+                              </span>
+                            </>
+                          )}
+                        </div>
+
+                        {/* Mobile Countdown Timer */}
+                        <div className="w-full max-w-sm flex flex-col items-center gap-1.5 pt-1">
+                          <span className="text-[11px] text-text-muted/70 font-medium">الوقت المتبقي قبل انتهاء العرض:</span>
+                          <CountdownTimer
+                            endDate={toEgyptTime(targetEndDate)}
+                            className="flex items-center justify-center gap-2 w-full"
+                            itemClassName="flex-1 flex flex-col items-center justify-center bg-[#141414] border border-white/[0.08] py-2 rounded-xl"
+                            numberClassName="font-product-title text-xl font-black text-white leading-none"
+                            labelClassName="text-[10px] text-text-muted/70 mt-1 uppercase font-medium"
+                          />
+                        </div>
+
+                        {/* Mobile Full-Width CTA Button */}
+                        <Link
+                          href={`/products/${singleProduct.slug || singleProduct.id}`}
+                          className="w-full max-w-sm bg-accent-red hover:bg-accent-red-hover text-white py-3.5 rounded-xl font-product-title font-bold text-sm tracking-wider flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-md shadow-accent-red/25 mt-2"
+                        >
+                          <span>اطلب العرض الآن</span>
+                          <span className="material-symbols-outlined text-lg rtl:rotate-180">arrow_forward</span>
+                        </Link>
+
+                        {/* Mobile Trust Micro-Perks */}
+                        <div className="flex items-center justify-center gap-4 text-[11px] text-text-muted/70 font-body pt-1">
+                          <span className="flex items-center gap-1">
+                            <span className="material-symbols-outlined text-sm text-emerald-400">verified</span>
+                            <span>أصلي 100% معتمد</span>
+                          </span>
+                          <span>•</span>
+                          <span>معاينة قبل الدفع</span>
+                          <span>•</span>
+                          <span>دفع عند الاستلام</span>
+                        </div>
+
                       </div>
                     </div>
 
                   </div>
                 </ScrollReveal>
               </div>
-            </div>
+            </section>
+          );
+        }
 
-            {/* ============================================================ */}
-            {/* 2. MOBILE VIEW (block md:hidden) — Clean Mobile Card        */}
-            {/* ============================================================ */}
-            <div className="block md:hidden relative w-full px-4 py-8 bg-[#0a0a0a]">
+        // Multiple Offers View (2, 3 or more offers)
+        return (
+          <section className="relative w-full border-y border-white/[0.08] bg-[#070707] py-8 sm:py-12 lg:py-16 overflow-hidden select-none">
+            {/* Ambient Radial Backlight */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-accent-red/[0.05] rounded-full blur-[160px] pointer-events-none" />
+
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
               <ScrollReveal>
-                <div className="flex flex-col items-center text-center gap-4 relative z-10">
-                  
-                  {/* Mobile Top Bar */}
-                  <div className="w-full flex items-center justify-between pb-3 border-b border-white/[0.08]" dir="rtl">
-                    <span className="inline-flex items-center gap-1.5 bg-white/[0.04] border border-white/10 px-3 py-1 rounded-full text-white/90 text-xs font-semibold font-product-title">
-                      <span className="w-1.5 h-1.5 rounded-full bg-accent-red" />
-                      <span>عرض خاص لفترة محدودة</span>
-                    </span>
-                    <span className="text-[11px] text-text-muted/70 font-medium">
-                      المتجر الرسمي
-                    </span>
-                  </div>
-
-                  {/* Mobile Product Visual */}
-                  <div className="relative w-56 h-56 my-2 flex items-center justify-center">
-                    <img
-                      src={getOptimizedImageUrl(flashSaleProduct.images[0], { width: 450, height: 450 })}
-                      alt={cleanProductName}
-                      loading="lazy"
-                      className="w-full h-full object-contain relative z-10 drop-shadow-[0_15px_25px_rgba(0,0,0,0.8)]"
-                    />
-
-                    {/* Official Special Offer Circular Stamp (ختم عرض خاص) Mobile */}
-                    <div className="absolute top-0 -left-1 z-20 pointer-events-none select-none rotate-[-12deg] drop-shadow-[0_8px_20px_rgba(0,0,0,0.85)]">
-                      <div className="relative w-20 h-20 rounded-full border-2 border-accent-red p-1 flex items-center justify-center bg-black/85 backdrop-blur-md">
-                        {/* Inner dashed ring */}
-                        <div className="w-full h-full rounded-full border border-dashed border-accent-red/80 flex flex-col items-center justify-center p-1 text-center">
-                          <span className="text-[7px] font-product-title uppercase font-black tracking-widest text-accent-red leading-none">
-                            ★ XPOWER ★
-                          </span>
-                          <span className="font-display font-black text-white text-xs leading-tight my-0.5">
-                            عرض خاص
-                          </span>
-                          {hasDiscount ? (
-                            <span className="text-[9px] font-product-title font-black text-accent-red leading-none tracking-wider">
-                              خصم {discountPercentage}%-
-                            </span>
-                          ) : (
-                            <span className="text-[7px] font-product-title font-bold text-text-muted/80 leading-none tracking-wider uppercase">
-                              LIMITED
-                            </span>
-                          )}
-                        </div>
+                {/* Section Header */}
+                <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-white/[0.08] pb-5 mb-8" dir="rtl">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-accent-red/10 border border-accent-red/25 flex items-center justify-center text-accent-red shadow-lg shadow-accent-red/10">
+                      <span className="material-symbols-outlined text-2xl animate-pulse">bolt</span>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-accent-red animate-ping" />
+                        <span className="text-xs font-product-title font-bold text-accent-red uppercase tracking-wider">
+                          عروض حصرية لفترة محدودة
+                        </span>
                       </div>
+                      <h2 className="font-product-title text-2xl sm:text-3xl lg:text-4xl font-black text-white uppercase tracking-tight mt-1">
+                        عروض الفلاش سيل الرياضية
+                      </h2>
                     </div>
                   </div>
-
-                  {/* Mobile Product Title */}
-                  <h2 className="font-product-title text-2xl font-black text-white uppercase tracking-tight leading-tight">
-                    {cleanProductName}
-                  </h2>
-
-                  {/* Mobile Price Row */}
-                  <div className="flex items-center justify-center gap-3 bg-white/[0.03] border border-white/[0.08] py-2 px-5 rounded-xl w-full max-w-sm">
-                    <span className="font-product-title text-2xl font-black text-white" dir="ltr">
-                      {flashSaleProduct.price} <span className="text-xs font-bold text-accent-red ml-1">EGP</span>
-                    </span>
-                    {hasDiscount && (
-                      <>
-                        <span className="text-sm text-text-muted/60 line-through font-product-title" dir="ltr">
-                          {flashSaleProduct.oldPrice} EGP
-                        </span>
-                        <span className="bg-accent-red text-white text-[10px] font-bold px-1.5 py-0.5 rounded font-product-title">
-                          {discountPercentage}%-
-                        </span>
-                      </>
-                    )}
+                  <div className="text-xs text-text-muted/70 font-body">
+                    خصومات قوية تنتهي قريباً • الكميات محدودة جداً
                   </div>
+                </div>
 
-                  {/* Mobile Countdown Timer */}
-                  <div className="w-full max-w-sm flex flex-col items-center gap-1.5 pt-1">
-                    <span className="text-[11px] text-text-muted/70 font-medium">الوقت المتبقي قبل انتهاء العرض:</span>
-                    <CountdownTimer
-                      endDate={toEgyptTime(settings.flashSale?.endDateTime)}
-                      className="flex items-center justify-center gap-2 w-full"
-                      itemClassName="flex-1 flex flex-col items-center justify-center bg-[#141414] border border-white/[0.08] py-2 rounded-xl"
-                      numberClassName="font-product-title text-xl font-black text-white leading-none"
-                      labelClassName="text-[10px] text-text-muted/70 mt-1 uppercase font-medium"
-                    />
-                  </div>
+                {/* Cards Grid */}
+                <div className={`grid grid-cols-1 ${flashSaleOffers.length === 2 ? 'md:grid-cols-2 max-w-5xl mx-auto' : 'md:grid-cols-2 lg:grid-cols-3'} gap-6 sm:gap-8`}>
+                  {flashSaleOffers.map((offer, index) => {
+                    const product = offer.product;
+                    const hasDiscount = Boolean(product.oldPrice && product.oldPrice > product.price);
+                    const savings = hasDiscount ? (product.oldPrice! - product.price) : 0;
+                    const discountPercentage = hasDiscount ? Math.round(((product.oldPrice! - product.price) / product.oldPrice!) * 100) : 0;
+                    const cleanProductName = product.name.replace(/_/g, ' ');
+                    const targetEndDate = offer.endDateTime || settings.flashSale?.endDateTime;
 
-                  {/* Mobile Full-Width CTA Button */}
-                  <Link
-                    href={`/products/${flashSaleProduct.slug || flashSaleProduct.id}`}
-                    className="w-full max-w-sm bg-accent-red hover:bg-accent-red-hover text-white py-3.5 rounded-xl font-product-title font-bold text-sm tracking-wider flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-md shadow-accent-red/25 mt-2"
-                  >
-                    <span>اطلب العرض الآن</span>
-                    <span className="material-symbols-outlined text-lg rtl:rotate-180">arrow_forward</span>
-                  </Link>
+                    return (
+                      <div
+                        key={`flash-offer-${product.id}-${index}`}
+                        className="group relative rounded-3xl border border-white/10 hover:border-accent-red/45 bg-gradient-to-b from-[#141414] via-[#0f0f0f] to-[#080808] p-5 sm:p-6 flex flex-col justify-between overflow-hidden shadow-xl hover:shadow-[0_12px_35px_rgba(227,30,36,0.15)] transition-all duration-300"
+                      >
+                        {/* Hover ambient red glow */}
+                        <div className="absolute top-0 right-0 w-44 h-44 bg-accent-red/[0.04] group-hover:bg-accent-red/[0.12] rounded-full blur-3xl pointer-events-none transition-all duration-500" />
 
-                  {/* Mobile Trust Micro-Perks */}
-                  <div className="flex items-center justify-center gap-4 text-[11px] text-text-muted/70 font-body pt-1">
-                    <span className="flex items-center gap-1">
-                      <span className="material-symbols-outlined text-sm text-emerald-400">verified</span>
-                      <span>أصلي 100% معتمد</span>
-                    </span>
-                    <span>•</span>
-                    <span>معاينة قبل الدفع</span>
-                    <span>•</span>
-                    <span>دفع عند الاستلام</span>
-                  </div>
+                        <div>
+                          {/* Card Top Row */}
+                          <div className="flex items-center justify-between gap-2 z-10 pb-3 border-b border-white/[0.06]" dir="rtl">
+                            <span className="inline-flex items-center gap-1.5 bg-white/[0.04] border border-white/10 px-2.5 py-1 rounded-full text-white/90 font-product-title font-semibold text-[11px] tracking-wider">
+                              <span className="w-1.5 h-1.5 rounded-full bg-accent-red" />
+                              <span>{offer.badgeText || 'عرض خاص لفترة محدودة'}</span>
+                            </span>
+                            <span className="text-text-muted/60 text-[11px] font-medium font-body">
+                              المتجر الرسمي
+                            </span>
+                          </div>
 
+                          {/* Product Visual Stage */}
+                          <div className="relative w-full h-52 sm:h-60 my-4 flex items-center justify-center">
+                            <img
+                              src={getOptimizedImageUrl(product.images[0], { width: 500, height: 500 })}
+                              alt={cleanProductName}
+                              loading="lazy"
+                              className="w-full h-full object-contain relative z-10 drop-shadow-[0_12px_24px_rgba(0,0,0,0.85)] group-hover:scale-105 transition-transform duration-300"
+                            />
+
+                            {/* Branded Stamp Top Left */}
+                            <div className="absolute top-0 left-0 z-20 pointer-events-none select-none rotate-[-12deg] drop-shadow-[0_8px_20px_rgba(0,0,0,0.85)]">
+                              <div className="relative w-20 h-20 rounded-full border-2 border-accent-red/90 p-1 flex items-center justify-center bg-black/85 backdrop-blur-md shadow-[0_0_20px_rgba(227,30,36,0.3)]">
+                                <div className="w-full h-full rounded-full border border-dashed border-accent-red/70 flex flex-col items-center justify-center p-1 text-center">
+                                  <span className="text-[7px] font-product-title uppercase font-black tracking-widest text-accent-red leading-none">
+                                    ★ XPOWER ★
+                                  </span>
+                                  <span className="font-display font-black text-white text-xs leading-tight my-0.5">
+                                    عرض خاص
+                                  </span>
+                                  {hasDiscount ? (
+                                    <span className="text-[9px] font-product-title font-black text-accent-red leading-none tracking-wider">
+                                      خصم {discountPercentage}%-
+                                    </span>
+                                  ) : (
+                                    <span className="text-[7px] font-product-title font-bold text-text-muted/80 leading-none uppercase">
+                                      DEAL
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Product Info */}
+                          <div className="flex flex-col gap-3 text-right" dir="rtl">
+                            <h3 className="font-product-title text-xl font-black text-white uppercase tracking-tight line-clamp-1 group-hover:text-accent-red transition-colors">
+                              <Link href={`/products/${product.slug || product.id}`}>
+                                {cleanProductName}
+                              </Link>
+                            </h3>
+
+                            {/* Pricing Display */}
+                            <div className="flex items-baseline gap-3 py-2 border-y border-white/[0.06] w-full justify-between">
+                              <div className="flex items-baseline gap-2" dir="ltr">
+                                <span className="font-product-title text-2xl font-black text-white">
+                                  {product.price} <span className="text-xs font-bold text-accent-red ml-0.5">EGP</span>
+                                </span>
+                                {hasDiscount && (
+                                  <span className="font-product-title text-sm text-text-muted/50 line-through">
+                                    {product.oldPrice} EGP
+                                  </span>
+                                )}
+                              </div>
+
+                              {hasDiscount && (
+                                <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-accent-red text-white text-[11px] font-bold font-product-title">
+                                  <span>وفر {savings} EGP</span>
+                                  <span className="text-[10px] opacity-90">({discountPercentage}%-)</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Countdown Timer */}
+                            <div className="flex flex-col gap-1.5 pt-1">
+                              <div className="text-[11px] text-text-muted font-medium">
+                                الوقت المتبقي قبل انتهاء العرض:
+                              </div>
+                              <CountdownTimer
+                                endDate={toEgyptTime(targetEndDate)}
+                                className="grid grid-cols-4 gap-1.5 w-full"
+                                itemClassName="flex flex-col items-center justify-center bg-[#101010] border border-white/[0.08] py-2 rounded-xl"
+                                numberClassName="font-product-title text-lg font-black text-white leading-none"
+                                labelClassName="text-[9px] text-zinc-400 mt-1 uppercase font-medium"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Actions & Perks */}
+                        <div className="flex flex-col gap-2 mt-4 pt-3 border-t border-white/[0.06]" dir="rtl">
+                          <Link
+                            href={`/products/${product.slug || product.id}`}
+                            className="inline-flex items-center justify-center gap-2 bg-accent-red hover:bg-accent-red-hover text-white py-3 rounded-xl font-product-title text-sm font-bold tracking-wider transition-all duration-200 active:scale-[0.98] shadow-md shadow-accent-red/20 hover:shadow-lg hover:shadow-accent-red/35 cursor-pointer w-full"
+                          >
+                            <span>اطلب العرض الآن</span>
+                            <span className="material-symbols-outlined text-base rtl:rotate-180">arrow_forward</span>
+                          </Link>
+
+                          <div className="flex items-center justify-center gap-3 text-[11px] text-text-muted/70 font-body pt-1">
+                            <span className="flex items-center gap-1 text-white/90 font-medium">
+                              <span className="material-symbols-outlined text-xs text-emerald-400">verified</span>
+                              <span>أصلي 100% معتمد</span>
+                            </span>
+                            <span>•</span>
+                            <span>معاينة قبل الدفع</span>
+                          </div>
+                        </div>
+
+                      </div>
+                    );
+                  })}
                 </div>
               </ScrollReveal>
             </div>
-
           </section>
         );
       })()}
