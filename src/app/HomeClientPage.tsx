@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { motion, useScroll, useTransform } from 'framer-motion';
-import ProductCard from '@/components/site/ProductCard';
+import { motion } from 'framer-motion';
 import ScrollReveal from '@/components/site/ScrollReveal';
 import BestSellersSlider from '@/components/site/BestSellersSlider';
 import AllProductsMarquee from '@/components/site/AllProductsMarquee';
