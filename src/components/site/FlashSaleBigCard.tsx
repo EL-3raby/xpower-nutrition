@@ -130,8 +130,7 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
             }}
             className="relative rounded-3xl border border-white/[0.12] hover:border-accent-red/40 bg-gradient-to-b from-[#111113] via-[#0b0b0c] to-[#070708] p-5 sm:p-8 lg:p-10 overflow-hidden shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9),0_0_40px_-20px_rgba(227,30,36,0.2)] transition-all duration-300"
           >
-            {/* Athletic micro-grid pattern & glow line */}
-            <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff04_1px,transparent_1px),linear-gradient(to_bottom,#ffffff04_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
+            {/* Top metallic glow border line */}
             <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-accent-red/60 to-transparent pointer-events-none" />
             <div className="absolute top-1/2 left-1/4 -translate-y-1/2 -translate-x-1/2 w-[380px] h-[380px] bg-accent-red/[0.10] rounded-full blur-[110px] pointer-events-none" />
 

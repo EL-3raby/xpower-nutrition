@@ -17,14 +17,14 @@ export const viewport: Viewport = {
 };
 
 const cairo = Cairo({
-  subsets: ['latin', 'arabic'],
+  subsets: ['arabic'],
   weight: ['400', '600', '700', '800', '900'],
   variable: '--font-cairo',
   display: 'swap',
 });
 
 const tajawal = Tajawal({
-  subsets: ['latin', 'arabic'],
+  subsets: ['arabic'],
   weight: ['400', '500', '700'],
   variable: '--font-tajawal',
   display: 'swap',
