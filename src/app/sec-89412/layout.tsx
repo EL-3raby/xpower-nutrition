@@ -19,7 +19,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [uncontactedCheckouts, setUncontactedCheckouts] = useState(0);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const isLoginPage = pathname === '/admin/login' || pathname === '/admin/login/';
+  const isLoginPage = pathname === '/sec-89412/login' || pathname === '/sec-89412/login/';
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -36,22 +36,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           if (isAdmin) {
             setUser(currentUser);
             if (isLoginPage) {
-              router.push('/admin');
+              router.push('/sec-89412');
             }
           } else {
             await adminLogout();
             setUser(null);
-            if (!isLoginPage) router.push('/admin/login');
+            if (!isLoginPage) router.push('/sec-89412/login');
           }
         } catch (err) {
           console.error('Error validating admin credentials:', err);
           setUser(null);
-          if (!isLoginPage) router.push('/admin/login');
+          if (!isLoginPage) router.push('/sec-89412/login');
         }
       } else {
         setUser(null);
         if (!isLoginPage) {
-          router.push('/admin/login');
+          router.push('/sec-89412/login');
         }
       }
       setLoading(false);
@@ -109,7 +109,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const handleLogout = async () => {
     try {
       await adminLogout();
-      router.push('/admin/login');
+      router.push('/sec-89412/login');
     } catch (err) {
       console.error('Logout error:', err);
     }
@@ -191,13 +191,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <span className="text-[10px] text-text-muted uppercase mt-0.5">لوحة تحكم الآدمن</span>
           </div>
           {unreadOrders > 0 && (
-            <Link href="/admin/orders" className="flex items-center gap-2 bg-accent-red/10 border border-accent-red/20 text-accent-red px-3 py-2 w-full justify-start transition-colors hover:bg-accent-red/20 rounded-xl">
+            <Link href="/sec-89412/orders" className="flex items-center gap-2 bg-accent-red/10 border border-accent-red/20 text-accent-red px-3 py-2 w-full justify-start transition-colors hover:bg-accent-red/20 rounded-xl">
               <span className="material-symbols-outlined text-[18px] animate-pulse">notifications_active</span>
               <span className="font-bold text-xs">{unreadOrders} أوردر جديد</span>
             </Link>
           )}
           {uncontactedCheckouts > 0 && (
-            <Link href="/admin/abandoned-checkouts" className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 text-amber-500 px-3 py-2 w-full justify-start transition-colors hover:bg-amber-500/20 rounded-xl">
+            <Link href="/sec-89412/abandoned-checkouts" className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 text-amber-500 px-3 py-2 w-full justify-start transition-colors hover:bg-amber-500/20 rounded-xl">
               <span className="material-symbols-outlined text-[18px] animate-pulse">shopping_cart_off</span>
               <span className="font-bold text-xs">{uncontactedCheckouts} سلة متروكة في الانتظار</span>
             </Link>
@@ -206,12 +206,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Navigation Options */}
         <nav className="flex-1 min-h-0 overflow-y-auto py-4 flex flex-col gap-1 custom-scrollbar">
-          <Link href="/admin" className={navLinkClass('/admin')}>
+          <Link href="/sec-89412" className={navLinkClass('/sec-89412')}>
             <span className="material-symbols-outlined text-xl">dashboard</span>
             <span>الرئيسية</span>
           </Link>
 
-          <Link href="/admin/orders" className={navLinkClass('/admin/orders')}>
+          <Link href="/sec-89412/orders" className={navLinkClass('/sec-89412/orders')}>
             <span className="material-symbols-outlined text-xl">shopping_cart</span>
             <span className="flex-grow text-right">الأوردرات</span>
             {unreadOrders > 0 && (
@@ -221,32 +221,32 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             )}
           </Link>
 
-          <Link href="/admin/products" className={navLinkClass('/admin/products')}>
+          <Link href="/sec-89412/products" className={navLinkClass('/sec-89412/products')}>
             <span className="material-symbols-outlined text-xl">inventory_2</span>
             <span>المنتجات</span>
           </Link>
 
-          <Link href="/admin/reviews" className={navLinkClass('/admin/reviews')}>
+          <Link href="/sec-89412/reviews" className={navLinkClass('/sec-89412/reviews')}>
             <span className="material-symbols-outlined text-xl">star</span>
             <span>التقييمات</span>
           </Link>
 
-          <Link href="/admin/categories" className={navLinkClass('/admin/categories')}>
+          <Link href="/sec-89412/categories" className={navLinkClass('/sec-89412/categories')}>
             <span className="material-symbols-outlined text-xl">category</span>
             <span>الأقسام</span>
           </Link>
 
-          <Link href="/admin/coupons" className={navLinkClass('/admin/coupons')}>
+          <Link href="/sec-89412/coupons" className={navLinkClass('/sec-89412/coupons')}>
             <span className="material-symbols-outlined text-xl">sell</span>
             <span>كوبونات الخصم</span>
           </Link>
 
-          <Link href="/admin/affiliates" className={navLinkClass('/admin/affiliates')}>
+          <Link href="/sec-89412/affiliates" className={navLinkClass('/sec-89412/affiliates')}>
             <span className="material-symbols-outlined text-xl">groups</span>
             <span>تقرير المسوقين</span>
           </Link>
 
-          <Link href="/admin/abandoned-checkouts" className={navLinkClass('/admin/abandoned-checkouts')}>
+          <Link href="/sec-89412/abandoned-checkouts" className={navLinkClass('/sec-89412/abandoned-checkouts')}>
             <span className="material-symbols-outlined text-xl">shopping_cart_off</span>
             <span className="flex-grow text-right">سلات متروكة</span>
             {uncontactedCheckouts > 0 && (
@@ -256,27 +256,27 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             )}
           </Link>
 
-          <Link href="/admin/promo-popup" className={navLinkClass('/admin/promo-popup')}>
+          <Link href="/sec-89412/promo-popup" className={navLinkClass('/sec-89412/promo-popup')}>
             <span className="material-symbols-outlined text-xl">campaign</span>
             <span>إعلان ثابت</span>
           </Link>
 
-          <Link href="/admin/authenticity-codes" className={navLinkClass('/admin/authenticity-codes')}>
+          <Link href="/sec-89412/authenticity-codes" className={navLinkClass('/sec-89412/authenticity-codes')}>
             <span className="material-symbols-outlined text-xl">verified</span>
             <span>أكواد الأصالة</span>
           </Link>
 
-          <Link href="/admin/settings" className={navLinkClass('/admin/settings')}>
+          <Link href="/sec-89412/settings" className={navLinkClass('/sec-89412/settings')}>
             <span className="material-symbols-outlined text-xl">settings</span>
             <span>تظبيط الموقع</span>
           </Link>
 
-          <Link href="/admin/shipping" className={navLinkClass('/admin/shipping')}>
+          <Link href="/sec-89412/shipping" className={navLinkClass('/sec-89412/shipping')}>
             <span className="material-symbols-outlined text-xl">local_shipping</span>
             <span>مصاريف الشحن</span>
           </Link>
 
-          <Link href="/admin/activity-log" className={navLinkClass('/admin/activity-log')}>
+          <Link href="/sec-89412/activity-log" className={navLinkClass('/sec-89412/activity-log')}>
             <span className="material-symbols-outlined text-xl">history</span>
             <span>سجل الحركات</span>
           </Link>

@@ -303,7 +303,7 @@ export default function AdminAffiliatesPage() {
                     <td className="px-6 py-5 text-center">
                       <div className="flex items-center justify-center gap-2">
                         <Link 
-                          href={`/admin/affiliates/detail?id=${affiliate.id}`}
+                          href={`/sec-89412/affiliates/detail?id=${affiliate.id}`}
                           className="bg-bg-primary hover:bg-bg-elevated text-white border border-white/10 hover:border-white/30 px-4 py-2 rounded-xl text-xs font-bold transition-all duration-300 flex items-center justify-center gap-2 group-hover:shadow-[0_0_15px_rgba(255,255,255,0.05)]"
                         >
                           <span className="material-symbols-outlined text-[16px]">analytics</span>
@@ -390,7 +390,7 @@ export default function AdminAffiliatesPage() {
                 {/* Actions */}
                 <div className="flex gap-2 mt-1">
                   <Link 
-                    href={`/admin/affiliates/detail?id=${affiliate.id}`}
+                    href={`/sec-89412/affiliates/detail?id=${affiliate.id}`}
                     className="flex-1 bg-white/5 hover:bg-white/10 text-white flex items-center justify-center gap-1 py-2.5 rounded-xl text-xs font-bold transition-colors"
                   >
                     <span className="material-symbols-outlined text-[16px]">analytics</span>

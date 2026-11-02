@@ -82,7 +82,7 @@ export default function AdminLoginPage() {
       } catch {}
       setFailedAttempts(0);
       setLockoutRemaining(0);
-      router.push('/admin');
+      router.push('/sec-89412');
     } catch (err: any) {
       console.error('Login error:', err);
       

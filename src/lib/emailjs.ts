@@ -21,7 +21,7 @@ export async function sendNewOrderEmail(order: Order) {
     })
     .join('\n');
 
-  const adminOrderLink = `${siteUrl}/admin/orders/detail?id=${order.id || 'N/A'}`;
+  const adminOrderLink = `${siteUrl}/sec-89412/orders/detail?id=${order.id || 'N/A'}`;
 
   const isVodafone = order.paymentMethod === 'vodafone_cash';
   const isInstapay = order.paymentMethod === 'instapay';

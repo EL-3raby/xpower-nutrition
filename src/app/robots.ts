@@ -9,6 +9,7 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: '*',
       allow: '/',
       disallow: [
+        '/sec-89412/',
         '/admin/',
         '/checkout/',
         '/cart/',

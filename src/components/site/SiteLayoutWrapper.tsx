@@ -46,7 +46,7 @@ export default function SiteLayoutWrapper({ children }: { children: React.ReactN
       const p = window.location.pathname;
       const isLocal = h === 'localhost' || h === '127.0.0.1' || h.endsWith('.local');
       const isAdminCached = localStorage.getItem('xpower_is_admin') === '1';
-      if (isLocal || p.startsWith('/admin') || p.startsWith('/links') || isAdminCached) return false;
+      if (isLocal || p.startsWith('/sec-89412') || p.startsWith('/links') || isAdminCached) return false;
       return localStorage.getItem('xpower_maintenance_active') === '1';
     } catch {
       return false;
@@ -64,7 +64,7 @@ export default function SiteLayoutWrapper({ children }: { children: React.ReactN
   });
 
   // Admin routes and Links page do not have the site layout
-  const isAdminOrLinks = pathname?.startsWith('/admin') || pathname?.startsWith('/links');
+  const isAdminOrLinks = pathname?.startsWith('/sec-89412') || pathname?.startsWith('/links');
 
   useEffect(() => {
     if (isAdminOrLinks) return;
@@ -150,7 +150,7 @@ export default function SiteLayoutWrapper({ children }: { children: React.ReactN
             <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
             <span>وضع الصيانة مفعّل حالياً للزوار — أنت تتصفح الموقع بصفتك مسؤول (Admin Bypass).</span>
           </div>
-          <Link href="/admin/settings" className="underline font-bold hover:text-white transition-colors">
+          <Link href="/sec-89412/settings" className="underline font-bold hover:text-white transition-colors">
             إعدادات الصيانة
           </Link>
         </div>

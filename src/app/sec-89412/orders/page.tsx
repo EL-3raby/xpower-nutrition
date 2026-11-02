@@ -210,7 +210,7 @@ function AdminOrdersContent() {
                   <tr key={o.id} className="hover:bg-white/[0.02] transition-colors group">
                     
                     <td className="py-4 pr-6 text-right font-mono font-bold text-white select-all">
-                      <Link href={`/admin/orders/detail?id=${o.id}`} className="hover:text-accent-red flex items-center gap-2">
+                      <Link href={`/sec-89412/orders/detail?id=${o.id}`} className="hover:text-accent-red flex items-center gap-2">
                         {!o.isReadByAdmin && (
                           <span className="w-2 h-2 rounded-full bg-accent-red inline-block animate-pulse" title="أوردر غير مقروء" />
                         )}
@@ -269,7 +269,7 @@ function AdminOrdersContent() {
                           {o.totalPrice.toLocaleString()} <span className="text-[10px] font-body text-text-muted font-normal">EGP</span>
                         </span>
                         <Link 
-                          href={`/admin/orders/detail?id=${o.id}`} 
+                          href={`/sec-89412/orders/detail?id=${o.id}`} 
                           className="opacity-0 group-hover:opacity-100 transition-all text-text-muted hover:text-white bg-white/5 hover:bg-accent-red/20 p-2 rounded-xl border border-white/10 hover:border-accent-red/30"
                         >
                           <span className="material-symbols-outlined text-[18px] align-middle">chevron_left</span>
@@ -287,7 +287,7 @@ function AdminOrdersContent() {
           <div className="flex flex-col md:hidden p-4 gap-3">
             {filteredOrders.map((o) => (
               <Link 
-                href={`/admin/orders/detail?id=${o.id}`} 
+                href={`/sec-89412/orders/detail?id=${o.id}`} 
                 key={o.id} 
                 className="bg-black/50 border border-white/5 hover:border-accent-red/30 rounded-2xl p-4 flex flex-col gap-3 active:scale-[0.99] transition-all relative"
               >

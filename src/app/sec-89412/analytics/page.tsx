@@ -44,11 +44,11 @@ function AdminAnalyticsContent() {
   }, []);
 
   const handleTabChange = (tab: string) => {
-    router.push(`/admin/analytics?tab=${tab}&range=${currentRange}`);
+    router.push(`/sec-89412/analytics?tab=${tab}&range=${currentRange}`);
   };
 
   const handleRangeChange = (range: DateRange) => {
-    router.push(`/admin/analytics?tab=${currentTab}&range=${range}`);
+    router.push(`/sec-89412/analytics?tab=${currentTab}&range=${range}`);
   };
 
   const { activeOrders, totalSalesCount, totalRevenue } = useMemo(() => {

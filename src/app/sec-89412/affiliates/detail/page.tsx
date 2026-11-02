@@ -121,7 +121,7 @@ function AffiliateReportContent() {
       <div className="h-96 flex flex-col items-center justify-center gap-4">
         <span className="material-symbols-outlined text-6xl text-text-muted/50">person_off</span>
         <span className="text-white font-display text-xl">المسوق غير موجود</span>
-        <button onClick={() => router.push('/admin/affiliates')} className="text-accent-red underline font-body text-sm">العودة لقائمة المسوقين</button>
+        <button onClick={() => router.push('/sec-89412/affiliates')} className="text-accent-red underline font-body text-sm">العودة لقائمة المسوقين</button>
       </div>
     );
   }
@@ -144,7 +144,7 @@ function AffiliateReportContent() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-white/10 pb-6">
         <div>
-          <Link href="/admin/affiliates" className="inline-flex items-center gap-2 text-text-muted hover:text-white transition-colors mb-4 font-body text-sm">
+          <Link href="/sec-89412/affiliates" className="inline-flex items-center gap-2 text-text-muted hover:text-white transition-colors mb-4 font-body text-sm">
             <span className="material-symbols-outlined text-sm">arrow_forward</span>
             رجوع للمسوقين
           </Link>
@@ -283,7 +283,7 @@ function AffiliateReportContent() {
                   return (
                     <tr key={order.id || Math.random().toString()} className={`hover:bg-white/5 transition-colors ${order.status === 'cancelled' ? 'opacity-50' : ''}`}>
                       <td className="px-6 py-5">
-                        <Link href={`/admin/orders/detail?id=${order.id || ''}`} className="font-mono font-bold text-white hover:text-accent-red transition-colors block mb-1">
+                        <Link href={`/sec-89412/orders/detail?id=${order.id || ''}`} className="font-mono font-bold text-white hover:text-accent-red transition-colors block mb-1">
                           #{(order.id || 'N/A').slice(0, 8)}
                         </Link>
                         <div className="text-xs text-text-muted" dir="ltr">{orderDate}</div>

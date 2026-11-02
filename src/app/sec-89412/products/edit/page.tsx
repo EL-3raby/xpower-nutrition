@@ -242,7 +242,7 @@ function EditProductContent() {
       };
 
       await updateProduct(productId, payload);
-      router.push('/admin/products');
+      router.push('/sec-89412/products');
     } catch (err: any) {
       console.error('Failed to update product:', err);
       setErrorMsg(err.message || 'حدث خطأ أثناء تعديل المنتج في قاعدة البيانات.');
@@ -270,7 +270,7 @@ function EditProductContent() {
           </h1>
           <p className="font-body text-sm text-text-muted mt-2">عدل تفاصيل ومخزون المنتج اللي اخترته.</p>
         </div>
-        <Link href="/admin/products" className="text-text-muted hover:text-white font-product-title text-sm border border-text-muted/20 px-6 py-2.5 hover:border-white transition-colors bg-bg-elevated flex items-center gap-2">
+        <Link href="/sec-89412/products" className="text-text-muted hover:text-white font-product-title text-sm border border-text-muted/20 px-6 py-2.5 hover:border-white transition-colors bg-bg-elevated flex items-center gap-2">
           <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
           إلغاء وارجع
         </Link>
@@ -554,7 +554,7 @@ function EditProductContent() {
         {/* Actions buttons */}
         <div className="flex flex-col sm:flex-row justify-end gap-4 border-t border-text-muted/10 pt-8 mt-8">
           <Link 
-            href="/admin/products"
+            href="/sec-89412/products"
             className="text-white text-center font-product-title font-bold px-8 py-3.5 border border-text-muted/20 hover:bg-bg-elevated transition-colors text-sm"
           >
             إلغاء

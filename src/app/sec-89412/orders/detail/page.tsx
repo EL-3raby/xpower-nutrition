@@ -280,7 +280,7 @@ function OrderDetailContent() {
         <div className="bg-accent-red/10 border-r-4 border-accent-red p-4 text-accent-red font-body text-sm">
           {errorMsg}
         </div>
-        <Link href="/admin/orders" className="text-text-muted hover:text-white font-product-title text-sm underline">العودة للأوردرات</Link>
+        <Link href="/sec-89412/orders" className="text-text-muted hover:text-white font-product-title text-sm underline">العودة للأوردرات</Link>
       </div>
     );
   }
@@ -299,7 +299,7 @@ function OrderDetailContent() {
       <div className="border-b border-white/10 pb-6 flex justify-between items-start flex-col sm:flex-row gap-4">
         <div>
           <div className="flex items-center gap-2 mb-2 flex-row-reverse justify-start">
-            <Link href="/admin/orders" className="text-xs text-text-muted hover:text-white transition-colors flex items-center gap-1">
+            <Link href="/sec-89412/orders" className="text-xs text-text-muted hover:text-white transition-colors flex items-center gap-1">
               <span>الأوردرات</span>
             </Link>
             <span className="text-xs text-text-muted/40">/</span>
@@ -374,7 +374,7 @@ function OrderDetailContent() {
               <span>حراري (80mm)</span>
             </button>
             <Link 
-              href="/admin/orders" 
+              href="/sec-89412/orders" 
               className="text-center text-text-muted hover:text-white font-product-title text-xs border border-white/10 bg-white/5 hover:bg-white/10 px-3.5 py-2.5 rounded-xl transition-colors font-bold"
             >
               العودة

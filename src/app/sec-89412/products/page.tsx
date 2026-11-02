@@ -211,7 +211,7 @@ function AdminProductsContent() {
           </button>
 
           <Link
-            href="/admin/products/new"
+            href="/sec-89412/products/new"
             className="flex-1 md:flex-initial bg-accent-red hover:bg-[#ff1a22] text-white font-product-title font-bold px-5 py-2.5 rounded-xl shadow-[0_2px_15px_rgba(227,30,36,0.35)] hover:scale-102 transition-all text-xs sm:text-sm flex items-center justify-center gap-1.5 active:scale-95"
           >
             <span className="material-symbols-outlined text-[18px]">add</span>
@@ -421,7 +421,7 @@ function AdminProductsContent() {
                         <td className="py-4 pl-4 text-left font-product-title">
                           <div className="flex justify-end gap-3.5">
                             <Link
-                              href={`/admin/products/edit?id=${p.id}`}
+                              href={`/sec-89412/products/edit?id=${p.id}`}
                               className="text-text-muted hover:text-white flex items-center gap-1 text-xs bg-white/5 px-2 py-1.5 rounded-md hover:bg-white/10 transition-colors"
                             >
                               <span className="material-symbols-outlined text-[16px]">edit</span>
@@ -530,7 +530,7 @@ function AdminProductsContent() {
 
                     <div className="flex gap-2 mt-2">
                       <Link
-                        href={`/admin/products/edit?id=${p.id}`}
+                        href={`/sec-89412/products/edit?id=${p.id}`}
                         className="flex-1 bg-white/5 hover:bg-white/10 text-white flex items-center justify-center gap-1 py-2 rounded-xl text-xs transition-colors font-product-title font-bold"
                       >
                         <span className="material-symbols-outlined text-[16px]">edit</span>

@@ -275,7 +275,7 @@ export default async function RootLayout({
         <script
           id="maintenance-precheck"
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var h=window.location.hostname;var p=window.location.pathname;var isLocal=h==='localhost'||h==='127.0.0.1'||h.endsWith('.local');var isAdmin=localStorage.getItem('xpower_is_admin')==='1';if(isAdmin){document.documentElement.classList.remove('is-maintenance');}else if(!isLocal&&!p.startsWith('/admin')&&!p.startsWith('/links')&&localStorage.getItem('xpower_maintenance_active')==='1'){document.documentElement.classList.add('is-maintenance');}}catch(e){}})();`,
+            __html: `(function(){try{var h=window.location.hostname;var p=window.location.pathname;var isLocal=h==='localhost'||h==='127.0.0.1'||h.endsWith('.local');var isAdmin=localStorage.getItem('xpower_is_admin')==='1';if(isAdmin){document.documentElement.classList.remove('is-maintenance');}else if(!isLocal&&!p.startsWith('/sec-89412')&&!p.startsWith('/links')&&localStorage.getItem('xpower_maintenance_active')==='1'){document.documentElement.classList.add('is-maintenance');}}catch(e){}})();`,
           }}
         />
         {/* Google Tag Manager */}

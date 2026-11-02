@@ -171,7 +171,7 @@ export default function AdminDashboardPage() {
         
         {/* Stat: Total Sales */}
         <Link 
-          href="/admin/analytics?range=all" 
+          href="/sec-89412/analytics?range=all" 
           className="relative bg-[#0a0a0a] border border-white/10 rounded-2xl p-5 flex flex-col justify-between h-44 hover:border-accent-red/40 hover:-translate-y-0.5 transition-all group overflow-hidden shadow-lg"
         >
           <div className="absolute -left-6 -top-6 w-24 h-24 bg-accent-red/10 rounded-full blur-2xl group-hover:bg-accent-red/20 transition-colors pointer-events-none"></div>
@@ -191,7 +191,7 @@ export default function AdminDashboardPage() {
 
         {/* Stat: Today's sales */}
         <Link 
-          href="/admin/analytics?range=today" 
+          href="/sec-89412/analytics?range=today" 
           className="relative bg-[#0a0a0a] border border-white/10 rounded-2xl p-5 flex flex-col justify-between h-44 hover:border-emerald-500/40 hover:-translate-y-0.5 transition-all group overflow-hidden shadow-lg"
         >
           <div className="absolute -left-6 -top-6 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl group-hover:bg-emerald-500/20 transition-colors pointer-events-none"></div>
@@ -211,7 +211,7 @@ export default function AdminDashboardPage() {
 
         {/* Stat: Weekly sales */}
         <Link 
-          href="/admin/analytics?range=7d" 
+          href="/sec-89412/analytics?range=7d" 
           className="relative bg-[#0a0a0a] border border-white/10 rounded-2xl p-5 flex flex-col justify-between h-44 hover:border-white/30 hover:-translate-y-0.5 transition-all group overflow-hidden shadow-lg"
         >
           <div className="absolute -left-6 -top-6 w-24 h-24 bg-white/5 rounded-full blur-2xl group-hover:bg-white/10 transition-colors pointer-events-none"></div>
@@ -231,7 +231,7 @@ export default function AdminDashboardPage() {
 
         {/* Stat: Pending Orders */}
         <Link 
-          href="/admin/orders?status=pending" 
+          href="/sec-89412/orders?status=pending" 
           className="relative bg-[#0a0a0a] border border-white/10 rounded-2xl p-5 flex flex-col justify-between h-44 hover:border-amber-500/40 hover:-translate-y-0.5 transition-all group overflow-hidden shadow-lg"
         >
           <div className="absolute -left-6 -top-6 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl group-hover:bg-amber-500/20 transition-colors pointer-events-none"></div>
@@ -251,7 +251,7 @@ export default function AdminDashboardPage() {
 
         {/* Stat: Payments pending review */}
         <Link 
-          href="/admin/orders?paymentStatus=pending_review" 
+          href="/sec-89412/orders?paymentStatus=pending_review" 
           className="relative bg-[#0a0a0a] border border-white/10 rounded-2xl p-5 flex flex-col justify-between h-44 hover:border-blue-500/40 hover:-translate-y-0.5 transition-all group overflow-hidden shadow-lg sm:col-span-2"
         >
           <div className="absolute -left-6 -top-6 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl group-hover:bg-blue-500/20 transition-colors pointer-events-none"></div>
@@ -274,7 +274,7 @@ export default function AdminDashboardPage() {
 
         {/* Stat: Active products */}
         <Link 
-          href="/admin/products?filter=active" 
+          href="/sec-89412/products?filter=active" 
           className="relative bg-[#0a0a0a] border border-white/10 rounded-2xl p-5 flex flex-col justify-between h-44 hover:border-white/30 hover:-translate-y-0.5 transition-all group overflow-hidden shadow-lg"
         >
           <div className="absolute -left-6 -top-6 w-24 h-24 bg-white/5 rounded-full blur-2xl group-hover:bg-white/10 transition-colors pointer-events-none"></div>
@@ -294,7 +294,7 @@ export default function AdminDashboardPage() {
 
         {/* Stat: Top product */}
         <Link 
-          href="/admin/analytics?tab=top-products" 
+          href="/sec-89412/analytics?tab=top-products" 
           className="relative bg-[#0a0a0a] border border-white/10 rounded-2xl p-5 flex flex-col justify-between h-44 hover:border-accent-red/40 hover:-translate-y-0.5 transition-all group overflow-hidden shadow-lg"
         >
           <div className="absolute -left-6 -top-6 w-24 h-24 bg-accent-red/10 rounded-full blur-2xl group-hover:bg-accent-red/20 transition-colors pointer-events-none"></div>
@@ -328,7 +328,7 @@ export default function AdminDashboardPage() {
               <p className="text-xs text-text-muted font-body mt-1">تتبع حركة المبيعات اليومية على مدار آخر 30 يوم</p>
             </div>
             <Link 
-              href="/admin/analytics?range=30d" 
+              href="/sec-89412/analytics?range=30d" 
               className="flex items-center gap-1.5 font-body font-bold text-xs text-accent-red hover:text-white transition-all bg-accent-red/10 hover:bg-accent-red border border-accent-red/20 hover:border-accent-red px-3.5 py-2 rounded-xl"
             >
               <span>التقارير المفصلة</span>
@@ -350,7 +350,7 @@ export default function AdminDashboardPage() {
               </h2>
             </div>
             <Link 
-              href="/admin/orders" 
+              href="/sec-89412/orders" 
               className="text-xs text-text-muted hover:text-white transition-colors bg-white/5 hover:bg-white/10 border border-white/10 px-3 py-1.5 rounded-xl font-bold"
             >
               عرض الكل
@@ -367,7 +367,7 @@ export default function AdminDashboardPage() {
               {recentOrders.map((o) => (
                 <Link 
                   key={o.id} 
-                  href={`/admin/orders/detail?id=${o.id}`}
+                  href={`/sec-89412/orders/detail?id=${o.id}`}
                   className="block bg-black/40 border border-white/5 hover:border-accent-red/30 rounded-xl p-3.5 transition-all group hover:bg-white/[0.02]"
                 >
                   <div className="flex justify-between items-start mb-2.5">
