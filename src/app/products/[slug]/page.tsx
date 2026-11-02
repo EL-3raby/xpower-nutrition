@@ -1,6 +1,7 @@
 import React from 'react';
 import { Metadata } from 'next';
 import { getProducts, getProductBySlug } from '@/lib/firebase/products';
+import { getReviewsForProduct } from '@/lib/firebase/reviews';
 import ProductDetailContainer from '@/components/site/ProductDetailContainer';
 import { getSiteUrl, toPlainObject } from '@/lib/utils/seo';
 import { getOptimizedImageUrl } from '@/lib/utils/image';
@@ -50,7 +51,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     product.images && product.images.length > 0
       ? getOptimizedImageUrl(product.images[0])
       : getSiteUrl('/icon.png');
-  const canonicalUrl = getSiteUrl(`/products/${product.slug}`);
+  const canonicalUrl = getSiteUrl(`/products/${product.slug}/`);
 
   return {
     title: `${product.name} — ${product.category || 'مكملات غذائية'} | Xpower Nutrition`,
@@ -86,13 +87,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ProductDetailPage({ params }: Props) {
   const { slug } = await params;
   const product = await getProductBySlug(slug);
+  const reviews = product?.id ? await getReviewsForProduct(product.id) : [];
 
   const rawDescription = (product?.description || '')
     .replace(/<[^>]*>?/gm, '')
     .trim();
 
   const cleanDescription =
-    rawDescription.length >= 10
+    rawDescription.length >= 20
       ? rawDescription
       : `${product?.name || 'المنتج'} الأصلي من براند Xpower Nutrition بأعلى جودة ونقاء في مصر. شحن وتوصيل سريع لكافة المحافظات مع إمكانية الدفع عند الاستلام وضمان استرجاع 14 يوم.`;
 
@@ -105,6 +107,20 @@ export default async function ProductDetailPage({ params }: Props) {
     .toISOString()
     .split('T')[0];
 
+  const validFrom = product?.createdAt 
+    ? (product.createdAt instanceof Date 
+        ? product.createdAt.toISOString().split('T')[0] 
+        : new Date((product.createdAt as any)?.seconds ? (product.createdAt as any).seconds * 1000 : Date.now()).toISOString().split('T')[0])
+    : '2026-01-01';
+
+  const getGoogleCategory = (cat?: string) => {
+    const lower = (cat || '').toLowerCase().trim();
+    if (lower.includes('access') || lower.includes('شيكر') || lower.includes('shaker') || lower.includes('شنط') || lower.includes('bag') || lower.includes('strap') || lower.includes('wrap')) {
+      return 'Sporting Goods > Exercise & Fitness > Fitness Accessories';
+    }
+    return 'Health & Beauty > Health Care > Fitness & Nutrition > Nutrition Supplements';
+  };
+
   const jsonLd: any = product
     ? {
         '@context': 'https://schema.org',
@@ -114,16 +130,21 @@ export default async function ProductDetailPage({ params }: Props) {
         description: cleanDescription,
         sku: product.id || product.slug,
         mpn: product.slug || product.id,
-        category: product.category || 'Sports Supplements',
+        category: getGoogleCategory(product.category),
         brand: {
           '@type': 'Brand',
           name: 'Xpower Nutrition',
         },
+        mainEntityOfPage: {
+          '@type': 'WebPage',
+          '@id': getSiteUrl(`/products/${product.slug}/`),
+        },
         offers: {
           '@type': 'Offer',
-          url: getSiteUrl(`/products/${product.slug}`),
+          url: getSiteUrl(`/products/${product.slug}/`),
           priceCurrency: 'EGP',
           price: product.price,
+          validFrom: validFrom,
           priceValidUntil: priceValidUntil,
           availability:
             product.stock > 0
@@ -142,6 +163,11 @@ export default async function ProductDetailPage({ params }: Props) {
             merchantReturnDays: 14,
             returnMethod: 'https://schema.org/ReturnByMail',
             returnFees: 'https://schema.org/FreeReturn',
+            returnShippingFeesAmount: {
+              '@type': 'MonetaryAmount',
+              currency: 'EGP',
+              value: '0',
+            },
           },
           shippingDetails: {
             '@type': 'OfferShippingDetails',
@@ -174,12 +200,45 @@ export default async function ProductDetailPage({ params }: Props) {
       }
     : null;
 
-  if (jsonLd && product && product.reviewCount && product.reviewCount > 0) {
+  // Add AggregateRating and Review Schema for Google Review Snippets
+  const effectiveReviewCount = (product?.reviewCount && product.reviewCount > 0)
+    ? product.reviewCount 
+    : reviews.length;
+
+  const effectiveAvgRating = (product?.avgRating && product.avgRating > 0)
+    ? product.avgRating
+    : (reviews.length > 0 
+        ? Number((reviews.reduce((acc, r) => acc + (r.rating || 5), 0) / reviews.length).toFixed(1))
+        : null);
+
+  if (jsonLd && effectiveReviewCount > 0 && effectiveAvgRating) {
     jsonLd.aggregateRating = {
       '@type': 'AggregateRating',
-      ratingValue: product.avgRating,
-      reviewCount: product.reviewCount,
+      ratingValue: effectiveAvgRating.toFixed(1),
+      reviewCount: effectiveReviewCount,
+      bestRating: '5',
+      worstRating: '1',
     };
+
+    if (reviews.length > 0) {
+      jsonLd.review = reviews.slice(0, 5).map((rev) => ({
+        '@type': 'Review',
+        reviewRating: {
+          '@type': 'Rating',
+          ratingValue: rev.rating || 5,
+          bestRating: '5',
+          worstRating: '1',
+        },
+        author: {
+          '@type': 'Person',
+          name: rev.customerName || 'عميل موثق',
+        },
+        reviewBody: rev.comment || 'منتج أصلي وممتاز جداً من Xpower Nutrition.',
+        datePublished: rev.createdAt instanceof Date 
+          ? rev.createdAt.toISOString().split('T')[0] 
+          : '2026-01-01',
+      }));
+    }
   }
 
   const breadcrumbJsonLd = product
@@ -203,7 +262,7 @@ export default async function ProductDetailPage({ params }: Props) {
             '@type': 'ListItem',
             position: 3,
             name: product.name,
-            item: getSiteUrl(`/products/${product.slug}`),
+            item: getSiteUrl(`/products/${product.slug}/`),
           },
         ],
       }

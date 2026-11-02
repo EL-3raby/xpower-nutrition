@@ -19,6 +19,12 @@ export default function NotFound() {
         setIsProductRoute(true);
         setProductSlug(slug);
       }
+    } else if (path.startsWith('/product/') && path.length > '/product/'.length) {
+      const slug = path.split('/')[2];
+      if (slug && slug !== 'detail') {
+        setIsProductRoute(true);
+        setProductSlug(slug);
+      }
     }
   }, []);
 

@@ -8,6 +8,13 @@
   "hosting": {
     "public": "out",
     "cleanUrls": true,
+    "redirects": [
+      {
+        "source": "/product/:slug*",
+        "destination": "/products/:slug*/",
+        "type": 301
+      }
+    ],
     "ignore": [
       "firebase.json",
       "**/.*",
