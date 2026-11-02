@@ -12,6 +12,7 @@ import DiscountTopBar from '@/components/site/DiscountTopBar';
 const CartDrawer = dynamic(() => import('@/components/site/CartDrawer'), { ssr: false });
 const PromoPopup = dynamic(() => import('@/components/site/PromoPopup'), { ssr: false });
 const GlobalSearchModal = dynamic(() => import('@/components/site/GlobalSearchModal'), { ssr: false });
+const CookieConsentBanner = dynamic(() => import('@/components/site/CookieConsentBanner'), { ssr: false });
 import { getSiteConfig } from '@/lib/firebase/admin-actions';
 import { subscribeToAuth, checkIsAdmin } from '@/lib/firebase/auth';
 import { SiteConfig } from '@/lib/types';
@@ -164,6 +165,7 @@ export default function SiteLayoutWrapper({ children }: { children: React.ReactN
       {!isVerifyPage && <Footer />}
       <CartDrawer />
       <BottomTabBar />
+      <CookieConsentBanner />
     </div>
   );
 }
