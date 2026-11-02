@@ -67,7 +67,7 @@ export default function CookieConsentBanner() {
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-accent-red/10 border border-accent-red/25 flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(227,30,36,0.15)]">
                   <span className="material-symbols-outlined text-accent-red text-lg">
-                    cookie
+                    shield
                   </span>
                 </div>
                 <div>
@@ -117,3 +117,4 @@ export default function CookieConsentBanner() {
     </AnimatePresence>
   );
 }
+
