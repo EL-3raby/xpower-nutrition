@@ -246,16 +246,16 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
                           <span className="font-display font-black text-4xl sm:text-5xl text-white tracking-tight">
                             {product.price}
                           </span>
-                          <span className="font-display font-bold text-accent-red text-xl">ج.م</span>
+                          <span className="font-product-title font-bold text-accent-red text-xl">EGP</span>
                           {hasDiscount && (
-                            <span className="font-display text-zinc-500 line-through text-lg ml-2">
-                              {product.oldPrice} ج.م
+                            <span className="font-product-title text-zinc-500 line-through text-lg ml-2">
+                              {product.oldPrice} EGP
                             </span>
                           )}
                         </div>
                         {hasDiscount && (
                           <span className="text-xs font-bold text-accent-red font-body">
-                            وفرت {savings} ج.م من السعر الأصلي
+                            وفرت {savings} EGP من السعر الأصلي
                           </span>
                         )}
                       </div>
@@ -423,16 +423,16 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
                         <span className="font-display font-black text-3xl text-white">
                           {product.price}
                         </span>
-                        <span className="font-display font-bold text-accent-red text-base">ج.م</span>
+                        <span className="font-product-title font-bold text-accent-red text-base">EGP</span>
                         {hasDiscount && (
-                          <span className="font-display text-sm text-zinc-500 line-through ml-1.5">
-                            {product.oldPrice} ج.م
+                          <span className="font-product-title text-sm text-zinc-500 line-through ml-1.5">
+                            {product.oldPrice} EGP
                           </span>
                         )}
                       </div>
                       {hasDiscount && (
                         <span className="text-xs text-accent-red font-bold font-body">
-                          وفرت {savings} ج.م من السعر الأصلي
+                          وفرت {savings} EGP من السعر الأصلي
                         </span>
                       )}
                     </div>
