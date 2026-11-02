@@ -312,10 +312,16 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
                     <div className="absolute bottom-2 inset-x-8 h-8 bg-accent-red/25 rounded-full blur-2xl pointer-events-none group-hover/hero:bg-accent-red/35 transition-colors duration-500" />
                     <div className="absolute bottom-4 inset-x-12 h-3 bg-black/90 rounded-full blur-sm pointer-events-none" />
 
-                    {/* Floating Minimalist Savings Badge */}
+                    {/* Floating Dark Glass & Neon Glow Savings Badge */}
                     {hasDiscount && (
-                      <div className="absolute top-2 right-2 z-20 inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-accent-red text-white font-product-title font-black text-xs shadow-lg shadow-accent-red/30 tracking-wider">
-                        <span>خصم {discountPercentage}%-</span>
+                      <div className="absolute top-2 right-2 sm:top-3 sm:right-3 z-20 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-black/85 border border-accent-red/60 shadow-[0_0_20px_rgba(227,30,36,0.35)] backdrop-blur-md">
+                        <span className="material-symbols-outlined text-accent-red text-base select-none">
+                          local_fire_department
+                        </span>
+                        <span className="font-display font-bold text-xs text-white/90">خصم</span>
+                        <span className="font-product-title font-black text-sm text-accent-red tracking-wider" dir="ltr">
+                          {discountPercentage}%
+                        </span>
                       </div>
                     )}
 
@@ -343,10 +349,16 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
                       {/* Floor Halo */}
                       <div className="absolute bottom-2 inset-x-6 h-6 bg-accent-red/25 rounded-full blur-xl pointer-events-none" />
 
-                      {/* Floating Discount Tag */}
+                      {/* Floating Dark Glass & Neon Glow Discount Tag */}
                       {hasDiscount && (
-                        <div className="absolute top-2 right-2 z-20 inline-flex items-center gap-1 px-3 py-1 rounded-full bg-accent-red text-white font-product-title font-black text-xs shadow-md">
-                          <span>خصم {discountPercentage}%-</span>
+                        <div className="absolute top-2 right-2 z-20 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/85 border border-accent-red/60 shadow-[0_0_15px_rgba(227,30,36,0.3)] backdrop-blur-md">
+                          <span className="material-symbols-outlined text-accent-red text-sm select-none">
+                            local_fire_department
+                          </span>
+                          <span className="font-display font-bold text-[11px] text-white/90">خصم</span>
+                          <span className="font-product-title font-black text-xs text-accent-red tracking-wider" dir="ltr">
+                            {discountPercentage}%
+                          </span>
                         </div>
                       )}
 
