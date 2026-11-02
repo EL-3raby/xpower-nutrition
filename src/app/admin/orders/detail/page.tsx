@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { getOrderById, updateOrderStatus, markOrderAsRead, updateOrderPaymentStatus } from '@/lib/firebase/orders';
 import { getProductById } from '@/lib/firebase/products';
-import { Order } from '@/lib/types';
+import { getSiteConfig } from '@/lib/firebase/admin-actions';
+import { Order, SiteConfig } from '@/lib/types';
 import Spinner from '@/components/ui/Spinner';
 
 function OrderDetailContent() {
@@ -22,6 +23,15 @@ function OrderDetailContent() {
   const [successMsg, setSuccessMsg] = useState('');
   const [updatingPayment, setUpdatingPayment] = useState(false);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [printFormat, setPrintFormat] = useState<'a4' | 'thermal'>('a4');
+  const [siteConfig, setSiteConfig] = useState<SiteConfig | null>(null);
+
+  const handlePrint = (format: 'a4' | 'thermal') => {
+    setPrintFormat(format);
+    setTimeout(() => {
+      window.print();
+    }, 100);
+  };
 
   const handleConfirmPayment = async () => {
     if (!order) return;
@@ -82,6 +92,12 @@ function OrderDetailContent() {
 
   useEffect(() => {
     async function loadOrder() {
+      try {
+        const config = await getSiteConfig();
+        if (config) setSiteConfig(config);
+      } catch (e) {
+        console.error('Error loading siteConfig for invoice:', e);
+      }
       if (!orderId) {
         setLoading(false);
         return;
@@ -263,11 +279,20 @@ function OrderDetailContent() {
 
         <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
           <button 
-            onClick={() => window.print()}
-            className="flex-1 sm:flex-none bg-accent-red hover:bg-accent-red/90 text-white font-product-title font-bold text-xs sm:text-sm px-5 py-2.5 rounded-xl transition-all hover:scale-[1.02] flex items-center justify-center gap-2 shadow-lg shadow-accent-red/20 cursor-pointer"
+            onClick={() => handlePrint('a4')}
+            title="طباعة فاتورة A4 براند كاملة (Shopify Packing Slip)"
+            className="flex-1 sm:flex-none bg-accent-red hover:bg-accent-red/90 text-white font-product-title font-bold text-xs sm:text-sm px-4 py-2.5 rounded-xl transition-all hover:scale-[1.02] flex items-center justify-center gap-2 shadow-lg shadow-accent-red/20 cursor-pointer"
           >
-            <span className="material-symbols-outlined text-lg">print</span>
-            <span>طباعة الفاتورة</span>
+            <span className="material-symbols-outlined text-lg">description</span>
+            <span>فاتورة A4 براند</span>
+          </button>
+          <button 
+            onClick={() => handlePrint('thermal')}
+            title="طباعة إيصال بوليصة شحن للطابعات الحرارية (80mm Thermal Slip)"
+            className="flex-1 sm:flex-none bg-zinc-800 hover:bg-zinc-700 text-amber-400 hover:text-amber-300 border border-amber-400/30 font-product-title font-bold text-xs sm:text-sm px-4 py-2.5 rounded-xl transition-all hover:scale-[1.02] flex items-center justify-center gap-2 shadow-lg cursor-pointer"
+          >
+            <span className="material-symbols-outlined text-lg">receipt_long</span>
+            <span>طابعة حرارية (80mm)</span>
           </button>
           <Link 
             href="/admin/orders" 
@@ -591,162 +616,437 @@ function OrderDetailContent() {
 
     </div>
 
-      {/* Printable Invoice (Only visible when printing) */}
+      {/* Printable Invoice Section (Shopify A4 Brand + 80mm Thermal Receipt) */}
       <style type="text/css" media="print">
         {`
-          @page { size: A4; margin: 0; }
-          body { 
-            margin: 0; 
-            padding: 0;
-            background: white !important; 
+          @media print {
+            /* Common Print Defaults */
+            *, *:before, *:after {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              color-adjust: exact !important;
+            }
+            html, body {
+              background: #ffffff !important;
+              color: #000000 !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              box-shadow: none !important;
+            }
+            /* Hide web layout items */
+            header, nav, aside, footer, #site-layout-container, .print\\:hidden {
+              display: none !important;
+            }
           }
-          .invoice-container {
-            width: 210mm;
-            min-height: 297mm;
-            padding: 15mm;
-            margin: 0 auto;
-            box-sizing: border-box;
-            background: white;
-            page-break-after: avoid;
-            page-break-inside: avoid;
-          }
+
+          ${printFormat === 'thermal' ? `
+            @page {
+              size: 80mm auto;
+              margin: 2mm 3mm;
+            }
+            .shopify-invoice-container {
+              display: none !important;
+            }
+            .thermal-receipt-container {
+              display: block !important;
+              width: 74mm !important;
+              max-width: 74mm !important;
+              margin: 0 auto !important;
+              padding: 2mm 1mm 10mm 1mm !important;
+              box-sizing: border-box !important;
+              background: #ffffff !important;
+              color: #000000 !important;
+              font-family: var(--font-cairo), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+              font-size: 11px !important;
+              line-height: 1.35 !important;
+            }
+          ` : `
+            @page {
+              size: A4 portrait;
+              margin: 8mm 10mm;
+            }
+            .thermal-receipt-container {
+              display: none !important;
+            }
+            .shopify-invoice-container {
+              display: flex !important;
+              flex-direction: column !important;
+              width: 190mm !important;
+              max-width: 190mm !important;
+              min-height: 275mm !important;
+              margin: 0 auto !important;
+              padding: 6mm 8mm !important;
+              box-sizing: border-box !important;
+              background: #ffffff !important;
+              color: #000000 !important;
+              font-family: var(--font-cairo), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+              page-break-after: avoid !important;
+              page-break-inside: avoid !important;
+            }
+          `}
         `}
       </style>
-      <div className="hidden print:flex justify-center text-black bg-white w-full h-full absolute top-0 left-0 right-0 z-[99999]" dir="rtl">
-        <div className="invoice-container flex flex-col justify-between">
-          
-          {/* Header */}
-          <div className="flex justify-between items-start border-b-2 border-black pb-6 mb-8">
-            <div className="flex flex-col" dir="ltr">
-              <h1 className="text-5xl font-black uppercase tracking-widest text-black flex items-center justify-start">
-                <span className="italic transform -skew-x-6 pr-1">X</span>
-                PO<span className="text-black">W</span>ER
-              </h1>
-              <p className="bg-black text-white text-[10px] font-black tracking-[0.25em] uppercase px-2 py-1 w-max mt-1 transform -skew-x-6 self-start">
-                NUTRITION
-              </p>
-            </div>
-            <div className="text-left flex flex-col items-end">
-              <h2 className="text-3xl font-black mb-2 uppercase border-b-4 border-black inline-block pb-1">   فاتورة شحـن</h2>
-              <div className="bg-black text-white px-3 py-1.5 font-mono text-lg font-bold mb-1">
-                #{orderId}
-              </div>
-              <p className="text-sm font-bold">تاريخ الطلب: {
-                (o.createdAt instanceof Date 
-                  ? o.createdAt 
-                  : (o.createdAt as any)?.seconds 
-                    ? new Date((o.createdAt as any).seconds * 1000) 
-                    : new Date()
-                ).toLocaleDateString('ar-EG')
-              }</p>
-            </div>
-          </div>
 
-          {/* Customer & Payment Info Split */}
-          <div className="grid grid-cols-2 gap-6 border-b-2 border-black pb-6 mb-6">
-            
-            {/* Customer Details */}
-            <div>
-              <h3 className="text-lg font-black bg-black text-white inline-block px-3 py-1 mb-3 uppercase">بيانات المستلم</h3>
-              <div className="space-y-2 text-lg">
-                <p><span className="font-bold">الاسم:</span> {o.customerName}</p>
-                <p><span className="font-bold">رقم الهاتف:</span> <span className="font-mono font-bold" dir="ltr">{o.phone}</span></p>
-                <p><span className="font-bold">المحافظة/المدينة:</span> {o.city}</p>
-                <p><span className="font-bold">العنوان:</span> {o.address}</p>
-              </div>
-            </div>
-
-            {/* Payment Details */}
-            <div className="text-left flex flex-col items-end">
-              <h3 className="text-lg font-black bg-black text-white inline-block px-3 py-1 mb-3 uppercase">تفاصيل الدفع</h3>
-              <p className="text-lg font-bold mb-2">
-                طريقة الدفع: {
-                  o.paymentMethod === 'vodafone_cash'
-                    ? 'فودافون كاش (مدفوع مسبقاً)'
-                    : o.paymentMethod === 'instapay'
-                    ? 'انستاباي (مدفوع مسبقاً)'
-                    : Boolean(o.depositAmount && o.depositAmount > 0)
-                    ? `كاش مع ${shippingCost <= 0 ? 'ديبوزيت تأميني' : 'ديبوزيت شحن'} (${o.depositAmount} ج.م)`
-                    : 'كاش عند الاستلام'
-                }
-              </p>
-              {o.paymentMethod === 'cod' ? (
-                 <div className="text-center border-4 border-black p-4 mt-2 inline-block">
-                   <p className="text-sm font-bold uppercase mb-1">المبلغ المطلوب تحصيله كاش من العميل</p>
-                   <p className="text-3xl font-black">{(o.totalPrice - (o.depositAmount || 0)).toFixed(0)} EGP</p>
-                   {Boolean(o.depositAmount && o.depositAmount > 0) && (
-                     <p className="text-xs font-bold mt-1 text-gray-700">
-                       (تم دفع {shippingCost <= 0 ? 'ديبوزيت تأميني' : 'ديبوزيت شحن'} {o.depositAmount} EGP مسبقاً)
-                     </p>
-                   )}
-                 </div>
-              ) : (
-                 <div className="text-center border-4 border-black p-4 mt-2 inline-block bg-gray-200">
-                   <p className="text-sm font-bold uppercase mb-1">حالة الدفع</p>
-                   <p className="text-2xl font-black">مدفوع مسبقاً بالكامل (خالص)</p>
-                   <p className="text-sm font-bold mt-1">لا يتم تحصيل أي مبالغ من العميل</p>
-                 </div>
-              )}
-            </div>
-          </div>
-
-          {/* Items Table */}
-          <div className="mb-6 flex-grow">
-            <h3 className="text-base font-black bg-black text-white inline-block px-3 py-1 mb-3 uppercase">المنتجات المطلوبة</h3>
-            <table className="w-full text-right border-collapse border-2 border-black">
-              <thead>
-                <tr className="bg-black text-white text-lg">
-                  <th className="p-3 border-2 border-black">اسم المنتج</th>
-                  <th className="p-3 border-2 border-black text-center w-24">الكمية</th>
-                  <th className="p-3 border-2 border-black text-center w-32">السعر</th>
-                </tr>
-              </thead>
-              <tbody className="text-lg">
-                {o.items.map((item, i) => (
-                  <tr key={i} className="border-b-2 border-black">
-                    <td className="p-3 border-2 border-black font-bold">
-                      {item.name}
-                      {item.flavor && <div className="text-sm font-normal text-gray-700 mt-1">النكهة: {item.flavor}</div>}
-                    </td>
-                    <td className="p-3 border-2 border-black text-center font-bold font-mono text-xl">{item.quantity}</td>
-                    <td className="p-3 border-2 border-black text-center font-bold font-mono">{item.price * item.quantity}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Invoice Summary */}
-          <div className="flex justify-end mb-6">
-            <div className="w-2/3 border-2 border-black p-3 space-y-1 text-base font-bold">
-              <div className="flex justify-between">
-                <span>المجموع الفرعي:</span>
-                <span className="font-mono">{subtotal} EGP</span>
-              </div>
-              {o.couponCode && (
-                <div className="flex justify-between text-gray-700">
-                  <span>خصم كوبون ({o.couponCode}):</span>
-                  <span className="font-mono">-{discountAmount} EGP</span>
+      {/* Main Print Wrapper */}
+      <div className="hidden print:block text-black bg-white w-full min-h-screen absolute top-0 left-0 right-0 z-[999999]" dir="rtl">
+        
+        {/* ========================================================================= */}
+        {/* 1. SHOPIFY BRAND INVOICE (A4 / Standard)                                  */}
+        {/* ========================================================================= */}
+        <div className="shopify-invoice-container justify-between">
+          <div>
+            {/* Top Brand Header */}
+            <div className="flex justify-between items-start border-b-2 border-zinc-900 pb-5 mb-6">
+              
+              {/* Brand Logo & Store Info */}
+              <div className="flex flex-col text-right">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-8 h-8 rounded-lg bg-black text-white flex items-center justify-center font-black text-lg tracking-tighter">
+                    XP
+                  </div>
+                  <div>
+                    <h1 className="text-2xl font-black tracking-wider text-black font-display uppercase leading-none">
+                      XPOWER <span className="text-accent-red font-black">NUTRITION</span>
+                    </h1>
+                    <span className="text-[10px] text-zinc-600 font-bold tracking-widest uppercase block mt-0.5">
+                      Fuel Your Potential | المكملات الأصلية 100%
+                    </span>
+                  </div>
                 </div>
-              )}
-              <div className="flex justify-between">
-                <span>الشحن والتوصيل:</span>
-                <span className="font-mono">{shippingCost > 0 ? `${shippingCost} EGP` : 'توصيل مجاني'}</span>
+                <div className="text-xs text-zinc-600 space-y-0.5 mt-2 font-body font-medium">
+                  <p>الموقع الرسمي: <strong className="font-mono text-zinc-800">xpowernutrition-eg.com</strong></p>
+                  <p>خدمة العملاء: <strong className="font-mono text-zinc-800" dir="ltr">{siteConfig?.contactInfo?.phone || '01148445744'}</strong></p>
+                  <p>البريد: <strong className="font-mono text-zinc-800">{siteConfig?.contactInfo?.email || 'support@xpowernutrition-eg.com'}</strong></p>
+                </div>
               </div>
-              <div className="flex justify-between border-t-2 border-black pt-2 mt-1 text-xl font-black">
-                <span>الإجمالي الكلي:</span>
-                <span className="font-mono">{o.totalPrice} EGP</span>
+
+              {/* Invoice Meta & Barcode */}
+              <div className="text-left flex flex-col items-end">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-[10px] font-bold bg-zinc-900 text-white px-2 py-0.5 rounded uppercase tracking-wider">
+                    {o.paymentMethod === 'cod' ? 'COD - دفع عند الاستلام' : 'PREPAID - مدفوع مسبقاً'}
+                  </span>
+                  <h2 className="text-xl font-black text-zinc-900 uppercase">فاتورة بيع وتوصيل</h2>
+                </div>
+                
+                <div className="bg-zinc-100 border border-zinc-300 rounded-lg px-3 py-1 text-center mb-2">
+                  <span className="text-[10px] text-zinc-500 font-bold block">رقم الأوردر (Order ID)</span>
+                  <span className="font-mono text-base font-black text-zinc-900">#{orderId}</span>
+                </div>
+
+                <div className="text-xs text-zinc-600 font-medium space-y-0.5 text-left">
+                  <p>
+                    تاريخ الطلب: <strong className="text-zinc-800 font-mono">
+                      {(o.createdAt instanceof Date 
+                        ? o.createdAt 
+                        : (o.createdAt as any)?.toDate?.() || ((o.createdAt as any)?.seconds ? new Date((o.createdAt as any).seconds * 1000) : new Date())
+                      ).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </strong>
+                  </p>
+                  <p>
+                    حالة الشحن: <strong className="text-zinc-800">
+                      {o.status === 'delivered' ? 'تم التسليم' : o.status === 'shipped' ? 'مع المندوب للتوصيل' : 'مؤكد للتجهيز'}
+                    </strong>
+                  </p>
+                </div>
               </div>
+            </div>
+
+            {/* Customer & Shipping Cards (Shopify Style Split) */}
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              
+              {/* Recipient Details */}
+              <div className="border border-zinc-300 bg-zinc-50/60 rounded-xl p-3.5 space-y-1.5 text-xs text-right">
+                <div className="flex items-center gap-1.5 border-b border-zinc-200 pb-1.5 mb-2 font-bold text-zinc-900 text-xs uppercase">
+                  <span>👤 بيانات المستلم (Ship To)</span>
+                </div>
+                <p><span className="text-zinc-500 font-bold">اسم العميل:</span> <strong className="text-sm font-black text-zinc-900">{o.customerName}</strong></p>
+                <p><span className="text-zinc-500 font-bold">رقم الهاتف:</span> <strong className="font-mono text-sm font-black text-zinc-900 tracking-wider" dir="ltr">{o.phone}</strong></p>
+                <p><span className="text-zinc-500 font-bold">المحافظة / المدينة:</span> <strong className="text-zinc-900">{o.city}</strong></p>
+                <p><span className="text-zinc-500 font-bold">العنوان التفصيلي:</span> <span className="text-zinc-800 leading-snug">{o.address}</span></p>
+              </div>
+
+              {/* Payment & Delivery Instructions */}
+              <div className="border border-zinc-300 bg-zinc-50/60 rounded-xl p-3.5 space-y-1.5 text-xs text-right">
+                <div className="flex items-center gap-1.5 border-b border-zinc-200 pb-1.5 mb-2 font-bold text-zinc-900 text-xs uppercase">
+                  <span>💳 طريقة الدفع والتحصيل</span>
+                </div>
+                <p>
+                  <span className="text-zinc-500 font-bold">وسيلة الدفع:</span>{' '}
+                  <strong className="text-zinc-900">
+                    {o.paymentMethod === 'vodafone_cash'
+                      ? 'فودافون كاش (دفع كامل مسبقاً)'
+                      : o.paymentMethod === 'instapay'
+                      ? 'انستاباي — InstaPay (دفع كامل مسبقاً)'
+                      : Boolean(o.depositAmount && o.depositAmount > 0)
+                      ? `دفع عند الاستلام (مع ديبوزيت شحن ${o.depositAmount} ج.م)`
+                      : 'الدفع نقداً عند الاستلام (COD)'}
+                  </strong>
+                </p>
+                <p>
+                  <span className="text-zinc-500 font-bold">تعليمات التسليم:</span>{' '}
+                  <strong className="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                    مسموح بفتح الطرد الخارجي والمعاينة قبل السداد
+                  </strong>
+                </p>
+                <div className="pt-1 text-[11px] text-zinc-500 leading-relaxed">
+                  {o.paymentMethod === 'cod' ? (
+                    <p className="text-zinc-700">يقوم مندوب الشحن بتحصيل المبلغ المتبقي نقداً من العميل وتسليم الفاتورة مع الطرد.</p>
+                  ) : (
+                    <p className="text-emerald-700 font-bold">الطلب مسدد بالكامل مسبقاً — يُسلم الطرد للعميل دون تحصيل أي مبالغ.</p>
+                  )}
+                </div>
+              </div>
+
+            </div>
+
+            {/* Products Table (Shopify Modern Minimalist Table) */}
+            <div className="mb-6">
+              <table className="w-full text-right border-collapse border border-zinc-300 rounded-lg overflow-hidden text-xs">
+                <thead>
+                  <tr className="bg-zinc-100 text-zinc-800 font-bold border-b border-zinc-300">
+                    <th className="py-2.5 px-3 w-8 text-center border-l border-zinc-200">#</th>
+                    <th className="py-2.5 px-3 border-l border-zinc-200">المنتج والمواصفات</th>
+                    <th className="py-2.5 px-3 w-20 text-center border-l border-zinc-200">الكمية</th>
+                    <th className="py-2.5 px-3 w-28 text-center border-l border-zinc-200">سعر الوحدة</th>
+                    <th className="py-2.5 px-3 w-28 text-center">الإجمالي</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-200 text-zinc-800">
+                  {o.items.map((item, i) => (
+                    <tr key={i} className="hover:bg-zinc-50/50">
+                      <td className="py-2.5 px-3 text-center font-mono text-zinc-500 border-l border-zinc-200">{i + 1}</td>
+                      <td className="py-2.5 px-3 border-l border-zinc-200">
+                        <span className="font-bold text-zinc-900 block text-xs md:text-sm">{item.name}</span>
+                        {item.flavor && (
+                          <span className="inline-block mt-0.5 text-[10px] bg-zinc-100 border border-zinc-200 text-zinc-600 px-1.5 py-0.2 rounded font-medium">
+                            النكهة: {item.flavor}
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 text-center font-bold font-mono text-sm border-l border-zinc-200">{item.quantity}</td>
+                      <td className="py-2.5 px-3 text-center font-mono text-xs border-l border-zinc-200">{item.price} ج.م</td>
+                      <td className="py-2.5 px-3 text-center font-mono font-bold text-xs">{item.price * item.quantity} ج.م</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Summary & Due Settlement */}
+            <div className="grid grid-cols-2 gap-6 items-end mb-6">
+              
+              {/* Courier Collection Highlight Box */}
+              <div>
+                {o.paymentMethod === 'cod' ? (
+                  <div className="border-2 border-black bg-zinc-50 p-4 rounded-xl text-center space-y-1">
+                    <span className="text-xs font-bold text-zinc-600 block uppercase">المبلغ المطلوب تحصيله كاش بواسطة المندوب:</span>
+                    <span className="font-mono text-3xl font-black text-black block tracking-tight">
+                      {(o.totalPrice - (o.depositAmount || 0)).toFixed(0)} EGP
+                    </span>
+                    {Boolean(o.depositAmount && o.depositAmount > 0) && (
+                      <span className="text-[11px] font-bold text-emerald-700 block">
+                        (تم سداد ديبوزيت شحن ${o.depositAmount} ج.م مسبقاً)
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="border-2 border-emerald-600 bg-emerald-50 p-4 rounded-xl text-center space-y-1">
+                    <span className="text-xs font-bold text-emerald-800 uppercase block">حالة الحساب</span>
+                    <span className="text-xl font-black text-emerald-700 block">مدفوع مسبقاً بالكامل (خالص)</span>
+                    <span className="text-[11px] font-bold text-emerald-600 block">لا يتم تحصيل أي مبالغ إضافية من العميل</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Financial Calculation Breakdown */}
+              <div className="border border-zinc-300 rounded-xl p-3.5 space-y-1.5 text-xs font-medium text-zinc-700 bg-zinc-50/50">
+                <div className="flex justify-between">
+                  <span>المجموع الفرعي للمنتجات:</span>
+                  <span className="font-mono font-bold text-zinc-900">{subtotal} ج.م</span>
+                </div>
+                {o.couponCode && (
+                  <div className="flex justify-between text-rose-600 font-bold">
+                    <span>خصم الكوبون ({o.couponCode}):</span>
+                    <span className="font-mono">-{discountAmount} ج.م</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span>مصاريف الشحن والتوصيل:</span>
+                  <span className="font-mono font-bold text-zinc-900">{shippingCost > 0 ? `${shippingCost} ج.م` : 'شحن مجاني'}</span>
+                </div>
+                {Boolean(o.depositAmount && o.depositAmount > 0) && (
+                  <div className="flex justify-between text-emerald-700 font-bold">
+                    <span>ديبوزيت مسدد مسبقاً:</span>
+                    <span className="font-mono">-{o.depositAmount} ج.م</span>
+                  </div>
+                )}
+                <div className="flex justify-between border-t-2 border-zinc-900 pt-2 mt-1 text-sm font-black text-zinc-900">
+                  <span>إجمالي قيمة الطلب:</span>
+                  <span className="font-mono text-base">{o.totalPrice} ج.م</span>
+                </div>
+              </div>
+
             </div>
           </div>
 
-          {/* Footer Notes */}
-          <div className="text-center pt-6 border-t-2 border-black mt-auto">
-            <p className="font-black text-xl uppercase tracking-wider mb-1">شكراً لاختياركم XPOWER NUTRITION</p>
-            <p className="text-base font-bold text-gray-600">تأكد من مراجعة الطرد قبل الاستلام</p>
+          {/* Bottom Barcode & Footer Notice */}
+          <div className="border-t border-zinc-300 pt-4 mt-auto">
+            <div className="flex justify-between items-center text-xs text-zinc-600">
+              <div className="text-right space-y-0.5">
+                <p className="font-bold text-zinc-900">شكراً لاختياركم Xpower Nutrition — شريكك نحو أقصى أداء بدني 🏆</p>
+                <p className="text-[11px]">معاينة الطرد مكفولة قبل الدفع | سياسة الاستبدال والاسترجاع 14 يوماً وفقاً لقانون حماية المستهلك المصري.</p>
+              </div>
+              
+              {/* Barcode */}
+              <div className="text-center font-mono">
+                <div className="flex items-center gap-0.5 h-8">
+                  {orderId.split('').map((c, i) => (
+                    <span 
+                      key={i} 
+                      className="bg-black inline-block h-full" 
+                      style={{ width: (c.charCodeAt(0) % 3) + 1.2, marginRight: (c.charCodeAt(0) % 2) + 0.8 }} 
+                    />
+                  ))}
+                </div>
+                <span className="text-[9px] tracking-widest text-zinc-500 font-bold block mt-0.5">*{orderId}*</span>
+              </div>
+            </div>
           </div>
 
         </div>
+
+        {/* ========================================================================= */}
+        {/* 2. 80MM POS THERMAL RECEIPT (طابعة الفواتير والبوالص الحرارية الصغيرة)       */}
+        {/* ========================================================================= */}
+        <div className="thermal-receipt-container text-right">
+          
+          {/* Thermal Header */}
+          <div className="text-center pb-2 border-b border-dashed border-black mb-2">
+            <h1 className="text-base font-black uppercase tracking-wider text-black font-display">
+              XPOWER NUTRITION
+            </h1>
+            <p className="text-[10px] font-bold text-black uppercase">مكملات رياضية أصلية 100%</p>
+            <p className="text-[10px] font-mono font-bold mt-0.5" dir="ltr">خدمة العملاء: {siteConfig?.contactInfo?.phone || '01148445744'}</p>
+            <p className="text-[9px] font-mono text-zinc-700">xpowernutrition-eg.com</p>
+          </div>
+
+          {/* Thermal Order Meta */}
+          <div className="text-[11px] border-b border-dashed border-black pb-2 mb-2 space-y-1">
+            <div className="flex justify-between font-bold">
+              <span>رقم الأوردر:</span>
+              <span className="font-mono text-xs font-black">#{orderId}</span>
+            </div>
+            <div className="flex justify-between text-[10px] text-zinc-800">
+              <span>التاريخ:</span>
+              <span className="font-mono">
+                {(o.createdAt instanceof Date 
+                  ? o.createdAt 
+                  : (o.createdAt as any)?.toDate?.() || ((o.createdAt as any)?.seconds ? new Date((o.createdAt as any).seconds * 1000) : new Date())
+                ).toLocaleDateString('ar-EG', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              </span>
+            </div>
+          </div>
+
+          {/* Recipient Details for Courier (High Visibility) */}
+          <div className="border-b border-dashed border-black pb-2 mb-2 space-y-1">
+            <div className="text-[10px] font-black uppercase bg-black text-white px-1 py-0.5 text-center mb-1">
+              بيانات العميل والتسليم
+            </div>
+            <p className="text-[11px]"><span className="font-bold">العميل:</span> <strong className="font-bold text-xs">{o.customerName}</strong></p>
+            <p className="text-[12px]"><span className="font-bold">الموبايل:</span> <strong className="font-mono font-black text-sm tracking-wider" dir="ltr">{o.phone}</strong></p>
+            <p className="text-[11px]"><span className="font-bold">المحافظة:</span> <strong className="font-bold">{o.city}</strong></p>
+            <p className="text-[10px] leading-tight"><span className="font-bold">العنوان:</span> {o.address}</p>
+          </div>
+
+          {/* Thermal Items List */}
+          <div className="border-b border-dashed border-black pb-2 mb-2">
+            <div className="text-[10px] font-bold border-b border-black pb-1 mb-1.5 flex justify-between">
+              <span>المنتج</span>
+              <span>السعر</span>
+            </div>
+            <div className="space-y-1.5 text-[10px]">
+              {o.items.map((item, idx) => (
+                <div key={idx} className="flex justify-between items-start leading-tight">
+                  <div className="text-right flex-1 pr-1">
+                    <span className="font-bold">{item.quantity}x {item.name}</span>
+                    {item.flavor && <div className="text-[9px] text-zinc-700">({item.flavor})</div>}
+                  </div>
+                  <span className="font-mono font-bold whitespace-nowrap">{item.price * item.quantity} ج.م</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Thermal Financial Totals */}
+          <div className="text-[10px] space-y-1 border-b border-dashed border-black pb-2 mb-2">
+            <div className="flex justify-between">
+              <span>المجموع الفرعي:</span>
+              <span className="font-mono">{subtotal} ج.م</span>
+            </div>
+            {o.couponCode && (
+              <div className="flex justify-between font-bold">
+                <span>خصم الكوبون:</span>
+                <span className="font-mono">-{discountAmount} ج.م</span>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <span>الشحن والتوصيل:</span>
+              <span className="font-mono">{shippingCost > 0 ? `${shippingCost} ج.م` : 'مجاني'}</span>
+            </div>
+            {Boolean(o.depositAmount && o.depositAmount > 0) && (
+              <div className="flex justify-between font-bold">
+                <span>ديبوزيت شحن مسدد:</span>
+                <span className="font-mono">-{o.depositAmount} ج.م</span>
+              </div>
+            )}
+            <div className="flex justify-between font-black text-[11px] pt-1 border-t border-black">
+              <span>إجمالي الفاتورة:</span>
+              <span className="font-mono">{o.totalPrice} ج.م</span>
+            </div>
+          </div>
+
+          {/* Thermal Courier Cash Box (The Most Critical Block) */}
+          <div className="border-2 border-black p-2 my-2 text-center">
+            {o.paymentMethod === 'cod' ? (
+              <>
+                <p className="text-[10px] font-bold uppercase leading-none mb-1">المطلوب تحصيله كاش للمندوب:</p>
+                <p className="text-xl font-black font-mono tracking-tight leading-none">
+                  {(o.totalPrice - (o.depositAmount || 0)).toFixed(0)} EGP
+                </p>
+                {Boolean(o.depositAmount && o.depositAmount > 0) && (
+                  <p className="text-[9px] font-bold mt-1 text-zinc-700">(تم سداد ${o.depositAmount} ج.م ديبوزيت مسبقاً)</p>
+                )}
+              </>
+            ) : (
+              <>
+                <p className="text-xs font-black uppercase text-black leading-none mb-0.5">مدفوع مسبقاً بالكامل (خالص)</p>
+                <p className="text-[9px] font-bold text-zinc-800 leading-tight">ممنوع تحصيل أي مبالغ من العميل</p>
+              </>
+            )}
+          </div>
+
+          {/* Thermal Footer */}
+          <div className="text-center pt-1 text-[9px] space-y-1 text-zinc-800">
+            <p className="font-bold">* حق المعاينة مكفول قبل السداد *</p>
+            <p>الاسترجاع 14 يوم بحالة العبوة الأصلية</p>
+            <p className="font-bold font-display uppercase tracking-widest text-black pt-1">شكراً لتسوقكم من XPOWER</p>
+            
+            {/* Mini Barcode */}
+            <div className="flex justify-center items-center gap-0.5 h-6 pt-1">
+              {orderId.split('').map((c, i) => (
+                <span 
+                  key={i} 
+                  className="bg-black inline-block h-full" 
+                  style={{ width: (c.charCodeAt(0) % 2) + 1, marginRight: 1 }} 
+                />
+              ))}
+            </div>
+            <span className="font-mono text-[8px] font-bold block">*{orderId}*</span>
+          </div>
+
+        </div>
+
       </div>
     </>
   );
@@ -756,7 +1056,7 @@ export default function AdminOrderDetailPage() {
   return (
     <Suspense fallback={
       <div className="h-96 flex items-center justify-center">
-        <Spinner className="inline-block w-10 h-10 text-accent-red animate-spin" />
+        <Spinner className="w-10 h-10 text-accent-red" />
       </div>
     }>
       <OrderDetailContent />
