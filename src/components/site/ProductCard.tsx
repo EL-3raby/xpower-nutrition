@@ -99,9 +99,9 @@ export default function ProductCard({ product, hideAddToCart = false, viewMode =
             ) : null}
 
             {isFreeShippingActive && !isOutOfStock && (
-              <div className="absolute bottom-2 right-2 bg-emerald-500 text-black text-[9px] px-2 py-0.5 z-20 font-black rounded-md shadow flex items-center gap-1">
-                <span className="material-symbols-outlined text-[11px]">local_shipping</span>
-                شحن مجاني
+              <div className="absolute top-2 left-2 bg-[#0A0A0A]/90 backdrop-blur-md border border-emerald-500/35 text-white text-[9px] px-2 py-0.5 z-20 font-bold rounded-full shadow-[0_2px_8px_rgba(0,0,0,0.35)] flex items-center gap-1">
+                <span className="material-symbols-outlined text-[11px] text-emerald-400">local_shipping</span>
+                <span className="text-zinc-100 font-product-title">شحن مجاني</span>
               </div>
             )}
 
@@ -205,7 +205,7 @@ export default function ProductCard({ product, hideAddToCart = false, viewMode =
         {/* Top: Framed Product Image Container */}
         <div className="bg-[#f8f9fa] w-full aspect-square rounded-xl sm:rounded-2xl relative flex items-center justify-center overflow-hidden p-3 sm:p-4 shrink-0">
           
-          {/* Stock or Sale Badge */}
+          {/* Stock or Sale Badge (Top Right) */}
           <div className="absolute top-2.5 right-2.5 z-20 flex flex-col gap-1 items-start">
             {isOutOfStock ? (
               <span className="bg-black/85 backdrop-blur-md text-white font-product-title text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-md shadow uppercase tracking-wider">
@@ -221,13 +221,21 @@ export default function ProductCard({ product, hideAddToCart = false, viewMode =
                 Limited
               </span>
             )}
-            {isFreeShippingActive && !isOutOfStock && (
-              <span className="bg-emerald-500 text-black font-product-title text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded-full shadow-md flex items-center gap-1">
-                <span className="material-symbols-outlined text-[12px]">local_shipping</span>
-                شحن مجاني
-              </span>
-            )}
           </div>
+
+          {/* Free Shipping Badge (Top Left - Obsidian Glass Athletic Capsule) */}
+          {isFreeShippingActive && !isOutOfStock && (
+            <div className="absolute top-2.5 left-2.5 z-20 pointer-events-none">
+              <span className="bg-[#0A0A0A]/90 backdrop-blur-md border border-emerald-500/35 text-white font-product-title text-[9px] sm:text-[10px] font-bold px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full shadow-[0_2px_10px_rgba(0,0,0,0.35)] flex items-center gap-1.5 transition-all group-hover:border-emerald-500/60 group-hover:shadow-[0_0_12px_rgba(16,185,129,0.25)]">
+                <span className="material-symbols-outlined text-[12px] sm:text-[13px] text-emerald-400">
+                  local_shipping
+                </span>
+                <span className="text-zinc-100 tracking-wide font-bold">
+                  شحن مجاني
+                </span>
+              </span>
+            </div>
+          )}
 
           {/* Primary Product Image */}
           <img 
