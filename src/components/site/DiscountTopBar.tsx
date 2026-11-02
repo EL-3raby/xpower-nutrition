@@ -228,12 +228,12 @@ export default function DiscountTopBar({ initialConfig }: DiscountTopBarProps) {
     return cat ? `قسم ${cat.name}` : `قسم ${bulkDiscount.scope}`;
   }, [bulkDiscount?.scope, categories]);
 
-  // Target link
+  // Target link (Always route to discounted products when clicking discount banner)
   const targetLink = useMemo(() => {
     if (!bulkDiscount?.scope || bulkDiscount.scope === 'all') {
-      return '/products';
+      return '/products?sale=true';
     }
-    return `/products?category=${encodeURIComponent(bulkDiscount.scope)}`;
+    return `/products?category=${encodeURIComponent(bulkDiscount.scope)}&sale=true`;
   }, [bulkDiscount?.scope]);
 
   // Dynamic Marquee Items (clean athletic phrases paired exclusively with the Red Flame Icon)

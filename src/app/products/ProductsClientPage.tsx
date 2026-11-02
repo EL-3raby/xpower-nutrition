@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import ProductCard from '@/components/site/ProductCard';
 import { Product, Category } from '@/lib/types';
 import { getProducts } from '@/lib/firebase/products';
-import { getCategories } from '@/lib/firebase/admin-actions';
+import { getCategories, getSiteConfig } from '@/lib/firebase/admin-actions';
 import Spinner from '@/components/ui/Spinner';
 import { searchProductsScored } from '@/lib/search/search-engine';
 
@@ -16,6 +16,7 @@ function ProductsContent() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [bestSellerIds, setBestSellerIds] = useState<Set<string>>(new Set());
 
   // Filter & Sort States
   const [searchQuery, setSearchQuery] = useState('');
@@ -39,24 +40,16 @@ function ProductsContent() {
   // 1. Sync filters from URL search params on mount & param changes
   useEffect(() => {
     const catQuery = searchParams.get('category');
-    if (catQuery) {
-      setSelectedCategory(catQuery);
-    }
+    setSelectedCategory(catQuery || 'all');
 
     const searchVal = searchParams.get('search');
-    if (searchVal) {
-      setSearchQuery(searchVal);
-    }
+    setSearchQuery(searchVal || '');
 
     const saleVal = searchParams.get('sale') || searchParams.get('discount');
-    if (saleVal === 'true' || saleVal === '1') {
-      setOnlyDiscounted(true);
-    }
+    setOnlyDiscounted(saleVal === 'true' || saleVal === '1');
 
     const inStockVal = searchParams.get('inStock');
-    if (inStockVal === 'true' || inStockVal === '1') {
-      setOnlyInStock(true);
-    }
+    setOnlyInStock(inStockVal === 'true' || inStockVal === '1');
 
     const sortVal = searchParams.get('sort');
     if (sortVal) {
@@ -68,10 +61,15 @@ function ProductsContent() {
   useEffect(() => {
     async function loadData() {
       try {
-        const [fetchedProducts, fetchedCategories] = await Promise.all([
+        const [fetchedProducts, fetchedCategories, fetchedConfig] = await Promise.all([
           getProducts(undefined, true),
-          getCategories()
+          getCategories(),
+          getSiteConfig()
         ]);
+
+        if (fetchedConfig?.bestSellers?.productIds && Array.isArray(fetchedConfig.bestSellers.productIds)) {
+          setBestSellerIds(new Set(fetchedConfig.bestSellers.productIds));
+        }
 
         const isAccessory = (val?: string) => {
           if (!val) return false;
@@ -109,13 +107,38 @@ function ProductsContent() {
     return map;
   }, [categories]);
 
+  // Helper: check if product has an active discount / offer
+  const isProductOnSale = (p: Product) => {
+    const price = Number(p.price) || 0;
+    const oldPrice = Number(p.oldPrice) || 0;
+    return oldPrice > price;
+  };
+
+  // Helper: check if product is a bestseller (has sales or flagged in siteConfig)
+  const isProductPopular = (p: Product) => {
+    return Boolean((p.salesCount && p.salesCount > 0) || (p.id && bestSellerIds.has(p.id)));
+  };
+
+  // Helper: check if product has customer reviews or rating
+  const isProductTopRated = (p: Product) => {
+    return Boolean((p.avgRating && p.avgRating > 0) || (p.reviewCount && p.reviewCount > 0));
+  };
+
   // Counts for quick badges
   const discountedCount = useMemo(() => {
-    return products.filter(p => p.oldPrice && p.oldPrice > p.price).length;
+    return products.filter(isProductOnSale).length;
   }, [products]);
 
   const inStockCount = useMemo(() => {
     return products.filter(p => p.stock > 0).length;
+  }, [products]);
+
+  const popularCount = useMemo(() => {
+    return products.filter(isProductPopular).length;
+  }, [products, bestSellerIds]);
+
+  const topRatedCount = useMemo(() => {
+    return products.filter(isProductTopRated).length;
   }, [products]);
 
   // 3. Smart Search & Filter Engine Execution
@@ -128,26 +151,55 @@ function ProductsContent() {
       pool = scoredResults.map(r => r.product);
     }
 
-    // B. Category Filter
+    // B. Category Filter (Resilient matching for slug, id, or Arabic name)
     if (selectedCategory !== 'all') {
-      pool = pool.filter(p => p.category === selectedCategory);
+      const targetCat = categories.find(c => 
+        c.slug === selectedCategory || 
+        c.id === selectedCategory || 
+        c.name === selectedCategory
+      );
+      pool = pool.filter(p => {
+        if (!p.category) return false;
+        if (p.category === selectedCategory) return true;
+        if (targetCat) {
+          return p.category === targetCat.slug || 
+                 p.category === targetCat.id || 
+                 p.category === targetCat.name;
+        }
+        return false;
+      });
     }
 
-    // C. Discounted Only Filter
-    if (onlyDiscounted) {
-      pool = pool.filter(p => p.oldPrice && p.oldPrice > p.price);
+    // C. Discounted / Offers Only Filter
+    // When onlyDiscounted is true OR when the user sorts by 'discount-desc', STRICTLY show only products with active offers!
+    if (onlyDiscounted || sortBy === 'discount-desc') {
+      pool = pool.filter(isProductOnSale);
     }
 
-    // D. In-Stock Only Filter
+    // D. Popular / Best Sellers Filter (طلب المستخدم: فلترة المنتجات الأكثر مبيعاً فقط مش كل المنتجات)
+    if (sortBy === 'popular') {
+      pool = pool.filter(isProductPopular);
+    }
+
+    // E. Top-Rated Filter (فلترة المنتجات الحاصلة على تقييمات فقط)
+    if (sortBy === 'top-rated') {
+      pool = pool.filter(isProductTopRated);
+    }
+
+    // F. In-Stock Only Filter
     if (onlyInStock) {
       pool = pool.filter(p => p.stock > 0);
     }
 
-    // E. Sorting
+    // G. Sorting
     return [...pool].sort((a, b) => {
       if (sortBy === 'price-asc') return a.price - b.price;
       if (sortBy === 'price-desc') return b.price - a.price;
-      if (sortBy === 'popular') return (b.salesCount || 0) - (a.salesCount || 0);
+      if (sortBy === 'popular') {
+        const aScore = (a.salesCount || 0) + (a.id && bestSellerIds.has(a.id) ? 100 : 0);
+        const bScore = (b.salesCount || 0) + (b.id && bestSellerIds.has(b.id) ? 100 : 0);
+        return bScore - aScore;
+      }
       if (sortBy === 'discount-desc') {
         const getSavings = (p: Product) => (p.oldPrice && p.oldPrice > p.price ? p.oldPrice - p.price : 0);
         return getSavings(b) - getSavings(a);
@@ -172,7 +224,7 @@ function ProductsContent() {
       }
       return 0;
     });
-  }, [products, categoriesMap, searchQuery, selectedCategory, onlyDiscounted, onlyInStock, sortBy]);
+  }, [products, categoriesMap, searchQuery, selectedCategory, onlyDiscounted, onlyInStock, sortBy, bestSellerIds]);
 
   const clearFilters = () => {
     setSearchQuery('');
@@ -187,7 +239,8 @@ function ProductsContent() {
     searchQuery.trim() ||
     selectedCategory !== 'all' ||
     onlyDiscounted ||
-    onlyInStock
+    onlyInStock ||
+    sortBy !== 'latest'
   );
 
   if (loading) {
@@ -297,8 +350,8 @@ function ProductsContent() {
           </div>
         </div>
 
-        {/* Mobile Search & Quick Filters Bar */}
-        <div className="flex md:hidden gap-3 mb-6 relative z-30">
+        {/* Mobile Search Bar */}
+        <div className="flex md:hidden gap-3 mb-4 relative z-30">
           <div className="relative flex-1">
             <input
               type="text"
@@ -331,6 +384,126 @@ function ProductsContent() {
               <span className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-white ring-2 ring-accent-red animate-ping" />
             )}
           </button>
+        </div>
+
+        {/* Quick Filter Horizontal Scroll Pills (Mobile & Desktop) */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-6 no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
+          {/* Offers / Discount Filter Pill (طلب المستخدم الأساسي: يجيب المنتجات اللي عليها أوفر بس) */}
+          <button
+            type="button"
+            onClick={() => {
+              const next = !onlyDiscounted;
+              setOnlyDiscounted(next);
+              if (next && sortBy === 'latest') setSortBy('discount-desc');
+            }}
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-display font-black whitespace-nowrap shrink-0 transition-all border active:scale-95 ${
+              onlyDiscounted || sortBy === 'discount-desc'
+                ? 'bg-accent-red text-white border-accent-red shadow-[0_0_15px_rgba(227,30,36,0.4)]'
+                : 'bg-[#0a0a0a] text-zinc-300 border-white/10 hover:border-accent-red/50 hover:text-white'
+            }`}
+          >
+            <span className="material-symbols-outlined text-sm text-accent-red">local_fire_department</span>
+            <span>عروض وخصومات فقط 🔥</span>
+            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+              onlyDiscounted || sortBy === 'discount-desc' ? 'bg-white/20 text-white' : 'bg-white/10 text-zinc-400'
+            }`}>
+              {discountedCount}
+            </span>
+          </button>
+
+          {/* All Products Pill */}
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedCategory('all');
+              setOnlyDiscounted(false);
+            }}
+            className={`inline-flex items-center gap-1 px-3.5 py-2 rounded-xl text-xs font-display font-bold whitespace-nowrap shrink-0 transition-all border active:scale-95 ${
+              selectedCategory === 'all' && !onlyDiscounted && sortBy !== 'discount-desc'
+                ? 'bg-white/15 text-white border-white/30'
+                : 'bg-[#0a0a0a] text-zinc-400 border-white/10 hover:text-white'
+            }`}
+          >
+            <span>جميع المنتجات</span>
+          </button>
+
+          {/* Popular / Best Sellers Pill */}
+          <button
+            type="button"
+            onClick={() => {
+              setSortBy(prev => prev === 'popular' ? 'latest' : 'popular');
+            }}
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-display font-black whitespace-nowrap shrink-0 transition-all border active:scale-95 ${
+              sortBy === 'popular'
+                ? 'bg-amber-500 text-black border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.4)]'
+                : 'bg-[#0a0a0a] text-zinc-300 border-white/10 hover:border-amber-400/50 hover:text-white'
+            }`}
+          >
+            <span className="material-symbols-outlined text-sm">workspace_premium</span>
+            <span>الأكثر مبيعاً 🏆</span>
+            {popularCount > 0 && (
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                sortBy === 'popular' ? 'bg-black/20 text-black' : 'bg-white/10 text-zinc-400'
+              }`}>
+                {popularCount}
+              </span>
+            )}
+          </button>
+
+          {/* Top-Rated Pill */}
+          <button
+            type="button"
+            onClick={() => {
+              setSortBy(prev => prev === 'top-rated' ? 'latest' : 'top-rated');
+            }}
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-display font-black whitespace-nowrap shrink-0 transition-all border active:scale-95 ${
+              sortBy === 'top-rated'
+                ? 'bg-amber-400 text-black border-amber-300 shadow-[0_0_15px_rgba(251,191,36,0.4)]'
+                : 'bg-[#0a0a0a] text-zinc-300 border-white/10 hover:border-amber-400/50 hover:text-white'
+            }`}
+          >
+            <span className="material-symbols-outlined text-sm">star</span>
+            <span>الأعلى تقييماً ⭐</span>
+            {topRatedCount > 0 && (
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                sortBy === 'top-rated' ? 'bg-black/20 text-black' : 'bg-white/10 text-zinc-400'
+              }`}>
+                {topRatedCount}
+              </span>
+            )}
+          </button>
+
+          {/* In-Stock Pill */}
+          <button
+            type="button"
+            onClick={() => setOnlyInStock(!onlyInStock)}
+            className={`inline-flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-display font-bold whitespace-nowrap shrink-0 transition-all border active:scale-95 ${
+              onlyInStock
+                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
+                : 'bg-[#0a0a0a] text-zinc-400 border-white/10 hover:text-white'
+            }`}
+          >
+            <span className="material-symbols-outlined text-xs">check_circle</span>
+            <span>متوفر فقط</span>
+          </button>
+
+          {/* Category Quick Pills */}
+          {categories.slice(0, 6).map((cat) => (
+            <button
+              key={cat.id || cat.slug}
+              type="button"
+              onClick={() => {
+                setSelectedCategory(cat.slug);
+              }}
+              className={`inline-flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-display font-bold whitespace-nowrap shrink-0 transition-all border active:scale-95 ${
+                selectedCategory === cat.slug
+                  ? 'bg-accent-red/20 text-accent-red border-accent-red/40 font-black'
+                  : 'bg-[#0a0a0a] text-zinc-400 border-white/10 hover:text-white'
+              }`}
+            >
+              <span>{cat.name}</span>
+            </button>
+          ))}
         </div>
 
         {/* Main Content Layout (Sidebar + Grid) */}
@@ -424,6 +597,48 @@ function ProductsContent() {
                 </div>
                 <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${onlyDiscounted ? 'bg-white/20' : 'bg-black/60 text-zinc-400'}`}>
                   {discountedCount}
+                </span>
+              </button>
+
+              {/* Popular / Best Sellers Filter */}
+              <button
+                type="button"
+                onClick={() => setSortBy(prev => prev === 'popular' ? 'latest' : 'popular')}
+                className={`w-full text-right px-4 py-3 rounded-2xl text-xs sm:text-sm font-display font-black transition-all flex items-center justify-between border active:scale-98 ${
+                  sortBy === 'popular'
+                    ? 'bg-amber-500 text-black border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.4)]'
+                    : 'bg-white/[0.03] border-white/10 text-zinc-300 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className={`material-symbols-outlined text-base ${sortBy === 'popular' ? 'text-black' : 'text-amber-400'}`}>
+                    workspace_premium
+                  </span>
+                  <span>الأكثر مبيعاً 🏆</span>
+                </div>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${sortBy === 'popular' ? 'bg-black/20 text-black' : 'bg-black/60 text-zinc-400'}`}>
+                  {popularCount}
+                </span>
+              </button>
+
+              {/* Top-Rated Filter */}
+              <button
+                type="button"
+                onClick={() => setSortBy(prev => prev === 'top-rated' ? 'latest' : 'top-rated')}
+                className={`w-full text-right px-4 py-3 rounded-2xl text-xs sm:text-sm font-display font-black transition-all flex items-center justify-between border active:scale-98 ${
+                  sortBy === 'top-rated'
+                    ? 'bg-amber-400 text-black border-amber-300 shadow-[0_0_15px_rgba(251,191,36,0.4)]'
+                    : 'bg-white/[0.03] border-white/10 text-zinc-300 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className={`material-symbols-outlined text-base ${sortBy === 'top-rated' ? 'text-black' : 'text-amber-400'}`}>
+                    star
+                  </span>
+                  <span>الأعلى تقييماً ⭐</span>
+                </div>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${sortBy === 'top-rated' ? 'bg-black/20 text-black' : 'bg-black/60 text-zinc-400'}`}>
+                  {topRatedCount}
                 </span>
               </button>
 
@@ -549,6 +764,30 @@ function ProductsContent() {
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-xs font-display text-emerald-400">
                       <span>المتوفر بالمخزون</span>
                       <button onClick={() => setOnlyInStock(false)} className="text-emerald-400 hover:text-white" aria-label="إلغاء المتوفر">
+                        <span className="material-symbols-outlined text-[13px]">close</span>
+                      </button>
+                    </span>
+                  )}
+                  {sortBy === 'popular' && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/20 border border-amber-500/40 text-xs font-display text-amber-400 font-bold">
+                      <span>الأكثر مبيعاً 🏆</span>
+                      <button onClick={() => setSortBy('latest')} className="text-amber-400 hover:text-white" aria-label="إلغاء الأكثر مبيعاً">
+                        <span className="material-symbols-outlined text-[13px]">close</span>
+                      </button>
+                    </span>
+                  )}
+                  {sortBy === 'top-rated' && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-400/20 border border-amber-400/40 text-xs font-display text-amber-300 font-bold">
+                      <span>الأعلى تقييماً ⭐</span>
+                      <button onClick={() => setSortBy('latest')} className="text-amber-300 hover:text-white" aria-label="إلغاء الأعلى تقييماً">
+                        <span className="material-symbols-outlined text-[13px]">close</span>
+                      </button>
+                    </span>
+                  )}
+                  {sortBy === 'discount-desc' && !onlyDiscounted && (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-accent-red/20 border border-accent-red/40 text-xs font-display text-accent-red font-bold">
+                      <span>الخصم الأكبر 🔥</span>
+                      <button onClick={() => setSortBy('latest')} className="text-accent-red hover:text-white" aria-label="إلغاء الخصم الأكبر">
                         <span className="material-symbols-outlined text-[13px]">close</span>
                       </button>
                     </span>
