@@ -24,7 +24,9 @@ export default function FreeShippingModal({
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>(() =>
     products[0]?.id ? [products[0].id] : []
   );
-  const [selectedCategory, setSelectedCategory] = useState<string>(categories[0]?.slug || '');
+  const [selectedCategorySlugs, setSelectedCategorySlugs] = useState<string[]>(() =>
+    categories[0]?.slug ? [categories[0].slug] : []
+  );
   const [searchProductQuery, setSearchProductQuery] = useState<string>('');
   
   // Expiration date state
@@ -74,6 +76,23 @@ export default function FreeShippingModal({
     setSelectedProductIds([]);
   };
 
+  // Toggle single category in multi-selection
+  const handleToggleCategory = (slug: string) => {
+    setSelectedCategorySlugs((prev) =>
+      prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug]
+    );
+  };
+
+  // Select all categories
+  const handleSelectAllCategories = () => {
+    setSelectedCategorySlugs(categories.map((c) => c.slug));
+  };
+
+  // Deselect all categories
+  const handleDeselectAllCategories = () => {
+    setSelectedCategorySlugs([]);
+  };
+
   // Products affected by the chosen scope & action
   const targetProducts = useMemo(() => {
     return products.filter((p) => {
@@ -82,12 +101,12 @@ export default function FreeShippingModal({
         return selectedProductIds.includes(p.id);
       }
       if (scope === 'category') {
-        return p.category === selectedCategory;
+        return selectedCategorySlugs.includes(p.category);
       }
       // 'all'
       return true;
     });
-  }, [products, scope, selectedProductIds, selectedCategory]);
+  }, [products, scope, selectedProductIds, selectedCategorySlugs]);
 
   if (!isOpen) return null;
 
@@ -100,8 +119,8 @@ export default function FreeShippingModal({
       return;
     }
 
-    if (scope === 'category' && !selectedCategory) {
-      setError('يرجى اختيار قسم أولاً.');
+    if (scope === 'category' && selectedCategorySlugs.length === 0) {
+      setError('يرجى تحديد قسم واحد على الأقل لتطبيق العملية عليه.');
       return;
     }
 
@@ -122,16 +141,20 @@ export default function FreeShippingModal({
 
       await applyFreeShipping({
         scope,
-        targetIds: scope === 'product' ? selectedProductIds : undefined,
-        targetId: scope === 'category' ? selectedCategory : undefined,
+        targetIds: scope === 'product' ? selectedProductIds : scope === 'category' ? selectedCategorySlugs : undefined,
+        targetId: scope === 'category' && selectedCategorySlugs.length === 1 ? selectedCategorySlugs[0] : undefined,
         isFreeShipping: isEnable,
         endDate: resolvedEndDate,
       });
 
       let scopeLabel = 'كل المنتجات';
       if (scope === 'category') {
-        const cat = categories.find((c) => c.slug === selectedCategory);
-        scopeLabel = `قسم (${cat?.name || selectedCategory})`;
+        if (selectedCategorySlugs.length === 1) {
+          const cat = categories.find((c) => c.slug === selectedCategorySlugs[0]);
+          scopeLabel = `قسم (${cat?.name || selectedCategorySlugs[0]})`;
+        } else {
+          scopeLabel = `(${selectedCategorySlugs.length}) أقسام محددة`;
+        }
       } else if (scope === 'product') {
         if (selectedProductIds.length === 1) {
           const prod = products.find((p) => p.id === selectedProductIds[0]);
@@ -433,22 +456,45 @@ export default function FreeShippingModal({
             </div>
           )}
 
-          {/* Scope = Category: Select Category */}
+          {/* Scope = Category: Select Multiple Categories */}
           {scope === 'category' && (
             <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3">
-              <label className="block text-xs font-product-title font-bold text-white mb-1.5">
-                اختر القسم المستهدف
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-product-title font-bold text-white">
+                  اختر الأقسام المستهدفة
+                  <span className="mr-2 text-[11px] text-accent-red font-mono font-normal">
+                    (تم تحديد {selectedCategorySlugs.length} من {categories.length})
+                  </span>
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleSelectAllCategories}
+                    className="text-[11px] font-product-title text-accent-red hover:underline"
+                  >
+                    تحديد كل الأقسام
+                  </button>
+                  <span className="text-white/20 text-xs">|</span>
+                  <button
+                    type="button"
+                    onClick={handleDeselectAllCategories}
+                    className="text-[11px] font-product-title text-text-muted hover:text-white"
+                  >
+                    إلغاء التحديد
+                  </button>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {categories.map((cat) => {
-                  const isSelected = cat.slug === selectedCategory;
+                  const isSelected = selectedCategorySlugs.includes(cat.slug);
                   const catProductsCount = products.filter((p) => p.category === cat.slug).length;
                   const catFreeCount = products.filter((p) => p.category === cat.slug && p.isFreeShipping).length;
 
                   return (
                     <div
                       key={cat.slug}
-                      onClick={() => setSelectedCategory(cat.slug)}
+                      onClick={() => handleToggleCategory(cat.slug)}
                       className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
                         isSelected
                           ? 'bg-accent-red/10 border-accent-red/40 text-white ring-1 ring-accent-red/30'
@@ -464,14 +510,19 @@ export default function FreeShippingModal({
                         </span>
                       </div>
 
+                      {/* Checkbox */}
                       <div
-                        className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                        className={`w-5 h-5 rounded-md border flex items-center justify-center transition-all ${
                           isSelected
-                            ? 'border-accent-red bg-accent-red text-white'
-                            : 'border-white/20'
+                            ? 'border-accent-red bg-accent-red text-white shadow-sm'
+                            : 'border-white/20 bg-white/5 hover:border-white/40'
                         }`}
                       >
-                        {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+                        {isSelected && (
+                          <span className="material-symbols-outlined text-[15px] font-bold">
+                            check
+                          </span>
+                        )}
                       </div>
                     </div>
                   );

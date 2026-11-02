@@ -386,7 +386,7 @@ export async function revertBulkDiscount(): Promise<{ revertedCount: number }> {
 export interface FreeShippingScopeOptions {
   scope: 'all' | 'category' | 'product';
   targetId?: string; // categorySlug or single productId
-  targetIds?: string[]; // array of product IDs for multi-selection
+  targetIds?: string[]; // array of product IDs or category slugs for multi-selection
   isFreeShipping: boolean;
   endDate?: string | null; // ISO date string or null
 }
@@ -407,6 +407,9 @@ export async function applyFreeShipping(options: FreeShippingScopeOptions): Prom
       return p.id === options.targetId;
     }
     if (options.scope === 'category') {
+      if (options.targetIds && options.targetIds.length > 0) {
+        return options.targetIds.includes(p.category);
+      }
       return p.category === options.targetId;
     }
     return true; // 'all'
@@ -442,7 +445,11 @@ export async function applyFreeShipping(options: FreeShippingScopeOptions): Prom
   const actionText = options.isFreeShipping ? 'تفعيل' : 'إلغاء';
   let scopeDesc = 'كل المنتجات';
   if (options.scope === 'category') {
-    scopeDesc = `قسم (${options.targetId})`;
+    if (options.targetIds && options.targetIds.length > 1) {
+      scopeDesc = `(${options.targetIds.length}) أقسام محددة`;
+    } else {
+      scopeDesc = `قسم (${options.targetId || options.targetIds?.[0]})`;
+    }
   } else if (options.scope === 'product') {
     if (options.targetIds && options.targetIds.length > 1) {
       scopeDesc = `(${options.targetIds.length}) منتجات محددة`;
