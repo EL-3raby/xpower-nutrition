@@ -109,11 +109,11 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
   };
 
   return (
-    <section className="relative w-full border-y border-white/[0.08] bg-[#070707] py-6 sm:py-10 lg:py-16 overflow-hidden select-none">
+    <section className="relative w-full border-y border-white/[0.08] bg-[#070707] py-4 sm:py-10 lg:py-16 overflow-hidden select-none">
       {/* Soft Subtle Ambient Radial Lighting */}
       <div className="absolute top-1/2 left-1/3 -translate-y-1/2 w-[350px] sm:w-[550px] h-[350px] sm:h-[550px] bg-accent-red/[0.06] rounded-full blur-[120px] sm:blur-[160px] pointer-events-none" />
 
-      <div className="max-w-6xl mx-auto px-3 sm:px-6 relative z-10">
+      <div className="w-full max-w-6xl mx-auto px-0 sm:px-6 relative z-10">
         <ScrollReveal>
           {/* Big Athletic Showcase Ad Card — Cinematic Hero (ستايل عالمي مفتوح) */}
           <div 
@@ -128,7 +128,7 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
               handleTouchEnd();
               setTimeout(() => setIsPaused(false), 2500);
             }}
-            className="relative rounded-3xl border border-white/[0.08] hover:border-accent-red/30 bg-gradient-to-b from-[#0d0d0f] via-[#09090a] to-[#050506] p-6 sm:p-10 lg:p-12 overflow-hidden shadow-[0_25px_60px_-15px_rgba(0,0,0,0.95)] transition-all duration-300"
+            className="relative rounded-none sm:rounded-3xl border-0 sm:border sm:border-white/[0.08] hover:border-accent-red/30 bg-gradient-to-b from-[#0d0d0f] via-[#09090a] to-[#050506] px-4 py-5 sm:p-10 lg:p-12 overflow-hidden shadow-none sm:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.95)] transition-all duration-300"
           >
             {/* Top metallic glow line */}
             <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-accent-red/50 to-transparent pointer-events-none" />
