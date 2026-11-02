@@ -37,7 +37,7 @@ export default function AdminPromoPopupPage() {
       try {
         const [config, prods] = await Promise.all([
           getPromoPopup(),
-          getProducts(undefined, true)
+          getProducts(undefined, true, { forceRefresh: true })
         ]);
 
         setIsActive(config.isActive);

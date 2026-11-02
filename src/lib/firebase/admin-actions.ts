@@ -18,6 +18,7 @@ import {
   getCountFromServer
 } from 'firebase/firestore';
 import { Category, Coupon, SiteConfig, ActivityLog, ShippingRate, PromoPopup, AuthenticityCode } from '../types';
+import { cachedFetch, invalidateCache, CacheOptions } from '../cache';
 
 // Helper function to log activities automatically
 export async function logAdminActivity(action: string, targetId: string) {
@@ -38,27 +39,30 @@ export async function logAdminActivity(action: string, targetId: string) {
 // ==========================================
 // Category CRUD Actions
 // ==========================================
-export async function getCategories(): Promise<Category[]> {
+export async function getCategories(options?: CacheOptions): Promise<Category[]> {
   if (isDummyFirebase) {
     return DEFAULT_CATEGORIES;
   }
-  try {
-    const colRef = collection(db, 'categories');
-    const q = query(colRef, orderBy('order', 'asc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(docSnapshot => ({
-      id: docSnapshot.id,
-      ...docSnapshot.data()
-    } as Category));
-  } catch (error) {
-    console.error('Error fetching categories:', error);
-    return [];
-  }
+  return cachedFetch('categories', async () => {
+    try {
+      const colRef = collection(db, 'categories');
+      const q = query(colRef, orderBy('order', 'asc'));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(docSnapshot => ({
+        id: docSnapshot.id,
+        ...docSnapshot.data()
+      } as Category));
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      return [];
+    }
+  }, options);
 }
 
 export async function addCategory(category: Omit<Category, 'id'>) {
   const colRef = collection(db, 'categories');
   const docRef = await addDoc(colRef, category);
+  invalidateCache('categories');
   await logAdminActivity('created category', docRef.id);
   return docRef.id;
 }
@@ -66,12 +70,14 @@ export async function addCategory(category: Omit<Category, 'id'>) {
 export async function updateCategory(id: string, category: Partial<Category>) {
   const docRef = doc(db, 'categories', id);
   await updateDoc(docRef, category);
+  invalidateCache('categories');
   await logAdminActivity('updated category', id);
 }
 
 export async function deleteCategory(id: string) {
   const docRef = doc(db, 'categories', id);
   await deleteDoc(docRef);
+  invalidateCache('categories');
   await logAdminActivity('deleted category', id);
 }
 
@@ -240,72 +246,77 @@ export const DEFAULT_SHIPPING_RATES: ShippingRate[] = [
   { id: 'rate27', cityName: 'الوادي الجديد', rate: 120, isActive: true }
 ];
 
-export async function getSiteConfig(): Promise<SiteConfig> {
+export async function getSiteConfig(options?: CacheOptions): Promise<SiteConfig> {
   if (isDummyFirebase) {
     return DEFAULT_CONFIG;
   }
-  try {
-    const docRef = doc(db, 'settings', 'siteConfig');
-    const docSnap = await getDoc(docRef);
-    if (docSnap.exists()) {
-      const data = docSnap.data();
-      return {
-        ...DEFAULT_CONFIG,
-        ...data,
-        freeShipping: {
-          ...DEFAULT_CONFIG.freeShipping,
-          ...(data.freeShipping || {})
-        },
-        paymentMethodsEnabled: {
-          ...DEFAULT_CONFIG.paymentMethodsEnabled,
-          ...(data.paymentMethodsEnabled || {})
-        },
-        maintenanceMode: {
-          ...DEFAULT_CONFIG.maintenanceMode,
-          ...(data.maintenanceMode || {})
-        },
-        bulkDiscount: {
-          ...DEFAULT_CONFIG.bulkDiscount,
-          ...(data.bulkDiscount || {})
-        }
-      } as SiteConfig;
+  return cachedFetch('siteConfig', async () => {
+    try {
+      const docRef = doc(db, 'settings', 'siteConfig');
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        return {
+          ...DEFAULT_CONFIG,
+          ...data,
+          freeShipping: {
+            ...DEFAULT_CONFIG.freeShipping,
+            ...(data.freeShipping || {})
+          },
+          paymentMethodsEnabled: {
+            ...DEFAULT_CONFIG.paymentMethodsEnabled,
+            ...(data.paymentMethodsEnabled || {})
+          },
+          maintenanceMode: {
+            ...DEFAULT_CONFIG.maintenanceMode,
+            ...(data.maintenanceMode || {})
+          },
+          bulkDiscount: {
+            ...DEFAULT_CONFIG.bulkDiscount,
+            ...(data.bulkDiscount || {})
+          }
+        } as SiteConfig;
+      }
+    } catch (error) {
+      console.error('Error fetching site config:', error);
     }
-  } catch (error) {
-    console.error('Error fetching site config:', error);
-  }
-  // If config does not exist or fetch fails, return default config
-  return DEFAULT_CONFIG;
+    // If config does not exist or fetch fails, return default config
+    return DEFAULT_CONFIG;
+  }, options);
 }
 
 export async function updateSiteConfig(config: Partial<SiteConfig>) {
   const docRef = doc(db, 'settings', 'siteConfig');
   await setDoc(docRef, config, { merge: true });
+  invalidateCache('siteConfig');
   await logAdminActivity('updated site config', 'siteConfig');
 }
 
 // ==========================================
 // Shipping Rates CRUD Actions
 // ==========================================
-export async function getShippingRates(): Promise<ShippingRate[]> {
+export async function getShippingRates(options?: CacheOptions): Promise<ShippingRate[]> {
   if (isDummyFirebase) {
     return DEFAULT_SHIPPING_RATES;
   }
-  try {
-    const colRef = collection(db, 'shippingRates');
-    const snapshot = await getDocs(colRef);
-    return snapshot.docs.map(docSnapshot => {
-      const data = docSnapshot.data();
-      return {
-        id: docSnapshot.id,
-        cityName: data.cityName,
-        rate: Number(data.rate),
-        isActive: !!data.isActive
-      } as ShippingRate;
-    });
-  } catch (error) {
-    console.error('Error fetching shipping rates:', error);
-    return [];
-  }
+  return cachedFetch('shippingRates', async () => {
+    try {
+      const colRef = collection(db, 'shippingRates');
+      const snapshot = await getDocs(colRef);
+      return snapshot.docs.map(docSnapshot => {
+        const data = docSnapshot.data();
+        return {
+          id: docSnapshot.id,
+          cityName: data.cityName,
+          rate: Number(data.rate),
+          isActive: !!data.isActive
+        } as ShippingRate;
+      });
+    } catch (error) {
+      console.error('Error fetching shipping rates:', error);
+      return [];
+    }
+  }, options);
 }
 
 export async function addShippingRate(rate: Omit<ShippingRate, 'id'>) {
@@ -315,6 +326,7 @@ export async function addShippingRate(rate: Omit<ShippingRate, 'id'>) {
   }
   const colRef = collection(db, 'shippingRates');
   const docRef = await addDoc(colRef, rate);
+  invalidateCache('shippingRates');
   await logAdminActivity('created shipping rate', docRef.id);
   return docRef.id;
 }
@@ -326,6 +338,7 @@ export async function updateShippingRate(id: string, rate: Partial<ShippingRate>
   }
   const docRef = doc(db, 'shippingRates', id);
   await updateDoc(docRef, rate);
+  invalidateCache('shippingRates');
   await logAdminActivity('updated shipping rate', id);
 }
 
@@ -336,6 +349,7 @@ export async function deleteShippingRate(id: string) {
   }
   const docRef = doc(db, 'shippingRates', id);
   await deleteDoc(docRef);
+  invalidateCache('shippingRates');
   await logAdminActivity('deleted shipping rate', id);
 }
 
@@ -658,6 +672,7 @@ export async function syncStandardShippingRates(): Promise<{ count: number }> {
     });
 
     await batch.commit();
+    invalidateCache('shippingRates');
     await logAdminActivity('تحديث أسعار الشحن للأسعار الرسمية المعتمدة (80 / 100 / 120)', 'shipping');
     return { count: DEFAULT_SHIPPING_RATES.length };
   } catch (error) {

@@ -15,6 +15,7 @@ import {
 } from 'firebase/firestore';
 import { Order, Product } from '../types';
 import { logAdminActivity } from './admin-actions';
+import { invalidateCache } from '../cache';
 
 // Place an order using Firestore Transaction for Stock Safeguard
 // phone is passed separately to atomically mark any abandoned checkout as converted
@@ -54,7 +55,7 @@ export async function createOrder(orderData: Omit<Order, 'id' | 'createdAt' | 's
   const ordersColRef = collection(db, 'orders');
   const newOrderDocRef = customId ? doc(db, 'orders', customId) : doc(ordersColRef);
 
-  return await runTransaction(db, async (transaction) => {
+  const createdOrderId = await runTransaction(db, async (transaction) => {
     const stockUpdates: { productRef: any; newStock: number; newSalesCount: number }[] = [];
 
     // === PHASE 1: ALL READS ===
@@ -180,6 +181,9 @@ export async function createOrder(orderData: Omit<Order, 'id' | 'createdAt' | 's
 
     return newOrderDocRef.id;
   });
+
+  invalidateCache('product');
+  return createdOrderId;
 }
 
 const DEFAULT_ORDERS: Order[] = [
@@ -355,6 +359,7 @@ export async function updateOrderStatus(id: string, newStatus: Order['status']) 
     for (const item of failedItems) {
       await logAdminActivity(`تعذر استرجاع المخزون لمنتج محذوف: [${item.name}] من الأوردر #${id}`, id);
     }
+    invalidateCache('product');
   } else {
     await updateDoc(orderRef, { status: newStatus });
   }

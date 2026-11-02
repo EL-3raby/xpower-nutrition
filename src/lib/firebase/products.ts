@@ -19,9 +19,10 @@ import {
 
 import { Product } from '../types';
 import { logAdminActivity } from './admin-actions';
+import { cachedFetch, invalidateCache, CacheOptions } from '../cache';
 
 // Retrieve all products
-export async function getProducts(categorySlug?: string, activeOnly = false): Promise<Product[]> {
+export async function getProducts(categorySlug?: string, activeOnly = false, options?: CacheOptions): Promise<Product[]> {
   if (isDummyFirebase) {
     let list = [...DEFAULT_PRODUCTS];
     if (categorySlug) {
@@ -32,75 +33,82 @@ export async function getProducts(categorySlug?: string, activeOnly = false): Pr
     }
     return list;
   }
-  try {
-    const colRef = collection(db, 'products');
-    let q = query(colRef, orderBy('createdAt', 'desc'));
+  const cacheKey = `products:${categorySlug || 'all'}:${activeOnly ? 'active' : 'all'}`;
+  return cachedFetch(cacheKey, async () => {
+    try {
+      const colRef = collection(db, 'products');
+      let q = query(colRef, orderBy('createdAt', 'desc'));
 
-    if (categorySlug && activeOnly) {
-      q = query(colRef, where('category', '==', categorySlug), where('isActive', '==', true), orderBy('createdAt', 'desc'));
-    } else if (categorySlug) {
-      q = query(colRef, where('category', '==', categorySlug), orderBy('createdAt', 'desc'));
-    } else if (activeOnly) {
-      q = query(colRef, where('isActive', '==', true), orderBy('createdAt', 'desc'));
+      if (categorySlug && activeOnly) {
+        q = query(colRef, where('category', '==', categorySlug), where('isActive', '==', true), orderBy('createdAt', 'desc'));
+      } else if (categorySlug) {
+        q = query(colRef, where('category', '==', categorySlug), orderBy('createdAt', 'desc'));
+      } else if (activeOnly) {
+        q = query(colRef, where('isActive', '==', true), orderBy('createdAt', 'desc'));
+      }
+
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(docSnapshot => {
+        const data = docSnapshot.data();
+        return {
+          id: docSnapshot.id,
+          ...data,
+          createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt
+        } as Product;
+      });
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      return [];
     }
+  }, options);
+}
 
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(docSnapshot => {
+// Retrieve single product by slug
+export async function getProductBySlug(slug: string, options?: CacheOptions): Promise<Product | null> {
+  if (isDummyFirebase) {
+    return DEFAULT_PRODUCTS.find(p => p.slug === slug && p.isActive) || null;
+  }
+  return cachedFetch(`product:slug:${slug}`, async () => {
+    try {
+      const colRef = collection(db, 'products');
+      const q = query(colRef, where('slug', '==', slug), where('isActive', '==', true));
+      const snapshot = await getDocs(q);
+      if (snapshot.empty) return null;
+      const docSnapshot = snapshot.docs[0];
       const data = docSnapshot.data();
       return {
         id: docSnapshot.id,
         ...data,
         createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt
       } as Product;
-    });
-  } catch (error) {
-    console.error('Error fetching products:', error);
-    return [];
-  }
-}
-
-// Retrieve single product by slug
-export async function getProductBySlug(slug: string): Promise<Product | null> {
-  if (isDummyFirebase) {
-    return DEFAULT_PRODUCTS.find(p => p.slug === slug && p.isActive) || null;
-  }
-  try {
-    const colRef = collection(db, 'products');
-    const q = query(colRef, where('slug', '==', slug), where('isActive', '==', true));
-    const snapshot = await getDocs(q);
-    if (snapshot.empty) return null;
-    const docSnapshot = snapshot.docs[0];
-    const data = docSnapshot.data();
-    return {
-      id: docSnapshot.id,
-      ...data,
-      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt
-    } as Product;
-  } catch (error) {
-    console.error('Error fetching product by slug:', error);
-    return null;
-  }
+    } catch (error) {
+      console.error('Error fetching product by slug:', error);
+      return null;
+    }
+  }, options);
 }
 
 // Retrieve product by ID
-export async function getProductById(id: string): Promise<Product | null> {
+export async function getProductById(id: string, options?: CacheOptions): Promise<Product | null> {
   if (isDummyFirebase) {
     return DEFAULT_PRODUCTS.find(p => p.id === id) || null;
   }
-  try {
-    const docRef = doc(db, 'products', id);
-    const docSnap = await getDoc(docRef);
-    if (!docSnap.exists()) return null;
-    const data = docSnap.data();
-    return {
-      id: docSnap.id,
-      ...data,
-      createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt
-    } as Product;
-  } catch (error) {
-    console.error('Error fetching product by ID:', error);
-    return null;
-  }
+  return cachedFetch(`product:id:${id}`, async () => {
+    try {
+      const docRef = doc(db, 'products', id);
+      const docSnap = await getDoc(docRef);
+      if (!docSnap.exists()) return null;
+      const data = docSnap.data();
+      return {
+        id: docSnap.id,
+        ...data,
+        createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt
+      } as Product;
+    } catch (error) {
+      console.error('Error fetching product by ID:', error);
+      return null;
+    }
+  }, options);
 }
 
 // Add a new product
@@ -132,6 +140,7 @@ export async function addProduct(product: Omit<Product, 'id' | 'createdAt'>, cus
       ...cleanData,
       createdAt: serverTimestamp()
     });
+    invalidateCache('product');
     await logAdminActivity('created product', docRef.id);
     return docRef.id;
   }
@@ -167,6 +176,7 @@ export async function updateProduct(id: string, product: Partial<Product>) {
   });
 
   await updateDoc(docRef, updateData);
+  invalidateCache('product');
   await logAdminActivity('updated product', id);
 }
 
@@ -180,6 +190,8 @@ export async function deleteProduct(id: string) {
   // 1. Delete document from Firestore
   const docRef = doc(db, 'products', id);
   await deleteDoc(docRef);
+  invalidateCache('product');
+  invalidateCache('siteConfig');
 
   // 2. Clean up any siteConfig references (Flash Sale & Best Sellers)
   try {
@@ -317,6 +329,9 @@ export async function applyBulkDiscount(options: BulkDiscountOptions): Promise<{
     await batch.commit();
   }
 
+  invalidateCache('product');
+  invalidateCache('siteConfig');
+
   const discountText = options.type === 'percentage' ? `${options.value}%` : `${options.value} ج.م`;
   await logAdminActivity(
     `طبّق خصم جماعي (${discountText}) على ${targetProducts.length} منتج`,
@@ -374,6 +389,9 @@ export async function revertBulkDiscount(): Promise<{ revertedCount: number }> {
 
     await batch.commit();
   }
+
+  invalidateCache('product');
+  invalidateCache('siteConfig');
 
   await logAdminActivity(
     `استعاد الأسعار الأصلية وألغى الخصم لـ ${discountedProducts.length} منتج`,
@@ -442,6 +460,8 @@ export async function applyFreeShipping(options: FreeShippingScopeOptions): Prom
     await batch.commit();
   }
 
+  invalidateCache('product');
+
   const actionText = options.isFreeShipping ? 'تفعيل' : 'إلغاء';
   let scopeDesc = 'كل المنتجات';
   if (options.scope === 'category') {
@@ -491,6 +511,8 @@ export async function toggleProductFreeShipping(
       freeShippingEndDate: deleteField()
     });
   }
+
+  invalidateCache('product');
 
   await logAdminActivity(
     `${isFreeShipping ? 'تفعيل' : 'إلغاء'} الشحن المجاني للمنتج (${productId})`,

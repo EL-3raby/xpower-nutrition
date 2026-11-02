@@ -39,8 +39,8 @@ export default function AdminShippingPage() {
   const loadData = async () => {
     try {
       const [fetchedConfig, fetchedRates] = await Promise.all([
-        getSiteConfig(),
-        getShippingRates()
+        getSiteConfig({ forceRefresh: true }),
+        getShippingRates({ forceRefresh: true })
       ]);
       
       setConfig(fetchedConfig);

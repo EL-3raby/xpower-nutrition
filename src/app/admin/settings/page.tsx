@@ -109,8 +109,8 @@ export default function AdminSettingsPage() {
     async function loadConfig() {
       try {
         const [fetched, prods] = await Promise.all([
-          getSiteConfig(),
-          getProducts()
+          getSiteConfig({ forceRefresh: true }),
+          getProducts(undefined, false, { forceRefresh: true })
         ]);
         setConfig(fetched);
         setProducts(prods);

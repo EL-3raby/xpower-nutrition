@@ -26,7 +26,7 @@ export default function AdminCategoriesPage() {
 
   const loadCategories = async () => {
     try {
-      const fetched = await getCategories();
+      const fetched = await getCategories({ forceRefresh: true });
       setCategories(fetched);
     } catch (err) {
       console.error('Error loading categories:', err);

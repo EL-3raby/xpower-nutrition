@@ -37,9 +37,9 @@ function AdminProductsContent() {
   const loadData = async () => {
     try {
       const [fetchedProducts, fetchedCategories, fetchedConfig] = await Promise.all([
-        getProducts(),
-        getCategories(),
-        getSiteConfig(),
+        getProducts(undefined, false, { forceRefresh: true }),
+        getCategories({ forceRefresh: true }),
+        getSiteConfig({ forceRefresh: true }),
       ]);
       setProducts(fetchedProducts);
       setCategories(fetchedCategories);
