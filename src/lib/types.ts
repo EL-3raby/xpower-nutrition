@@ -18,6 +18,7 @@ export interface Product {
   avgRating?: number | null;
   reviewCount?: number;
   isActive: boolean;
+  isFreeShipping?: boolean;
   createdAt: Timestamp | Date;
 }
 

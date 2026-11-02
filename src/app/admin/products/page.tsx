@@ -3,11 +3,12 @@
 import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { getProducts, deleteProduct, revertBulkDiscount } from '@/lib/firebase/products';
+import { getProducts, deleteProduct, revertBulkDiscount, toggleProductFreeShipping } from '@/lib/firebase/products';
 import { getCategories, getSiteConfig } from '@/lib/firebase/admin-actions';
 import { Product, SiteConfig, Category } from '@/lib/types';
 import ConfirmationModal from '@/components/admin/ConfirmationModal';
 import BulkDiscountModal from '@/components/admin/BulkDiscountModal';
+import FreeShippingModal from '@/components/admin/FreeShippingModal';
 import Spinner from '@/components/ui/Spinner';
 
 function AdminProductsContent() {
@@ -28,6 +29,10 @@ function AdminProductsContent() {
   const [isRevertModalOpen, setIsRevertModalOpen] = useState(false);
   const [isReverting, setIsReverting] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Free Shipping modal & state
+  const [isFreeShippingModalOpen, setIsFreeShippingModalOpen] = useState(false);
+  const [togglingShippingId, setTogglingShippingId] = useState<string | null>(null);
 
   const loadData = async () => {
     try {
@@ -60,6 +65,11 @@ function AdminProductsContent() {
   // Count products currently having a discount
   const discountedCount = useMemo(() => {
     return products.filter((p) => p.oldPrice && p.oldPrice > p.price).length;
+  }, [products]);
+
+  // Count products currently having free shipping
+  const freeShippingCount = useMemo(() => {
+    return products.filter((p) => p.isFreeShipping).length;
   }, [products]);
 
   const handleDeleteClick = (id: string) => {
@@ -100,6 +110,33 @@ function AdminProductsContent() {
   const handleBulkSuccess = async () => {
     await loadData();
     setToastMessage('تم تطبيق الخصم الجماعي على المنتجات بنجاح وتحديث الأسعار!');
+    setTimeout(() => setToastMessage(null), 5000);
+  };
+
+  const handleToggleSingleShipping = async (productId: string, currentVal: boolean) => {
+    setTogglingShippingId(productId);
+    try {
+      await toggleProductFreeShipping(productId, !currentVal);
+      setProducts((prev) =>
+        prev.map((p) => (p.id === productId ? { ...p, isFreeShipping: !currentVal } : p))
+      );
+      setToastMessage(
+        !currentVal
+          ? 'تم تفعيل الشحن المجاني للمنتج بنجاح!'
+          : 'تم إلغاء الشحن المجاني عن المنتج بنجاح!'
+      );
+    } catch (err) {
+      console.error('Error toggling free shipping:', err);
+      setToastMessage('حدث خطأ أثناء تعديل حالة الشحن المجاني.');
+    } finally {
+      setTogglingShippingId(null);
+      setTimeout(() => setToastMessage(null), 4000);
+    }
+  };
+
+  const handleFreeShippingSuccess = async (msg: string) => {
+    await loadData();
+    setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 5000);
   };
 
@@ -156,6 +193,21 @@ function AdminProductsContent() {
           >
             <span className="material-symbols-outlined text-accent-red text-[18px]">percent</span>
             <span>تطبيق خصم جماعي</span>
+          </button>
+
+          {/* Free Shipping Action Button */}
+          <button
+            type="button"
+            onClick={() => setIsFreeShippingModalOpen(true)}
+            className="flex-1 md:flex-initial bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-product-title font-bold px-4 py-2.5 rounded-xl hover:scale-102 transition-all text-xs sm:text-sm flex items-center justify-center gap-2 active:scale-95 shadow-[0_0_15px_rgba(16,185,129,0.08)]"
+          >
+            <span className="material-symbols-outlined text-[18px]">local_shipping</span>
+            <span>شحن مجاني (Free Shipping)</span>
+            {freeShippingCount > 0 && (
+              <span className="bg-emerald-500/25 text-emerald-300 px-2 py-0.5 rounded-full text-[10px] font-black">
+                {freeShippingCount}
+              </span>
+            )}
           </button>
 
           <Link
@@ -244,6 +296,7 @@ function AdminProductsContent() {
                     <th className="pb-3 text-right">القسم</th>
                     <th className="pb-3 text-center">في المخزن</th>
                     <th className="pb-3 text-center">السعر</th>
+                    <th className="pb-3 text-center">الشحن</th>
                     <th className="pb-3 text-center">الحالة</th>
                     <th className="pb-3 pl-4 text-left">إجراءات</th>
                   </tr>
@@ -316,6 +369,30 @@ function AdminProductsContent() {
                               </div>
                             )}
                           </div>
+                        </td>
+
+                        {/* Free Shipping Toggle */}
+                        <td className="py-4 text-center">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleSingleShipping(p.id!, Boolean(p.isFreeShipping))}
+                            disabled={togglingShippingId === p.id}
+                            title={p.isFreeShipping ? 'شحن مجاني مفعّل (اضغط للإلغاء)' : 'شحن قياسي (اضغط للتفعيل)'}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-product-title font-bold border transition-all active:scale-95 ${
+                              p.isFreeShipping
+                                ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/25 shadow-[0_0_12px_rgba(16,185,129,0.15)]'
+                                : 'bg-white/5 border-white/10 text-text-muted hover:text-white hover:border-white/20'
+                            }`}
+                          >
+                            {togglingShippingId === p.id ? (
+                              <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <span className="material-symbols-outlined text-[14px]">
+                                {p.isFreeShipping ? 'local_shipping' : 'block'}
+                              </span>
+                            )}
+                            <span>{p.isFreeShipping ? 'مجاني' : 'عادي'}</span>
+                          </button>
                         </td>
 
                         {/* Active status toggle */}
@@ -391,6 +468,12 @@ function AdminProductsContent() {
                             خصم {discountPercent}% (وفر {p.oldPrice! - p.price} ج.م)
                           </span>
                         )}
+                        {p.isFreeShipping && (
+                          <span className="text-[10px] text-emerald-400 font-product-title font-bold flex items-center gap-1 mt-0.5">
+                            <span className="material-symbols-outlined text-[12px]">local_shipping</span>
+                            شحن مجاني مفعّل
+                          </span>
+                        )}
                       </div>
                       <span
                         className={`inline-block border px-2 py-0.5 text-[10px] font-bold rounded-md shrink-0 ${
@@ -447,6 +530,31 @@ function AdminProductsContent() {
                         حذف
                       </button>
                     </div>
+
+                    {/* Mobile Free Shipping Quick Toggle */}
+                    <button
+                      type="button"
+                      onClick={() => handleToggleSingleShipping(p.id!, Boolean(p.isFreeShipping))}
+                      disabled={togglingShippingId === p.id}
+                      className={`w-full py-1.5 px-3 rounded-xl text-xs font-product-title font-bold border flex items-center justify-center gap-1.5 transition-all active:scale-95 ${
+                        p.isFreeShipping
+                          ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400'
+                          : 'bg-white/5 border-white/10 text-text-muted hover:text-white'
+                      }`}
+                    >
+                      {togglingShippingId === p.id ? (
+                        <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <span className="material-symbols-outlined text-[14px]">
+                          {p.isFreeShipping ? 'local_shipping' : 'block'}
+                        </span>
+                      )}
+                      <span>
+                        {p.isFreeShipping
+                          ? 'شحن مجاني مفعّل (اضغط للإلغاء)'
+                          : 'شحن قياسي (اضغط لتفعيل الشحن المجاني)'}
+                      </span>
+                    </button>
                   </div>
                 );
               })}
@@ -480,6 +588,15 @@ function AdminProductsContent() {
         isOpen={isBulkModalOpen}
         onClose={() => setIsBulkModalOpen(false)}
         onSuccess={handleBulkSuccess}
+        products={products}
+        categories={categories}
+      />
+
+      {/* Free Shipping Modal */}
+      <FreeShippingModal
+        isOpen={isFreeShippingModalOpen}
+        onClose={() => setIsFreeShippingModalOpen(false)}
+        onSuccess={handleFreeShippingSuccess}
         products={products}
         categories={categories}
       />

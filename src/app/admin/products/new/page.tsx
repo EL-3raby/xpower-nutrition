@@ -29,7 +29,8 @@ const productSchema = z.object({
   flavorsRaw: z.string().optional(),
   images: z.array(z.string()).min(1, { message: 'يرجى رفع صورة واحدة على الأقل للمنتج.' }),
   stock: z.number({ message: 'الرجاء إدخال قيمة رقمية صحيحة.' }).min(0, { message: 'المخزون لا يمكن أن يكون سالباً.' }),
-  isActive: z.boolean()
+  isActive: z.boolean(),
+  isFreeShipping: z.boolean().optional()
 });
 
 type ProductFormValues = z.infer<typeof productSchema>;
@@ -54,6 +55,7 @@ export default function NewProductPage() {
     resolver: zodResolver(productSchema),
     defaultValues: {
       isActive: true,
+      isFreeShipping: false,
       price: 0,
       oldPrice: undefined,
       stock: 0,
@@ -222,7 +224,8 @@ export default function NewProductPage() {
         flavors,
         images: values.images,
         stock: values.stock,
-        isActive: values.isActive
+        isActive: values.isActive,
+        isFreeShipping: values.isFreeShipping ?? false
       };
 
       await addProduct(payload, productId);
@@ -497,6 +500,25 @@ export default function NewProductPage() {
                 حالة المنتج
               </h2>
               
+              {/* Free Shipping Checkbox */}
+              <div className="flex items-start gap-3 p-4 border border-emerald-500/25 bg-emerald-500/5 mb-3">
+                <input 
+                  type="checkbox" 
+                  id="isFreeShipping"
+                  {...register('isFreeShipping')}
+                  className="accent-emerald-500 w-5 h-5 mt-0.5 cursor-pointer bg-bg-primary border-emerald-500/30"
+                />
+                <div>
+                  <label htmlFor="isFreeShipping" className="font-product-title font-bold text-sm text-emerald-400 cursor-pointer select-none block mb-1 flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-[16px]">local_shipping</span>
+                    شحن مجاني لهذا المنتج (Free Shipping)
+                  </label>
+                  <p className="text-xs text-text-muted font-body">
+                    عند تفعيل هذا الخيار، سيتم إعفاء العميل من أي مصاريف شحن عند وجود هذا المنتج في السلة.
+                  </p>
+                </div>
+              </div>
+
               <div className="flex items-start gap-3 p-4 border border-text-muted/20 bg-bg-primary/50">
                 <input 
                   type="checkbox" 

@@ -302,6 +302,12 @@ export default function ProductDetailsClient({ product }: ProductDetailsClientPr
                     متوفر
                   </span>
                 )}
+                {product.isFreeShipping && !isOutOfStock && (
+                  <span className="bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 text-[10px] sm:text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide flex items-center gap-1.5 shadow-[0_0_15px_rgba(16,185,129,0.15)]">
+                    <span className="material-symbols-outlined text-[14px]">local_shipping</span>
+                    شحن مجاني
+                  </span>
+                )}
               </div>
 
               <h1 className="font-display text-3xl sm:text-4xl md:text-5xl font-black italic uppercase tracking-wider text-white mb-2 leading-tight drop-shadow-md text-left" dir="ltr">
@@ -561,6 +567,12 @@ export default function ProductDetailsClient({ product }: ProductDetailsClientPr
             {activeTab === 'shipping' && (
               <div className="space-y-4">
                 <h4 className="text-white text-base font-semibold">نظام التوصيل والترجيع:</h4>
+                {product.isFreeShipping && (
+                  <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl text-emerald-400 font-bold flex items-center gap-2.5 text-xs sm:text-sm shadow-[0_0_15px_rgba(16,185,129,0.1)]">
+                    <span className="material-symbols-outlined text-lg sm:text-xl shrink-0">local_shipping</span>
+                    <span>عرض خاص: هذا المنتج مؤهل للشحن والتوصيل المجاني بالكامل لكافة محافظات جمهورية مصر العربية!</span>
+                  </div>
+                )}
                 <p>
                   التوصيل متاح لكل المحافظات في مصر خلال 24 لـ 48 ساعة بالكتير.
                 </p>

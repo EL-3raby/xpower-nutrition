@@ -383,6 +383,81 @@ export async function revertBulkDiscount(): Promise<{ revertedCount: number }> {
   return { revertedCount: discountedProducts.length };
 }
 
+export interface FreeShippingScopeOptions {
+  scope: 'all' | 'category' | 'product';
+  targetId?: string; // productId when scope === 'product', or categorySlug when scope === 'category'
+  isFreeShipping: boolean;
+}
+
+export async function applyFreeShipping(options: FreeShippingScopeOptions): Promise<{ updatedCount: number }> {
+  if (isDummyFirebase) {
+    console.log('Mock Mode: applyFreeShipping', options);
+    return { updatedCount: 0 };
+  }
+
+  const allProducts = await getProducts();
+  const targetProducts = allProducts.filter(p => {
+    if (!p.id) return false;
+    if (options.scope === 'product') {
+      return p.id === options.targetId;
+    }
+    if (options.scope === 'category') {
+      return p.category === options.targetId;
+    }
+    return true; // 'all'
+  });
+
+  if (targetProducts.length === 0) {
+    return { updatedCount: 0 };
+  }
+
+  const BATCH_SIZE = 400;
+  for (let i = 0; i < targetProducts.length; i += BATCH_SIZE) {
+    const chunk = targetProducts.slice(i, i + BATCH_SIZE);
+    const batch = writeBatch(db);
+
+    chunk.forEach(product => {
+      const docRef = doc(db, 'products', product.id!);
+      batch.update(docRef, {
+        isFreeShipping: options.isFreeShipping
+      });
+    });
+
+    await batch.commit();
+  }
+
+  const actionText = options.isFreeShipping ? 'تفعيل' : 'إلغاء';
+  let scopeDesc = 'كل المنتجات';
+  if (options.scope === 'category') {
+    scopeDesc = `قسم (${options.targetId})`;
+  } else if (options.scope === 'product') {
+    const pName = targetProducts[0]?.name || options.targetId;
+    scopeDesc = `المنتج (${pName})`;
+  }
+
+  await logAdminActivity(
+    `${actionText} الشحن المجاني لـ ${scopeDesc} (${targetProducts.length} منتج)`,
+    'products'
+  );
+
+  return { updatedCount: targetProducts.length };
+}
+
+export async function toggleProductFreeShipping(productId: string, isFreeShipping: boolean): Promise<void> {
+  if (isDummyFirebase) {
+    console.log('Mock Mode: toggleProductFreeShipping', productId, isFreeShipping);
+    return;
+  }
+
+  const docRef = doc(db, 'products', productId);
+  await updateDoc(docRef, { isFreeShipping });
+
+  await logAdminActivity(
+    `${isFreeShipping ? 'تفعيل' : 'إلغاء'} الشحن المجاني للمنتج (${productId})`,
+    'products'
+  );
+}
+
 const DEFAULT_PRODUCTS: Product[] = [
   {
     id: 'prod1',

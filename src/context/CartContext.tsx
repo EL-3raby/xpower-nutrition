@@ -13,6 +13,7 @@ export interface CartItem {
   flavor?: string;
   size?: string;
   stock?: number;
+  isFreeShipping?: boolean;
 }
 
 interface CartContextType {
@@ -106,6 +107,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           flavor,
           size,
           stock: product.stock,
+          isFreeShipping: Boolean(product.isFreeShipping),
         },
       ];
     });

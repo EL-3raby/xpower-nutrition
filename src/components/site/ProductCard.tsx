@@ -81,6 +81,13 @@ export default function ProductCard({ product, hideAddToCart = false, viewMode =
               </div>
             ) : null}
 
+            {product.isFreeShipping && !isOutOfStock && (
+              <div className="absolute bottom-2 right-2 bg-emerald-500 text-black text-[9px] px-2 py-0.5 z-20 font-black rounded-md shadow flex items-center gap-1">
+                <span className="material-symbols-outlined text-[11px]">local_shipping</span>
+                شحن مجاني
+              </div>
+            )}
+
             <img 
               src={getOptimizedImageUrl(product.images[0], { width: 250, height: 250 })} 
               alt={`${product.name} - ${product.category}`} 
@@ -195,6 +202,12 @@ export default function ProductCard({ product, hideAddToCart = false, viewMode =
             {isLowStock && !isOutOfStock && (
               <span className="bg-amber-500/90 text-black font-bold text-[9px] px-2 py-0.5 rounded-md shadow uppercase tracking-wider">
                 Limited
+              </span>
+            )}
+            {product.isFreeShipping && !isOutOfStock && (
+              <span className="bg-emerald-500 text-black font-product-title text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded-full shadow-md flex items-center gap-1">
+                <span className="material-symbols-outlined text-[12px]">local_shipping</span>
+                شحن مجاني
               </span>
             )}
           </div>

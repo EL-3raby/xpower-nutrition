@@ -418,14 +418,20 @@ export default function CheckoutClientPage() {
     loadInitialData();
   }, []);
 
-  // Calculate dynamic shipping cost based on governorate & min free shipping threshold
+  // Calculate dynamic shipping cost based on governorate, product free shipping promo, or min order threshold
   const calculatedShippingCost = React.useMemo(() => {
     if (subtotal === 0) return 0;
 
     const rateObj = shippingRates.find(r => r.cityName === selectedGovernorate);
     const baseCost = rateObj ? rateObj.rate : 80; // default 80 EGP
 
-    // Check admin settings for free shipping
+    // 1. Check if any product in the cart has Free Shipping enabled
+    const hasFreeShippingItem = cart.some(item => Boolean((item as any).isFreeShipping));
+    if (hasFreeShippingItem) {
+      return 0; // Free shipping achieved via product promo!
+    }
+
+    // 2. Check admin settings for global order threshold free shipping
     if (siteConfig?.freeShipping?.isEnabled && siteConfig.freeShipping.thresholdAmount > 0) {
       if (subtotal >= siteConfig.freeShipping.thresholdAmount) {
         return 0; // Free shipping achieved!
@@ -433,7 +439,7 @@ export default function CheckoutClientPage() {
     }
 
     return baseCost;
-  }, [subtotal, selectedGovernorate, shippingRates, siteConfig]);
+  }, [subtotal, selectedGovernorate, shippingRates, siteConfig, cart]);
 
   // Fixed or dynamic deposit amount for COD:
   // When shippingCost > 0: deposit is shippingCost.

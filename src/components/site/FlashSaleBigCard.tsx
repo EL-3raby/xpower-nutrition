@@ -288,6 +288,12 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
                       </Link>
 
                       <div className="flex items-center gap-4 text-xs text-zinc-400 font-body">
+                        {product.isFreeShipping && (
+                          <div className="flex items-center gap-1.5 text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/25 px-2.5 py-1 rounded-lg">
+                            <span className="material-symbols-outlined text-emerald-400 text-base">local_shipping</span>
+                            <span>شحن مجاني</span>
+                          </div>
+                        )}
                         <div className="flex items-center gap-1.5 text-white/90">
                           <span className="material-symbols-outlined text-emerald-400 text-base">verified_user</span>
                           <span>أصلي 100% ومضمون</span>
@@ -459,7 +465,16 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
                     </Link>
 
                     {/* Trust indicators */}
-                    <div className="flex items-center justify-center gap-3 text-[11px] text-zinc-400 font-body">
+                    <div className="flex flex-wrap items-center justify-center gap-3 text-[11px] text-zinc-400 font-body">
+                      {product.isFreeShipping && (
+                        <>
+                          <span className="flex items-center gap-1 text-emerald-400 font-bold">
+                            <span className="material-symbols-outlined text-xs">local_shipping</span>
+                            <span>شحن مجاني</span>
+                          </span>
+                          <span>•</span>
+                        </>
+                      )}
                       <span className="flex items-center gap-1 text-white/90">
                         <span className="material-symbols-outlined text-xs text-emerald-400">verified</span>
                         <span>أصلي 100%</span>
