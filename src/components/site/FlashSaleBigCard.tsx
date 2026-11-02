@@ -73,6 +73,23 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
   const cleanProductName = product.name.replace(/_/g, ' ');
   const targetEndDate = currentOffer.endDateTime || defaultEndDateTime;
 
+  const isFreeShippingActive = Boolean(
+    product.isFreeShipping &&
+    (!product.freeShippingEndDate ||
+      (() => {
+        try {
+          const end = product.freeShippingEndDate instanceof Date
+            ? product.freeShippingEndDate
+            : typeof (product.freeShippingEndDate as any).toDate === 'function'
+            ? (product.freeShippingEndDate as any).toDate()
+            : new Date(String(product.freeShippingEndDate));
+          return !isNaN(end.getTime()) && end > new Date();
+        } catch {
+          return true;
+        }
+      })())
+  );
+
   const handleNext = () => {
     if (offersCount === 0) return;
     setDirection(1);
@@ -288,7 +305,7 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
                       </Link>
 
                       <div className="flex items-center gap-4 text-xs text-zinc-400 font-body">
-                        {product.isFreeShipping && (
+                        {isFreeShippingActive && (
                           <div className="flex items-center gap-1.5 text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/25 px-2.5 py-1 rounded-lg">
                             <span className="material-symbols-outlined text-emerald-400 text-base">local_shipping</span>
                             <span>شحن مجاني</span>
@@ -466,7 +483,7 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
 
                     {/* Trust indicators */}
                     <div className="flex flex-wrap items-center justify-center gap-3 text-[11px] text-zinc-400 font-body">
-                      {product.isFreeShipping && (
+                      {isFreeShippingActive && (
                         <>
                           <span className="flex items-center gap-1 text-emerald-400 font-bold">
                             <span className="material-symbols-outlined text-xs">local_shipping</span>

@@ -23,6 +23,23 @@ export default function ProductCard({ product, hideAddToCart = false, viewMode =
     ? Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100) 
     : 0;
 
+  const isFreeShippingActive = Boolean(
+    product.isFreeShipping &&
+    (!product.freeShippingEndDate ||
+      (() => {
+        try {
+          const end = product.freeShippingEndDate instanceof Date
+            ? product.freeShippingEndDate
+            : typeof (product.freeShippingEndDate as any).toDate === 'function'
+            ? (product.freeShippingEndDate as any).toDate()
+            : new Date(String(product.freeShippingEndDate));
+          return !isNaN(end.getTime()) && end > new Date();
+        } catch {
+          return true;
+        }
+      })())
+  );
+
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -81,7 +98,7 @@ export default function ProductCard({ product, hideAddToCart = false, viewMode =
               </div>
             ) : null}
 
-            {product.isFreeShipping && !isOutOfStock && (
+            {isFreeShippingActive && !isOutOfStock && (
               <div className="absolute bottom-2 right-2 bg-emerald-500 text-black text-[9px] px-2 py-0.5 z-20 font-black rounded-md shadow flex items-center gap-1">
                 <span className="material-symbols-outlined text-[11px]">local_shipping</span>
                 شحن مجاني
@@ -204,7 +221,7 @@ export default function ProductCard({ product, hideAddToCart = false, viewMode =
                 Limited
               </span>
             )}
-            {product.isFreeShipping && !isOutOfStock && (
+            {isFreeShippingActive && !isOutOfStock && (
               <span className="bg-emerald-500 text-black font-product-title text-[9px] sm:text-[10px] font-black px-2 py-0.5 rounded-full shadow-md flex items-center gap-1">
                 <span className="material-symbols-outlined text-[12px]">local_shipping</span>
                 شحن مجاني

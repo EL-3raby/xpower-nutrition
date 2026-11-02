@@ -385,8 +385,10 @@ export async function revertBulkDiscount(): Promise<{ revertedCount: number }> {
 
 export interface FreeShippingScopeOptions {
   scope: 'all' | 'category' | 'product';
-  targetId?: string; // productId when scope === 'product', or categorySlug when scope === 'category'
+  targetId?: string; // categorySlug or single productId
+  targetIds?: string[]; // array of product IDs for multi-selection
   isFreeShipping: boolean;
+  endDate?: string | null; // ISO date string or null
 }
 
 export async function applyFreeShipping(options: FreeShippingScopeOptions): Promise<{ updatedCount: number }> {
@@ -399,6 +401,9 @@ export async function applyFreeShipping(options: FreeShippingScopeOptions): Prom
   const targetProducts = allProducts.filter(p => {
     if (!p.id) return false;
     if (options.scope === 'product') {
+      if (options.targetIds && options.targetIds.length > 0) {
+        return options.targetIds.includes(p.id);
+      }
       return p.id === options.targetId;
     }
     if (options.scope === 'category') {
@@ -418,9 +423,17 @@ export async function applyFreeShipping(options: FreeShippingScopeOptions): Prom
 
     chunk.forEach(product => {
       const docRef = doc(db, 'products', product.id!);
-      batch.update(docRef, {
-        isFreeShipping: options.isFreeShipping
-      });
+      if (options.isFreeShipping) {
+        batch.update(docRef, {
+          isFreeShipping: true,
+          ...(options.endDate ? { freeShippingEndDate: options.endDate } : { freeShippingEndDate: deleteField() })
+        });
+      } else {
+        batch.update(docRef, {
+          isFreeShipping: false,
+          freeShippingEndDate: deleteField()
+        });
+      }
     });
 
     await batch.commit();
@@ -431,26 +444,46 @@ export async function applyFreeShipping(options: FreeShippingScopeOptions): Prom
   if (options.scope === 'category') {
     scopeDesc = `قسم (${options.targetId})`;
   } else if (options.scope === 'product') {
-    const pName = targetProducts[0]?.name || options.targetId;
-    scopeDesc = `المنتج (${pName})`;
+    if (options.targetIds && options.targetIds.length > 1) {
+      scopeDesc = `(${options.targetIds.length}) منتجات محددة`;
+    } else {
+      const pName = targetProducts[0]?.name || options.targetId;
+      scopeDesc = `المنتج (${pName})`;
+    }
   }
 
+  const durationText = options.endDate ? ` (ينتهي في ${new Date(options.endDate).toLocaleString('ar-EG')})` : '';
+
   await logAdminActivity(
-    `${actionText} الشحن المجاني لـ ${scopeDesc} (${targetProducts.length} منتج)`,
+    `${actionText} الشحن المجاني لـ ${scopeDesc} (${targetProducts.length} منتج)${durationText}`,
     'products'
   );
 
   return { updatedCount: targetProducts.length };
 }
 
-export async function toggleProductFreeShipping(productId: string, isFreeShipping: boolean): Promise<void> {
+export async function toggleProductFreeShipping(
+  productId: string, 
+  isFreeShipping: boolean,
+  endDate?: string | null
+): Promise<void> {
   if (isDummyFirebase) {
     console.log('Mock Mode: toggleProductFreeShipping', productId, isFreeShipping);
     return;
   }
 
   const docRef = doc(db, 'products', productId);
-  await updateDoc(docRef, { isFreeShipping });
+  if (isFreeShipping) {
+    await updateDoc(docRef, {
+      isFreeShipping: true,
+      ...(endDate ? { freeShippingEndDate: endDate } : { freeShippingEndDate: deleteField() })
+    });
+  } else {
+    await updateDoc(docRef, {
+      isFreeShipping: false,
+      freeShippingEndDate: deleteField()
+    });
+  }
 
   await logAdminActivity(
     `${isFreeShipping ? 'تفعيل' : 'إلغاء'} الشحن المجاني للمنتج (${productId})`,

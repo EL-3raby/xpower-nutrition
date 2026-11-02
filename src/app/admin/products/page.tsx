@@ -373,26 +373,35 @@ function AdminProductsContent() {
 
                         {/* Free Shipping Toggle */}
                         <td className="py-4 text-center">
-                          <button
-                            type="button"
-                            onClick={() => handleToggleSingleShipping(p.id!, Boolean(p.isFreeShipping))}
-                            disabled={togglingShippingId === p.id}
-                            title={p.isFreeShipping ? 'شحن مجاني مفعّل (اضغط للإلغاء)' : 'شحن قياسي (اضغط للتفعيل)'}
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-product-title font-bold border transition-all active:scale-95 ${
-                              p.isFreeShipping
-                                ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/25 shadow-[0_0_12px_rgba(16,185,129,0.15)]'
-                                : 'bg-white/5 border-white/10 text-text-muted hover:text-white hover:border-white/20'
-                            }`}
-                          >
-                            {togglingShippingId === p.id ? (
-                              <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                            ) : (
-                              <span className="material-symbols-outlined text-[14px]">
-                                {p.isFreeShipping ? 'local_shipping' : 'block'}
+                          <div className="flex flex-col items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleSingleShipping(p.id!, Boolean(p.isFreeShipping))}
+                              disabled={togglingShippingId === p.id}
+                              title={p.isFreeShipping ? 'شحن مجاني مفعّل (اضغط للإلغاء)' : 'شحن قياسي (اضغط للتفعيل)'}
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-product-title font-bold border transition-all active:scale-95 ${
+                                p.isFreeShipping
+                                  ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/25 shadow-[0_0_12px_rgba(16,185,129,0.15)]'
+                                  : 'bg-white/5 border-white/10 text-text-muted hover:text-white hover:border-white/20'
+                              }`}
+                            >
+                              {togglingShippingId === p.id ? (
+                                <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <span className="material-symbols-outlined text-[14px]">
+                                  {p.isFreeShipping ? 'local_shipping' : 'block'}
+                                </span>
+                              )}
+                              <span>{p.isFreeShipping ? 'مجاني' : 'عادي'}</span>
+                            </button>
+
+                            {p.isFreeShipping && p.freeShippingEndDate && (
+                              <span className="text-[10px] text-amber-300/80 font-mono flex items-center gap-0.5" title={`ينتهي في: ${new Date(String(p.freeShippingEndDate)).toLocaleString('ar-EG')}`}>
+                                <span className="material-symbols-outlined text-[11px] text-amber-400">schedule</span>
+                                {new Date(String(p.freeShippingEndDate)).toLocaleDateString('ar-EG', { month: 'numeric', day: 'numeric' })}
                               </span>
                             )}
-                            <span>{p.isFreeShipping ? 'مجاني' : 'عادي'}</span>
-                          </button>
+                          </div>
                         </td>
 
                         {/* Active status toggle */}
@@ -472,6 +481,11 @@ function AdminProductsContent() {
                           <span className="text-[10px] text-emerald-400 font-product-title font-bold flex items-center gap-1 mt-0.5">
                             <span className="material-symbols-outlined text-[12px]">local_shipping</span>
                             شحن مجاني مفعّل
+                            {p.freeShippingEndDate && (
+                              <span className="text-amber-300 font-mono text-[9px] mr-1">
+                                (حتى {new Date(String(p.freeShippingEndDate)).toLocaleDateString('ar-EG', { month: 'numeric', day: 'numeric' })})
+                              </span>
+                            )}
                           </span>
                         )}
                       </div>

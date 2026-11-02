@@ -50,6 +50,35 @@ export default function ProductDetailsClient({ product }: ProductDetailsClientPr
     return isNaN(d.getTime()) ? null : d;
   }, [product.discountEndDate]);
 
+  const isFreeShippingActive = useMemo(() => {
+    if (!product.isFreeShipping) return false;
+    if (!product.freeShippingEndDate) return true;
+    try {
+      const end = product.freeShippingEndDate instanceof Date
+        ? product.freeShippingEndDate
+        : typeof (product.freeShippingEndDate as any).toDate === 'function'
+        ? (product.freeShippingEndDate as any).toDate()
+        : new Date(String(product.freeShippingEndDate));
+      return !isNaN(end.getTime()) && end > new Date();
+    } catch {
+      return true;
+    }
+  }, [product.isFreeShipping, product.freeShippingEndDate]);
+
+  const freeShippingEndDateObj = useMemo(() => {
+    if (!product.freeShippingEndDate) return null;
+    try {
+      const d = product.freeShippingEndDate instanceof Date
+        ? product.freeShippingEndDate
+        : typeof (product.freeShippingEndDate as any).toDate === 'function'
+        ? (product.freeShippingEndDate as any).toDate()
+        : new Date(String(product.freeShippingEndDate));
+      return isNaN(d.getTime()) ? null : d;
+    } catch {
+      return null;
+    }
+  }, [product.freeShippingEndDate]);
+
   useEffect(() => {
     // Generate base random count on mount between 45 and 180
     const baseCount = Math.floor(Math.random() * (180 - 45 + 1)) + 45;
@@ -302,7 +331,7 @@ export default function ProductDetailsClient({ product }: ProductDetailsClientPr
                     متوفر
                   </span>
                 )}
-                {product.isFreeShipping && !isOutOfStock && (
+                {isFreeShippingActive && !isOutOfStock && (
                   <span className="bg-emerald-500/15 border border-emerald-500/40 text-emerald-400 text-[10px] sm:text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide flex items-center gap-1.5 shadow-[0_0_15px_rgba(16,185,129,0.15)]">
                     <span className="material-symbols-outlined text-[14px]">local_shipping</span>
                     شحن مجاني
@@ -567,10 +596,17 @@ export default function ProductDetailsClient({ product }: ProductDetailsClientPr
             {activeTab === 'shipping' && (
               <div className="space-y-4">
                 <h4 className="text-white text-base font-semibold">نظام التوصيل والترجيع:</h4>
-                {product.isFreeShipping && (
+                {isFreeShippingActive && (
                   <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl text-emerald-400 font-bold flex items-center gap-2.5 text-xs sm:text-sm shadow-[0_0_15px_rgba(16,185,129,0.1)]">
                     <span className="material-symbols-outlined text-lg sm:text-xl shrink-0">local_shipping</span>
-                    <span>عرض خاص: هذا المنتج مؤهل للشحن والتوصيل المجاني بالكامل لكافة محافظات جمهورية مصر العربية!</span>
+                    <span>
+                      عرض خاص: هذا المنتج مؤهل للشحن والتوصيل المجاني بالكامل لكافة محافظات جمهورية مصر العربية
+                      {freeShippingEndDateObj && (
+                        <strong className="text-white mx-1 font-mono">
+                          (حتى {freeShippingEndDateObj.toLocaleDateString('ar-EG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })})
+                        </strong>
+                      )}!
+                    </span>
                   </div>
                 )}
                 <p>

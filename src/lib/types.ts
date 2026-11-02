@@ -19,6 +19,7 @@ export interface Product {
   reviewCount?: number;
   isActive: boolean;
   isFreeShipping?: boolean;
+  freeShippingEndDate?: string | Timestamp | Date;
   createdAt: Timestamp | Date;
 }
 

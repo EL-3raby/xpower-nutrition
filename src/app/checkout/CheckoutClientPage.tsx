@@ -425,8 +425,18 @@ export default function CheckoutClientPage() {
     const rateObj = shippingRates.find(r => r.cityName === selectedGovernorate);
     const baseCost = rateObj ? rateObj.rate : 80; // default 80 EGP
 
-    // 1. Check if any product in the cart has Free Shipping enabled
-    const hasFreeShippingItem = cart.some(item => Boolean((item as any).isFreeShipping));
+    // 1. Check if any product in the cart has Free Shipping enabled and NOT expired
+    const hasFreeShippingItem = cart.some(item => {
+      if (!Boolean((item as any).isFreeShipping)) return false;
+      const end = (item as any).freeShippingEndDate;
+      if (end) {
+        const endDateObj = new Date(end);
+        if (!isNaN(endDateObj.getTime()) && endDateObj < new Date()) {
+          return false; // Expired!
+        }
+      }
+      return true;
+    });
     if (hasFreeShippingItem) {
       return 0; // Free shipping achieved via product promo!
     }

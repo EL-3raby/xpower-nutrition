@@ -21,13 +21,30 @@ export default function FreeShippingModal({
 }: FreeShippingModalProps) {
   const [action, setAction] = useState<'enable' | 'disable'>('enable');
   const [scope, setScope] = useState<'all' | 'category' | 'product'>('product');
-  const [selectedProductId, setSelectedProductId] = useState<string>(products[0]?.id || '');
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>(() =>
+    products[0]?.id ? [products[0].id] : []
+  );
   const [selectedCategory, setSelectedCategory] = useState<string>(categories[0]?.slug || '');
   const [searchProductQuery, setSearchProductQuery] = useState<string>('');
+  
+  // Expiration date state
+  const [hasEndDate, setHasEndDate] = useState<boolean>(false);
+  const [endDate, setEndDate] = useState<string>('');
+
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Filtered products for single product dropdown/search
+  // Quick date presets helper
+  const handleSetQuickDate = (hours: number) => {
+    setHasEndDate(true);
+    const d = new Date();
+    d.setHours(d.getHours() + hours);
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const formatted = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    setEndDate(formatted);
+  };
+
+  // Filtered products for multi-product selection list
   const filteredProductsList = useMemo(() => {
     if (!searchProductQuery.trim()) return products;
     const q = searchProductQuery.toLowerCase().trim();
@@ -39,12 +56,30 @@ export default function FreeShippingModal({
     );
   }, [products, searchProductQuery]);
 
+  // Toggle single product in multi-selection
+  const handleToggleProduct = (id: string) => {
+    setSelectedProductIds((prev) =>
+      prev.includes(id) ? prev.filter((pId) => pId !== id) : [...prev, id]
+    );
+  };
+
+  // Select all currently filtered products
+  const handleSelectAllFiltered = () => {
+    const ids = filteredProductsList.map((p) => p.id!).filter(Boolean);
+    setSelectedProductIds((prev) => Array.from(new Set([...prev, ...ids])));
+  };
+
+  // Deselect all
+  const handleDeselectAll = () => {
+    setSelectedProductIds([]);
+  };
+
   // Products affected by the chosen scope & action
   const targetProducts = useMemo(() => {
     return products.filter((p) => {
       if (!p.id) return false;
       if (scope === 'product') {
-        return p.id === selectedProductId;
+        return selectedProductIds.includes(p.id);
       }
       if (scope === 'category') {
         return p.category === selectedCategory;
@@ -52,7 +87,7 @@ export default function FreeShippingModal({
       // 'all'
       return true;
     });
-  }, [products, scope, selectedProductId, selectedCategory]);
+  }, [products, scope, selectedProductIds, selectedCategory]);
 
   if (!isOpen) return null;
 
@@ -60,13 +95,18 @@ export default function FreeShippingModal({
     e.preventDefault();
     setError(null);
 
-    if (scope === 'product' && !selectedProductId) {
-      setError('يرجى اختيار منتج أولاً.');
+    if (scope === 'product' && selectedProductIds.length === 0) {
+      setError('يرجى تحديد منتج واحد على الأقل لتطبيق العملية عليه.');
       return;
     }
 
     if (scope === 'category' && !selectedCategory) {
       setError('يرجى اختيار قسم أولاً.');
+      return;
+    }
+
+    if (hasEndDate && endDate && new Date(endDate) <= new Date()) {
+      setError('تاريخ انتهاء الشحن المجاني يجب أن يكون وقتاً مستقبلياً.');
       return;
     }
 
@@ -78,10 +118,14 @@ export default function FreeShippingModal({
     setIsSubmitting(true);
     try {
       const isEnable = action === 'enable';
+      const resolvedEndDate = isEnable && hasEndDate && endDate ? new Date(endDate).toISOString() : null;
+
       await applyFreeShipping({
         scope,
-        targetId: scope === 'product' ? selectedProductId : scope === 'category' ? selectedCategory : undefined,
+        targetIds: scope === 'product' ? selectedProductIds : undefined,
+        targetId: scope === 'category' ? selectedCategory : undefined,
         isFreeShipping: isEnable,
+        endDate: resolvedEndDate,
       });
 
       let scopeLabel = 'كل المنتجات';
@@ -89,12 +133,20 @@ export default function FreeShippingModal({
         const cat = categories.find((c) => c.slug === selectedCategory);
         scopeLabel = `قسم (${cat?.name || selectedCategory})`;
       } else if (scope === 'product') {
-        const prod = products.find((p) => p.id === selectedProductId);
-        scopeLabel = `المنتج (${prod?.name || selectedProductId})`;
+        if (selectedProductIds.length === 1) {
+          const prod = products.find((p) => p.id === selectedProductIds[0]);
+          scopeLabel = `المنتج (${prod?.name || selectedProductIds[0]})`;
+        } else {
+          scopeLabel = `(${selectedProductIds.length}) منتجات محددة`;
+        }
       }
 
+      const expiryNote = resolvedEndDate
+        ? ` (ينتهي في: ${new Date(resolvedEndDate).toLocaleString('ar-EG')})`
+        : '';
+
       const msg = isEnable
-        ? `تم تفعيل الشحن المجاني بنجاح على ${scopeLabel}!`
+        ? `تم تفعيل الشحن المجاني بنجاح على ${scopeLabel}!${expiryNote}`
         : `تم إلغاء الشحن المجاني بنجاح عن ${scopeLabel}!`;
 
       onSuccess(msg);
@@ -139,7 +191,7 @@ export default function FreeShippingModal({
                 إدارة الشحن المجاني (Free Shipping)
               </h2>
               <p className="font-body text-xs text-text-muted mt-0.5">
-                تفعيل أو إلغاء الشحن المجاني لمنتج محدد، قسم بالكامل، أو كل منتجات المتجر.
+                تفعيل أو إلغاء الشحن المجاني لمنتجات محددة، قسم كامل، أو كل المتجر مع تحديد مدة الصلاحية.
               </p>
             </div>
           </div>
@@ -235,7 +287,7 @@ export default function FreeShippingModal({
                 }`}
               >
                 <span className="material-symbols-outlined text-lg">inventory_2</span>
-                <span className="font-product-title font-bold text-xs sm:text-sm">منتج محدد</span>
+                <span className="font-product-title font-bold text-xs sm:text-sm">منتجات محددة (خيارات)</span>
               </button>
 
               <button
@@ -267,17 +319,34 @@ export default function FreeShippingModal({
           </div>
 
           {/* Conditional Sub-selectors */}
-          {/* Scope = Product: Select Single Product with Search */}
+          {/* Scope = Product: Select Multiple Products with Search and Checkboxes */}
           {scope === 'product' && (
             <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                 <label className="text-xs font-product-title font-bold text-white flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-sm text-accent-red">search</span>
-                  اختر المنتج المطلوب
+                  <span className="material-symbols-outlined text-sm text-accent-red">checklist</span>
+                  حدد المنتجات المطلوبة (يمكنك اختيار أكثر من منتج)
                 </label>
-                <span className="text-[11px] font-product-title text-text-muted">
-                  ({filteredProductsList.length} منتج متاح)
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-product-title text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                    تم تحديد ({selectedProductIds.length})
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleSelectAllFiltered}
+                    className="text-[10px] text-zinc-300 hover:text-white underline font-product-title"
+                  >
+                    تحديد المعروض
+                  </button>
+                  <span className="text-zinc-600">•</span>
+                  <button
+                    type="button"
+                    onClick={handleDeselectAll}
+                    className="text-[10px] text-zinc-400 hover:text-accent-red underline font-product-title"
+                  >
+                    إلغاء التحديد
+                  </button>
+                </div>
               </div>
 
               {/* Quick Search Input */}
@@ -300,24 +369,37 @@ export default function FreeShippingModal({
                 )}
               </div>
 
-              {/* Scrollable list of selectable products */}
+              {/* Scrollable list of selectable products with checkboxes */}
               <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
                 {filteredProductsList.length === 0 ? (
                   <p className="text-xs text-text-muted text-center py-4">لا توجد منتجات مطابقة للبحث.</p>
                 ) : (
                   filteredProductsList.map((p) => {
-                    const isSelected = p.id === selectedProductId;
+                    const isSelected = selectedProductIds.includes(p.id!);
                     return (
                       <div
                         key={p.id}
-                        onClick={() => setSelectedProductId(p.id!)}
+                        onClick={() => handleToggleProduct(p.id!)}
                         className={`p-2.5 rounded-xl border flex items-center justify-between gap-3 cursor-pointer transition-all ${
                           isSelected
-                            ? 'bg-accent-red/10 border-accent-red/40 text-white ring-1 ring-accent-red/30'
+                            ? 'bg-emerald-500/10 border-emerald-500/40 text-white ring-1 ring-emerald-500/30'
                             : 'bg-white/5 border-white/5 text-text-muted hover:bg-white/10 hover:text-white'
                         }`}
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
+                          {/* Checkbox */}
+                          <div
+                            className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition-colors ${
+                              isSelected
+                                ? 'bg-emerald-500 border-emerald-500 text-black'
+                                : 'border-white/20 bg-black/40'
+                            }`}
+                          >
+                            {isSelected && (
+                              <span className="material-symbols-outlined text-sm font-black">check</span>
+                            )}
+                          </div>
+
                           <img
                             src={p.images[0] || '/images/no-image.png'}
                             alt={p.name}
@@ -337,21 +419,11 @@ export default function FreeShippingModal({
                           {p.isFreeShipping ? (
                             <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-product-title font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
                               <span className="material-symbols-outlined text-[11px]">local_shipping</span>
-                              شحن مجاني حالياً
+                              شحن مجاني
                             </span>
                           ) : (
                             <span className="text-[10px] text-text-muted font-product-title">شحن عادي</span>
                           )}
-
-                          <div
-                            className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                              isSelected
-                                ? 'border-accent-red bg-accent-red text-white'
-                                : 'border-white/20'
-                            }`}
-                          >
-                            {isSelected && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
-                          </div>
                         </div>
                       </div>
                     );
@@ -408,6 +480,84 @@ export default function FreeShippingModal({
             </div>
           )}
 
+          {/* 3. Expiration Date & Time (فترة انتهاء الشحن المجاني) */}
+          {action === 'enable' && (
+            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-base text-accent-red">schedule</span>
+                  <label htmlFor="toggle-end-date" className="text-xs font-product-title font-bold text-white cursor-pointer select-none">
+                    تحديد موعد لانتهاء الشحن المجاني (عرض لفترة محدودة)
+                  </label>
+                </div>
+                <input
+                  type="checkbox"
+                  id="toggle-end-date"
+                  checked={hasEndDate}
+                  onChange={(e) => {
+                    setHasEndDate(e.target.checked);
+                    if (e.target.checked && !endDate) {
+                      handleSetQuickDate(72); // Default to 3 days
+                    }
+                  }}
+                  className="accent-accent-red w-4 h-4 cursor-pointer"
+                />
+              </div>
+
+              {hasEndDate && (
+                <div className="pt-2 border-t border-white/5 space-y-3 animate-in fade-in">
+                  {/* Quick Presets */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[11px] text-text-muted font-body">فترات سريعة:</span>
+                    <button
+                      type="button"
+                      onClick={() => handleSetQuickDate(24)}
+                      className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-product-title font-bold text-white transition-colors"
+                    >
+                      +24 ساعة
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSetQuickDate(72)}
+                      className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-product-title font-bold text-white transition-colors"
+                    >
+                      +3 أيام
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSetQuickDate(168)}
+                      className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-product-title font-bold text-white transition-colors"
+                    >
+                      +7 أيام
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSetQuickDate(336)}
+                      className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-product-title font-bold text-white transition-colors"
+                    >
+                      +14 يوم
+                    </button>
+                  </div>
+
+                  {/* Datetime Input */}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <input
+                      type="datetime-local"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="bg-[#141414] border border-white/10 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-accent-red flex-1"
+                    />
+                    {endDate && (
+                      <span className="text-[11px] font-product-title text-amber-300 bg-amber-500/10 border border-amber-500/20 px-3 py-2 rounded-xl text-center">
+                        ينتهي في: {new Date(endDate).toLocaleString('ar-EG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Live Preview Summary Box */}
           <div className="p-4 rounded-2xl bg-gradient-to-br from-[#141414] to-[#0a0a0a] border border-white/10 flex flex-col gap-3">
             <div className="flex items-center justify-between">
@@ -430,7 +580,11 @@ export default function FreeShippingModal({
 
             <p className="font-body text-xs text-text-muted">
               {action === 'enable'
-                ? `سيتم تفعيل الشحن المجاني لـ (${targetProducts.length}) منتج. أي طلب يحتوي على هذه المنتجات لن يتم احتساب أي مصاريف شحن عليه.`
+                ? `سيتم تفعيل الشحن المجاني لـ (${targetProducts.length}) منتج.${
+                    hasEndDate && endDate
+                      ? ` وسينتهي العرض تلقائياً في ${new Date(endDate).toLocaleString('ar-EG')}.`
+                      : ' ويستمر بدون موعد انتهاء محدد حتى تقوم بإلغائه يدوياً.'
+                  }`
                 : `سيتم إزالة الشحن المجاني عن (${targetProducts.length}) منتج، وستُطبق عليهم رسوم الشحن القياسية للمحافظات.`}
             </p>
 
@@ -501,4 +655,3 @@ export default function FreeShippingModal({
     </div>
   );
 }
-

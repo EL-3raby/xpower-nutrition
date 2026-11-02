@@ -14,6 +14,7 @@ export interface CartItem {
   size?: string;
   stock?: number;
   isFreeShipping?: boolean;
+  freeShippingEndDate?: string;
 }
 
 interface CartContextType {
@@ -108,6 +109,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           size,
           stock: product.stock,
           isFreeShipping: Boolean(product.isFreeShipping),
+          freeShippingEndDate: product.freeShippingEndDate 
+            ? (product.freeShippingEndDate instanceof Date 
+                ? product.freeShippingEndDate.toISOString() 
+                : typeof (product.freeShippingEndDate as any).toDate === 'function' 
+                  ? (product.freeShippingEndDate as any).toDate().toISOString() 
+                  : String(product.freeShippingEndDate))
+            : undefined,
         },
       ];
     });
