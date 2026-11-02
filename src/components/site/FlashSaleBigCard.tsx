@@ -367,13 +367,13 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
                         />
                       </Link>
 
-                      {/* Floating Mobile Arrows */}
+                      {/* Floating Mobile Arrows (تم تنزيلها لأسفل قليلاً لتكون مريحة للإبهام ولا تغطي رؤوس المنتجات) */}
                       {hasMultipleOffers && (
-                        <div className="flex items-center justify-between w-full absolute inset-y-0 -px-1 pointer-events-none z-30">
+                        <div className="flex items-center justify-between w-full absolute top-[62%] -translate-y-1/2 -px-1 pointer-events-none z-30">
                           <button
                             type="button"
                             onClick={handlePrev}
-                            className="pointer-events-auto w-8 h-8 rounded-full bg-black/80 border border-white/15 hover:border-accent-red text-white flex items-center justify-center active:scale-90 transition-transform shadow-lg backdrop-blur-md cursor-pointer"
+                            className="pointer-events-auto w-9 h-9 rounded-full bg-black/85 border border-white/15 hover:border-accent-red text-white flex items-center justify-center active:scale-90 transition-transform shadow-lg backdrop-blur-md cursor-pointer"
                             aria-label="العرض السابق"
                           >
                             <span className="material-symbols-outlined text-base">chevron_right</span>
@@ -381,7 +381,7 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
                           <button
                             type="button"
                             onClick={handleNext}
-                            className="pointer-events-auto w-8 h-8 rounded-full bg-black/80 border border-white/15 hover:border-accent-red text-white flex items-center justify-center active:scale-90 transition-transform shadow-lg backdrop-blur-md cursor-pointer"
+                            className="pointer-events-auto w-9 h-9 rounded-full bg-black/85 border border-white/15 hover:border-accent-red text-white flex items-center justify-center active:scale-90 transition-transform shadow-lg backdrop-blur-md cursor-pointer"
                             aria-label="العرض التالي"
                           >
                             <span className="material-symbols-outlined text-base">chevron_left</span>
