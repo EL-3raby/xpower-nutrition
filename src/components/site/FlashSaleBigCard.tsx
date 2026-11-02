@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Product } from '@/lib/types';
 import { getOptimizedImageUrl } from '@/lib/utils/image';
-import { toEgyptTime } from '@/lib/date-utils';
+import { toEgyptTime, isOfferExpired } from '@/lib/date-utils';
 import CountdownTimer from '@/components/site/CountdownTimer';
 import ScrollReveal from '@/components/site/ScrollReveal';
 
@@ -20,6 +20,7 @@ export interface FlashSaleOfferItem {
 interface FlashSaleBigCardProps {
   offers: FlashSaleOfferItem[];
   defaultEndDateTime?: FlashSaleDateInput;
+  onAllExpired?: () => void;
 }
 
 const slideVariants = {
@@ -37,16 +38,65 @@ const slideVariants = {
   }),
 };
 
-export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSaleBigCardProps) {
+export default function FlashSaleBigCard({ offers, defaultEndDateTime, onAllExpired }: FlashSaleBigCardProps) {
+  // Filter out any offers that are already expired
+  const [liveOffers, setLiveOffers] = useState<FlashSaleOfferItem[]>(() => {
+    return (offers || []).filter((o) => !isOfferExpired(o.endDateTime || defaultEndDateTime));
+  });
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState(1);
   const [isPaused, setIsPaused] = useState(false);
+
+  // Sync when prop offers or defaultEndDateTime changes
+  useEffect(() => {
+    const active = (offers || []).filter((o) => !isOfferExpired(o.endDateTime || defaultEndDateTime));
+    setLiveOffers(active);
+  }, [offers, defaultEndDateTime]);
+
+  // Periodic real-time check (every 1 second) to immediately remove offers whose countdown expired
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setLiveOffers((prev) => {
+        const active = prev.filter((o) => !isOfferExpired(o.endDateTime || defaultEndDateTime));
+        if (active.length !== prev.length) {
+          if (active.length === 0) {
+            onAllExpired?.();
+          }
+          return active;
+        }
+        return prev;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [defaultEndDateTime, onAllExpired]);
+
+  // Handle immediate expiration from CountdownTimer
+  const handleOfferExpire = (productId?: string) => {
+    setLiveOffers((prev) => {
+      const active = prev.filter((o) => (productId ? o.product.id !== productId : false));
+      if (active.length === 0) {
+        onAllExpired?.();
+      }
+      return active;
+    });
+  };
+
+  // Adjust currentIndex when liveOffers length shrinks
+  useEffect(() => {
+    if (liveOffers.length === 0) {
+      setCurrentIndex(0);
+    } else if (currentIndex >= liveOffers.length) {
+      setCurrentIndex(Math.max(0, liveOffers.length - 1));
+    }
+  }, [liveOffers.length, currentIndex]);
 
   // Touch swipe support for mobile
   const touchStartX = useRef<number | null>(null);
   const touchEndX = useRef<number | null>(null);
 
-  const offersCount = offers ? offers.length : 0;
+  const offersCount = liveOffers.length;
   const hasMultipleOffers = offersCount > 1;
 
   // Auto-play timer: slides automatically every 3 seconds if multiple offers exist
@@ -61,9 +111,9 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
     return () => clearInterval(timer);
   }, [hasMultipleOffers, isPaused, offersCount]);
 
-  if (!offers || offers.length === 0) return null;
+  if (!liveOffers || liveOffers.length === 0) return null;
 
-  const currentOffer = offers[currentIndex] || offers[0];
+  const currentOffer = liveOffers[currentIndex] || liveOffers[0];
   const product = currentOffer.product;
   const hasDiscount = Boolean(product.oldPrice && product.oldPrice > product.price);
   const savings = hasDiscount ? (product.oldPrice! - product.price) : 0;
@@ -178,11 +228,11 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
               {hasMultipleOffers && (
                 <div className="flex items-center gap-2 sm:gap-3" dir="ltr">
                   <span className="text-xs font-product-title font-bold text-accent-red bg-accent-red/10 border border-accent-red/20 px-2.5 py-0.5 rounded-full" dir="rtl">
-                    {currentIndex + 1} / {offers.length}
+                    {currentIndex + 1} / {liveOffers.length}
                   </span>
 
                   <div className="hidden sm:flex items-center gap-1.5">
-                    {offers.map((_, i) => (
+                    {liveOffers.map((_, i) => (
                       <button
                         key={i}
                         type="button"
@@ -285,6 +335,7 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
                         <span className="text-xs text-zinc-400 font-medium">ينتهي العرض خلال:</span>
                         <CountdownTimer
                           endDate={toEgyptTime(targetEndDate)}
+                          onExpire={() => handleOfferExpire(product.id)}
                           itemClassName="flex flex-col items-center justify-center bg-white/[0.04] border border-white/[0.08] px-3.5 py-1.5 rounded-xl min-w-[54px]"
                           numberClassName="font-product-title text-xl font-black text-white leading-none"
                           labelClassName="text-[9px] text-zinc-400 mt-1 uppercase font-body"
@@ -416,7 +467,7 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
                     {/* Mobile Dots Indicator */}
                     {hasMultipleOffers && (
                       <div className="flex items-center justify-center gap-1.5">
-                        {offers.map((_, i) => (
+                        {liveOffers.map((_, i) => (
                           <button
                             key={i}
                             type="button"
@@ -465,6 +516,7 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
                       <span className="text-[10px] text-zinc-400 font-medium">ينتهي خلال:</span>
                       <CountdownTimer
                         endDate={toEgyptTime(targetEndDate)}
+                        onExpire={() => handleOfferExpire(product.id)}
                         className="flex items-center gap-1.5"
                         itemClassName="flex flex-col items-center justify-center bg-white/[0.04] border border-white/[0.08] px-2.5 py-1 rounded-xl min-w-[42px]"
                         numberClassName="font-product-title text-base font-black text-white leading-none"

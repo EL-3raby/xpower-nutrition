@@ -5,6 +5,7 @@ import { getSiteConfig, getCategories } from '@/lib/firebase/admin-actions';
 import HomeClientPage from './HomeClientPage';
 import { getSiteUrl, toPlainObject } from '@/lib/utils/seo';
 import { Product } from '@/lib/types';
+import { isOfferExpired } from '@/lib/date-utils';
 
 export const metadata: Metadata = {
   title: 'Xpower Nutrition — مكملات رياضية بجودة تستحق ثقتك',
@@ -67,20 +68,22 @@ export default async function HomePage() {
     if (settings.flashSale.items && Array.isArray(settings.flashSale.items) && settings.flashSale.items.length > 0) {
       for (const item of settings.flashSale.items) {
         const prod = products.find((p) => p.id === item.productId);
-        if (prod) {
+        const targetEnd = item.endDateTime || settings.flashSale.endDateTime;
+        if (prod && !isOfferExpired(targetEnd)) {
           flashSaleOffers.push({
             product: prod,
-            endDateTime: item.endDateTime || settings.flashSale.endDateTime,
+            endDateTime: targetEnd,
             badgeText: item.badgeText || '',
           });
         }
       }
     } else if (settings.flashSale.productId) {
       const prod = products.find((p) => p.id === settings.flashSale!.productId);
-      if (prod) {
+      const targetEnd = settings.flashSale.endDateTime;
+      if (prod && !isOfferExpired(targetEnd)) {
         flashSaleOffers.push({
           product: prod,
-          endDateTime: settings.flashSale.endDateTime,
+          endDateTime: targetEnd,
           badgeText: '',
         });
       }

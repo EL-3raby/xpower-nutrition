@@ -22,6 +22,11 @@ export default function CountdownTimer({
 }: CountdownTimerProps) {
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const onExpireRef = useRef(onExpire);
+
+  useEffect(() => {
+    onExpireRef.current = onExpire;
+  }, [onExpire]);
 
   useEffect(() => {
     const tick = () => {
@@ -44,7 +49,7 @@ export default function CountdownTimer({
       if (diff <= 0) {
         setCountdown({ days: 0, hours: 0, minutes: 0, seconds: 0 });
         if (intervalRef.current) clearInterval(intervalRef.current);
-        if (onExpire) onExpire();
+        onExpireRef.current?.();
         return;
       }
 
@@ -63,7 +68,7 @@ export default function CountdownTimer({
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [endDate, onExpire]);
+  }, [endDate]);
 
   const pad = (n: number) => n.toString().padStart(2, '0');
 

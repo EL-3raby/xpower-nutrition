@@ -13,6 +13,7 @@ import { getOptimizedImageUrl } from '@/lib/utils/image';
 import AuthenticitySection from '@/components/site/AuthenticitySection';
 import HomePreloader from '@/components/site/HomePreloader';
 import FlashSaleBigCard from '@/components/site/FlashSaleBigCard';
+import { isOfferExpired } from '@/lib/date-utils';
 
 function HeroBanner({ settings, titleMain, titleAccent }: { settings: SiteConfig; titleMain: string; titleAccent: string }) {
   const heroMobileImg = settings.heroBanner?.mobileImageUrl || settings.heroBanner?.imageUrl;
@@ -184,13 +185,18 @@ export default function HomeClientPage({
   const [displayProducts, setDisplayProducts] = useState<Product[]>(initialProducts || []);
   const [allProducts, setAllProducts] = useState<Product[]>(initialProducts || []);
   const [flashSaleOffers, setFlashSaleOffers] = useState<FlashSaleOffer[]>(() => {
-    if (initialFlashSaleOffers && initialFlashSaleOffers.length > 0) return initialFlashSaleOffers;
+    if (initialFlashSaleOffers && initialFlashSaleOffers.length > 0) {
+      return initialFlashSaleOffers.filter((o) => !isOfferExpired(o.endDateTime || initialSettings.flashSale?.endDateTime));
+    }
     if (initialFlashSaleProduct) {
-      return [{
-        product: initialFlashSaleProduct,
-        endDateTime: initialSettings.flashSale?.endDateTime,
-        badgeText: '',
-      }];
+      const targetEnd = initialSettings.flashSale?.endDateTime;
+      if (!isOfferExpired(targetEnd)) {
+        return [{
+          product: initialFlashSaleProduct,
+          endDateTime: targetEnd,
+          badgeText: '',
+        }];
+      }
     }
     return [];
   });
@@ -244,20 +250,22 @@ export default function HomeClientPage({
           if (cfg.flashSale.items && Array.isArray(cfg.flashSale.items) && cfg.flashSale.items.length > 0) {
             for (const item of cfg.flashSale.items) {
               const prod = prods.find((p) => p.id === item.productId);
-              if (prod) {
+              const targetEnd = item.endDateTime || cfg.flashSale.endDateTime;
+              if (prod && !isOfferExpired(targetEnd)) {
                 offers.push({
                   product: prod,
-                  endDateTime: item.endDateTime || cfg.flashSale.endDateTime,
+                  endDateTime: targetEnd,
                   badgeText: item.badgeText,
                 });
               }
             }
           } else if (cfg.flashSale.productId) {
             const prod = prods.find((p) => p.id === cfg.flashSale!.productId);
-            if (prod) {
+            const targetEnd = cfg.flashSale.endDateTime;
+            if (prod && !isOfferExpired(targetEnd)) {
               offers.push({
                 product: prod,
-                endDateTime: cfg.flashSale.endDateTime,
+                endDateTime: targetEnd,
                 badgeText: '',
               });
             }
@@ -360,6 +368,7 @@ export default function HomeClientPage({
         <FlashSaleBigCard
           offers={flashSaleOffers}
           defaultEndDateTime={settings.flashSale.endDateTime}
+          onAllExpired={() => setFlashSaleOffers([])}
         />
       )}
 

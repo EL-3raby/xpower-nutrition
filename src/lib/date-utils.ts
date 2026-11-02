@@ -77,3 +77,30 @@ export function toEgyptTime(date: any): Date {
   if (!d || isNaN(d.getTime())) return new Date();
   return createDateFromCairoParts(d);
 }
+
+/**
+ * Checks whether an offer with the specified end date/time has already expired in Egypt time.
+ * Returns true if expired, false otherwise.
+ * If endDate is missing, null, or undefined, returns false (not expired).
+ */
+export function isOfferExpired(endDate: any): boolean {
+  if (!endDate) return false;
+  try {
+    let d = endDate;
+    if (!(d instanceof Date)) {
+      if (d?.toDate && typeof d.toDate === 'function') {
+        d = d.toDate();
+      } else if (d?.seconds) {
+        d = new Date(d.seconds * 1000);
+      } else if (typeof d === 'string' || typeof d === 'number') {
+        d = new Date(d);
+      }
+    }
+    if (!d || isNaN(d.getTime())) return false;
+    const targetDate = createDateFromCairoParts(d);
+    const nowCairo = getEgyptTime();
+    return targetDate.getTime() <= nowCairo.getTime();
+  } catch {
+    return false;
+  }
+}

@@ -6,6 +6,7 @@ import { getProducts } from '@/lib/firebase/products';
 import { SiteConfig, Product } from '@/lib/types';
 import { Timestamp } from 'firebase/firestore';
 import Spinner from '@/components/ui/Spinner';
+import { isOfferExpired } from '@/lib/date-utils';
 
 export default function AdminSettingsPage() {
   const [config, setConfig] = useState<SiteConfig | null>(null);
@@ -1032,6 +1033,11 @@ export default function AdminSettingsPage() {
                           {selectedProd && (
                             <span className="text-xs text-text-muted font-body" dir="ltr">
                               ({selectedProd.price} EGP {selectedProd.oldPrice ? `| قبل الخصم: ${selectedProd.oldPrice} EGP` : ''})
+                            </span>
+                          )}
+                          {item.endDateTime && isOfferExpired(item.endDateTime) && (
+                            <span className="text-[10px] font-bold text-accent-red bg-accent-red/10 border border-accent-red/30 px-2 py-0.5 rounded-full">
+                              العرض منتهي
                             </span>
                           )}
                         </div>
