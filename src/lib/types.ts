@@ -57,7 +57,9 @@ export interface Order {
   status: 'pending' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
   isReadByAdmin: boolean;
   createdAt: Timestamp | Date;
+  deliveredAt?: Timestamp | Date;
   paymentProofUrl?: string;           // مشتركة بين الحالات التلاتة اللي محتاجة إثبات
+  paymentProofCleanedAt?: Timestamp | Date; // تاريخ تنظيف وحذف سكرين شوت الإيصال بعد 14 يوم
   paymentStatus?: 'pending_review' | 'confirmed' | 'rejected';
   couponCode?: string;
   discountAmount?: number;

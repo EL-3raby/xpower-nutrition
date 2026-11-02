@@ -361,7 +361,11 @@ export async function updateOrderStatus(id: string, newStatus: Order['status']) 
     }
     invalidateCache('product');
   } else {
-    await updateDoc(orderRef, { status: newStatus });
+    const updatePayload: Record<string, unknown> = { status: newStatus };
+    if (newStatus === 'delivered') {
+      updatePayload.deliveredAt = serverTimestamp();
+    }
+    await updateDoc(orderRef, updatePayload);
   }
 
   await logAdminActivity(`changed order status to ${newStatus}`, id);
@@ -399,6 +403,9 @@ export async function updateOrderPaymentStatus(
   const updatePayload: Record<string, any> = { paymentStatus };
   if (orderStatus) {
     updatePayload.status = orderStatus;
+    if (orderStatus === 'delivered') {
+      updatePayload.deliveredAt = serverTimestamp();
+    }
   }
   await updateDoc(docRef, updatePayload);
   await logAdminActivity(

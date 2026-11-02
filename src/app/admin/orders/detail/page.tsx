@@ -450,7 +450,14 @@ function OrderDetailContent() {
                       </div>
                     </div>
                   ) : (
-                    <p className="text-xs text-amber-400 text-right font-body">لم يتم إرفاق إثبات دفع لهذه المعاملة.</p>
+                    o.paymentProofCleanedAt ? (
+                      <div className="bg-emerald-950/30 border border-emerald-500/20 text-emerald-400 p-3 rounded-xl text-xs flex items-center gap-2 font-body">
+                        <span className="material-symbols-outlined text-sm shrink-0">verified_user</span>
+                        <span>تمت أرشفة وحذف صورة الإيصال بنجاح لمرور أكثر من 14 يوماً على تسليم الطلب (حفاظاً على الخصوصية والمساحة).</span>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-amber-400 text-right font-body">لم يتم إرفاق إثبات دفع لهذه المعاملة.</p>
+                    )
                   )}
                 </div>
               )}

@@ -8,7 +8,8 @@
     "build": "npm run clean && next build",
     "postbuild": "node fix-next-export.js",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "clean:cloudinary": "node scripts/cleanup-cloudinary.mjs"
   },
   "dependencies": {
     "@emailjs/browser": "^4.4.1",
