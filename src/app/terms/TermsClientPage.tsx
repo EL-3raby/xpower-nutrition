@@ -216,6 +216,37 @@ export default function TermsClientPage() {
           </div>
         </div>
 
+        {/* Section 8: Health & Dietary Disclaimer */}
+        <div className="bg-[#0a0a0a] border border-amber-500/20 rounded-2xl p-5 sm:p-7 shadow-xl space-y-3 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-2xl pointer-events-none" />
+          <div className="flex items-center gap-2.5">
+            <span className="w-1.5 h-6 bg-amber-400 rounded-full shrink-0"></span>
+            <h2 className="font-product-title text-base sm:text-lg font-bold text-white flex items-center gap-2">
+              <span className="material-symbols-outlined text-amber-400 text-lg">medical_services</span>
+              <span>8. إخلاء المسؤولية الصحي والقانوني (معايير سلامة الغذاء)</span>
+            </h2>
+          </div>
+          <div className="space-y-2.5 font-body text-xs sm:text-sm text-text-muted leading-relaxed">
+            <p>
+              انطلاقاً من حرصنا على صحة وسلامة عملائنا الكرام، ووفقاً للوائح الهيئة القومية لسلامة الغذاء والمعايير الصحية المصرية:
+            </p>
+            <ul className="space-y-1.5 list-disc list-inside pr-1">
+              <li>
+                <strong className="text-zinc-200">طبيعة المنتجات:</strong> كافة المنتجات المعروضة على متجر Xpower Nutrition هي مكملات غذائية ورياضية مخصصة للبالغين الأصحاء لدعم الأداء البدني والرياضي، وليست أدوية علاجية أو مستحضرات صيدلانية.
+              </li>
+              <li>
+                <strong className="text-zinc-200">الاستخدام والأمراض:</strong> المكملات الغذائية ليست بديلاً عن النظام الغذائي الصحي المتوازن، ولا تهدف إلى تشخيص، أو علاج، أو شفاء، أو الوقاية من أي مرض أو حالة صحية.
+              </li>
+              <li>
+                <strong className="text-zinc-200">استشارة الطبيب المختص:</strong> يُحظر استخدام مكملات الطاقة والبري وورك أوت (Pre-Workout) وحوارق الدهون لمن هم دون 18 عاماً، أو النساء في فترات الحمل والرضاعة. كما يُلزم أصحاب الأمراض المزمنة (مثل أمراض القلب، ضغط الدم، والسكري) أو من يتناولون أدوية بوصفات طبية باستشارة الطبيب المعالج أو أخصائي التغذية قبل تناول أي مكمل.
+              </li>
+              <li>
+                <strong className="text-zinc-200">الجرعات المقررة:</strong> يلتزم العميل باتباع إرشادات الجرعات الموصى بها والموضحة على العبوة الخارجية دون إفراط أو مضاعفة للجرعة المقررة مصنعياً. المتجر غير مسؤول عن أي أضرار ناتجة عن سوء الاستخدام أو تجاوز الجرعات.
+              </li>
+            </ul>
+          </div>
+        </div>
+
         {/* Contact Card */}
         <div className="bg-gradient-to-r from-accent-red/10 via-[#0d0d0d] to-accent-red/5 border border-accent-red/20 rounded-2xl p-5 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
           <div className="space-y-1 text-center sm:text-right">
