@@ -10,7 +10,13 @@ import Logo from '@/components/site/Logo';
 export default function Footer() {
   const currentYear = new Date().getFullYear();
   const pathname = usePathname();
-  const isHomePage = pathname === '/';
+  const [hasMounted, setHasMounted] = useState(false);
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
+  const isHomePage = hasMounted && pathname === '/';
   const [settings, setSettings] = useState<SiteConfig | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
 

@@ -141,7 +141,7 @@ export default function SiteLayoutWrapper({ children }: { children: React.ReactN
   const isVerifyPage = Boolean(pathname?.startsWith('/verify'));
 
   return (
-    <div id="site-layout-container" className="min-h-screen flex flex-col relative">
+    <div id="site-layout-container" suppressHydrationWarning className="min-h-screen flex flex-col relative">
       {/* Admin Maintenance Bypass Banner */}
       {isAdminUser && isMaintenanceActive && (
         <div className="bg-amber-500/15 border-b border-amber-500/30 text-amber-300 px-4 py-2 text-xs md:text-sm font-body font-medium flex items-center justify-between sticky top-0 z-[100] backdrop-blur-md">

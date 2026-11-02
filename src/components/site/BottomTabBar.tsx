@@ -9,7 +9,12 @@ export default function BottomTabBar() {
   const pathname = usePathname();
   const [isVisible, setIsVisible] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [hasMounted, setHasMounted] = useState(false);
   const lastScrollY = useRef(0);
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
 
   // Hide on specific routes where we want focus or have custom checkout bars
   const hideOnRoutes = ['/checkout', '/order-success', '/cart'];
@@ -57,15 +62,16 @@ export default function BottomTabBar() {
 
   if (shouldHide) return null;
 
-  const isHomeActive = pathname === '/';
-  const isProductsActive = pathname === '/products' || pathname?.startsWith('/products/');
-  const isVerifyActive = pathname === '/verify' || pathname?.startsWith('/verify/');
-  const isTrackActive = pathname === '/track-order' || pathname?.startsWith('/track-order/');
+  const isHomeActive = hasMounted && pathname === '/';
+  const isProductsActive = hasMounted && (pathname === '/products' || Boolean(pathname?.startsWith('/products/')));
+  const isVerifyActive = hasMounted && (pathname === '/verify' || Boolean(pathname?.startsWith('/verify/')));
+  const isTrackActive = hasMounted && (pathname === '/track-order' || Boolean(pathname?.startsWith('/track-order/')));
 
   return (
     <>
       <nav 
         aria-label="شريط التنقل السفلي"
+        suppressHydrationWarning
         className={`md:hidden fixed bottom-0 left-0 right-0 w-full z-50 transition-transform duration-300 ease-out select-none ${
           isVisible ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0 pointer-events-none'
         }`}

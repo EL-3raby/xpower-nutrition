@@ -11,6 +11,11 @@ export default function Navbar() {
   const { getCartCount, setIsDrawerOpen } = useCart();
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
+  const [hasMounted, setHasMounted] = useState(false);
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -28,8 +33,9 @@ export default function Navbar() {
   }, [lastScrollY]);
 
   const isActive = (path: string) => {
+    if (!hasMounted) return false;
     if (path === '/') return pathname === '/';
-    return pathname === path || (pathname?.startsWith(`${path}/`));
+    return pathname === path || Boolean(pathname?.startsWith(`${path}/`));
   };
 
   return (
@@ -48,7 +54,7 @@ export default function Navbar() {
             aria-label="سلة المشتريات"
           >
             <span className="material-symbols-outlined text-[25px]">shopping_cart</span>
-            {getCartCount() > 0 && (
+            {hasMounted && getCartCount() > 0 && (
               <span className="absolute top-0 right-0 bg-gradient-to-b from-[#ff2a32] to-accent-red text-white text-[9px] rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-0.5 font-display font-bold shadow-[0_2px_6px_rgba(227,30,36,0.6)] border border-[#050505]">
                 {getCartCount()}
               </span>
@@ -89,7 +95,7 @@ export default function Navbar() {
       <div className="hidden md:flex items-center justify-between w-full h-14 lg:h-16 px-6 lg:px-10 max-w-[1440px] mx-auto relative z-10" dir="rtl">
         
         {/* 1. Right (Start in RTL): Facebook-Style Navigation Tabs with Wide Spacing */}
-        <nav className="flex items-center justify-start h-full flex-1 z-10">
+        <nav className="flex items-center justify-start h-full flex-1 z-10" suppressHydrationWarning>
           {[
             { href: '/', label: 'الرئيسية', icon: 'home' },
             { href: '/products', label: 'المنتجات', icon: 'grid_view' },
@@ -103,14 +109,15 @@ export default function Navbar() {
                 href={tab.href} 
                 className="h-full w-20 lg:w-24 xl:w-28 flex items-center justify-center relative group select-none"
                 aria-label={tab.label}
+                suppressHydrationWarning
               >
                 {/* Facebook Hover Capsule */}
-                <div className={`w-full max-w-[76px] lg:max-w-[88px] xl:max-w-[100px] h-[78%] my-auto rounded-xl flex items-center justify-center transition-all duration-200 ${
-                  active 
-                    ? '' 
-                    : 'hover:bg-white/[0.08]'
-                }`}>
+                <div 
+                  suppressHydrationWarning
+                  className="w-full max-w-[76px] lg:max-w-[88px] xl:max-w-[100px] h-[78%] my-auto rounded-xl flex items-center justify-center transition-all duration-200 hover:bg-white/[0.08]"
+                >
                   <span 
+                    suppressHydrationWarning
                     className={`material-symbols-outlined text-[25px] lg:text-[27px] transition-all duration-200 ${
                       active 
                         ? 'text-accent-red drop-shadow-[0_0_8px_rgba(227,30,36,0.65)] scale-105' 
@@ -184,7 +191,7 @@ export default function Navbar() {
                 <span className="material-symbols-outlined text-[25px] lg:text-[27px] text-zinc-400 group-hover:text-zinc-100 transition-all duration-200">
                   shopping_cart
                 </span>
-                {getCartCount() > 0 && (
+                {hasMounted && getCartCount() > 0 && (
                   <span className="absolute -top-1.5 -right-2 bg-gradient-to-b from-[#ff2a32] to-accent-red text-white text-[9.5px] font-product-title font-black rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center shadow-[0_0_10px_rgba(227,30,36,0.7)] border border-[#060608] animate-in zoom-in-50 duration-200">
                     {getCartCount()}
                   </span>
