@@ -121,17 +121,6 @@ export default function Footer() {
               <Link className="font-body text-sm hover:text-accent-red transition-all duration-300 hover:-translate-x-1 flex items-center gap-2" href="/terms">
                 <span className="w-1.5 h-1.5 rounded-full bg-white/20"></span> الشروط والأحكام
               </Link>
-              <button
-                type="button"
-                onClick={() => {
-                  if (typeof window !== 'undefined') {
-                    window.dispatchEvent(new Event('xpower_open_cookie_consent'));
-                  }
-                }}
-                className="font-body text-sm hover:text-accent-red transition-all duration-300 hover:-translate-x-1 flex items-center gap-2 text-right cursor-pointer"
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-white/20"></span> إعدادات الخصوصية والكوكيز
-              </button>
             </nav>
           </div>
 
