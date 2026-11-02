@@ -25,6 +25,22 @@ function OrderDetailContent() {
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [printFormat, setPrintFormat] = useState<'a4' | 'thermal'>('a4');
   const [siteConfig, setSiteConfig] = useState<SiteConfig | null>(null);
+  const [autoPrint, setAutoPrint] = useState(true);
+  const [autoPrintFormat, setAutoPrintFormat] = useState<'a4' | 'thermal'>('thermal');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedAutoPrint = localStorage.getItem('xpower_auto_print');
+      if (savedAutoPrint !== null) {
+        setAutoPrint(savedAutoPrint === 'true');
+      }
+      const savedFormat = localStorage.getItem('xpower_auto_print_format');
+      if (savedFormat === 'a4' || savedFormat === 'thermal') {
+        setAutoPrintFormat(savedFormat);
+        setPrintFormat(savedFormat);
+      }
+    }
+  }, []);
 
   const handlePrint = (format: 'a4' | 'thermal') => {
     setPrintFormat(format);
@@ -59,6 +75,13 @@ function OrderDetailContent() {
 
       const formattedPhone = order.phone.startsWith('0') ? `2${order.phone}` : order.phone;
       window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(text)}`, '_blank');
+
+      if (autoPrint) {
+        setSuccessMsg('تم تأكيد الدفع والطلب بنجاح! جاري فتح نافذة الطباعة التلقائية للفاتورة...');
+        setTimeout(() => {
+          handlePrint(autoPrintFormat);
+        }, 500);
+      }
     } catch (err: any) {
       console.error('Error confirming payment:', err);
       setErrorMsg(err.message || 'فشل تأكيد الدفع.');
@@ -151,13 +174,24 @@ function OrderDetailContent() {
     try {
       await updateOrderStatus(orderId, newStatus);
       setStatusVal(newStatus);
-      setSuccessMsg('تم تحديث حالة الطلب بنجاح!');
+      const isConfirmed = newStatus === 'confirmed';
+      setSuccessMsg(
+        isConfirmed && autoPrint
+          ? 'تم تأكيد الطلب بنجاح! جاري فتح نافذة الطباعة التلقائية للفاتورة...'
+          : 'تم تحديث حالة الطلب بنجاح!'
+      );
       // Update local state
       if (order) {
         setOrder({
           ...order,
           status: newStatus
         });
+      }
+
+      if (isConfirmed && autoPrint) {
+        setTimeout(() => {
+          handlePrint(autoPrintFormat);
+        }, 350);
       }
     } catch (err: any) {
       console.error('Error updating order status:', err);
@@ -277,29 +311,75 @@ function OrderDetailContent() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-          <button 
-            onClick={() => handlePrint('a4')}
-            title="طباعة فاتورة A4 براند كاملة (Shopify Packing Slip)"
-            className="flex-1 sm:flex-none bg-accent-red hover:bg-accent-red/90 text-white font-product-title font-bold text-xs sm:text-sm px-4 py-2.5 rounded-xl transition-all hover:scale-[1.02] flex items-center justify-center gap-2 shadow-lg shadow-accent-red/20 cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-lg">description</span>
-            <span>فاتورة A4 براند</span>
-          </button>
-          <button 
-            onClick={() => handlePrint('thermal')}
-            title="طباعة إيصال بوليصة شحن للطابعات الحرارية (80mm Thermal Slip)"
-            className="flex-1 sm:flex-none bg-zinc-800 hover:bg-zinc-700 text-amber-400 hover:text-amber-300 border border-amber-400/30 font-product-title font-bold text-xs sm:text-sm px-4 py-2.5 rounded-xl transition-all hover:scale-[1.02] flex items-center justify-center gap-2 shadow-lg cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-lg">receipt_long</span>
-            <span>طابعة حرارية (80mm)</span>
-          </button>
-          <Link 
-            href="/admin/orders" 
-            className="flex-1 sm:flex-none text-center text-text-muted hover:text-white font-product-title text-xs sm:text-sm border border-white/10 bg-white/5 hover:bg-white/10 px-5 py-2.5 rounded-xl transition-colors font-bold"
-          >
-            العودة للطلبات
-          </Link>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto">
+          {/* Auto Print Setting Toggle */}
+          <div className="flex items-center justify-between sm:justify-start gap-2 bg-[#121212] border border-white/10 rounded-xl px-3 py-2 text-xs">
+            <label className="flex items-center gap-1.5 cursor-pointer select-none">
+              <input 
+                type="checkbox" 
+                checked={autoPrint} 
+                onChange={(e) => {
+                  setAutoPrint(e.target.checked);
+                  if (typeof window !== 'undefined') {
+                    localStorage.setItem('xpower_auto_print', e.target.checked ? 'true' : 'false');
+                  }
+                }}
+                className="accent-accent-red w-3.5 h-3.5 cursor-pointer"
+              />
+              <span className="font-product-title font-bold text-white text-[11px] sm:text-xs">
+                طباعة تلقائية عند التأكيد
+              </span>
+            </label>
+            <div className="flex items-center gap-1 border-r border-white/10 pr-2 mr-1">
+              <button 
+                type="button"
+                onClick={() => {
+                  setAutoPrintFormat('a4');
+                  if (typeof window !== 'undefined') localStorage.setItem('xpower_auto_print_format', 'a4');
+                }}
+                title="الطباعة التلقائية بصيغة A4 براند"
+                className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${autoPrintFormat === 'a4' ? 'bg-accent-red text-white' : 'text-text-muted hover:text-white'}`}
+              >
+                A4
+              </button>
+              <button 
+                type="button"
+                onClick={() => {
+                  setAutoPrintFormat('thermal');
+                  if (typeof window !== 'undefined') localStorage.setItem('xpower_auto_print_format', 'thermal');
+                }}
+                title="الطباعة التلقائية بصيغة طابعة حرارية 80mm"
+                className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${autoPrintFormat === 'thermal' ? 'bg-amber-400 text-black font-black' : 'text-text-muted hover:text-white'}`}
+              >
+                حراري 80mm
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <button 
+              onClick={() => handlePrint('a4')}
+              title="طباعة فاتورة A4 براند كاملة (Shopify Packing Slip)"
+              className="flex-1 sm:flex-none bg-accent-red hover:bg-accent-red/90 text-white font-product-title font-bold text-xs px-3.5 py-2.5 rounded-xl transition-all hover:scale-[1.02] flex items-center justify-center gap-1.5 shadow-lg shadow-accent-red/20 cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-base">description</span>
+              <span>A4 براند</span>
+            </button>
+            <button 
+              onClick={() => handlePrint('thermal')}
+              title="طباعة إيصال بوليصة شحن للطابعات الحرارية (80mm Thermal Slip)"
+              className="flex-1 sm:flex-none bg-zinc-800 hover:bg-zinc-700 text-amber-400 hover:text-amber-300 border border-amber-400/30 font-product-title font-bold text-xs px-3.5 py-2.5 rounded-xl transition-all hover:scale-[1.02] flex items-center justify-center gap-1.5 shadow-lg cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-base">receipt_long</span>
+              <span>حراري (80mm)</span>
+            </button>
+            <Link 
+              href="/admin/orders" 
+              className="text-center text-text-muted hover:text-white font-product-title text-xs border border-white/10 bg-white/5 hover:bg-white/10 px-3.5 py-2.5 rounded-xl transition-colors font-bold"
+            >
+              العودة
+            </Link>
+          </div>
         </div>
       </div>
 
