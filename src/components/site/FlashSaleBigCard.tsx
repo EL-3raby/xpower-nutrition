@@ -410,9 +410,9 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
                       </div>
                     )}
 
-                    {/* Mobile Title */}
-                    <h2 className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight leading-tight">
-                      <Link href={`/products/${product.slug || product.id}`}>
+                    {/* Mobile Title (تكبير حجم العنوان على الموبايل ليكون عريض وبارز بقوة) */}
+                    <h2 className="font-display font-black text-3xl sm:text-4xl text-white uppercase tracking-tight leading-tight drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)]">
+                      <Link href={`/products/${product.slug || product.id}`} className="hover:text-accent-red transition-colors">
                         {cleanProductName}
                       </Link>
                     </h2>
