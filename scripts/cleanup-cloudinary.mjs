@@ -209,7 +209,24 @@ async function initFirebaseAndAuth() {
   const passArg = args.find(a => a.startsWith('--password='));
   if (passArg) adminPassword = passArg.split('=')[1];
 
-  if (!adminEmail || !adminPassword) {
+  // If admin credentials are provided, authenticate to enable reading protected collections (like orders)
+  if (adminEmail && adminPassword) {
+    console.log(`\n⏳ جاري تسجيل الدخول كمسؤول (${adminEmail})...`);
+    try {
+      await signInWithEmailAndPassword(auth, adminEmail.trim(), adminPassword.trim());
+      console.log('✅ تم تسجيل الدخول بنجاح والتحقق من صلاحيات المسؤول.\n');
+    } catch (authErr) {
+      console.warn(`⚠️ تعذر تسجيل الدخول بالباسورد (${authErr.message}). سيتم المحاولة بدون جلسة مسؤولة.`);
+    }
+    return { app, auth, db };
+  }
+
+  // If no credentials and target is orphans, continue without auth
+  if (target === 'orphans') {
+    return { app, auth, db };
+  }
+
+  if ((!adminEmail || !adminPassword) && process.stdin.isTTY) {
     console.log('\n🔒 مطلوب تسجيل الدخول كمسؤول (Admin) للوصول لبيانات الطلبات وقواعد الفايرستور:');
     const rl = readline.createInterface({ input, output });
     if (!adminEmail) {
@@ -221,12 +238,16 @@ async function initFirebaseAndAuth() {
     rl.close();
   }
 
-  console.log(`\n⏳ جاري تسجيل الدخول كمسؤول (${adminEmail})...`);
-  try {
-    await signInWithEmailAndPassword(auth, adminEmail.trim(), adminPassword.trim());
-    console.log('✅ تم تسجيل الدخول بنجاح والتحقق من صلاحيات المسؤول.\n');
-  } catch (authErr) {
-    throw new Error(`❌ فشل تسجيل الدخول: ${authErr.message}`);
+  if (adminEmail && adminPassword) {
+    console.log(`\n⏳ جاري تسجيل الدخول كمسؤول (${adminEmail})...`);
+    try {
+      await signInWithEmailAndPassword(auth, adminEmail.trim(), adminPassword.trim());
+      console.log('✅ تم تسجيل الدخول بنجاح والتحقق من صلاحيات المسؤول.\n');
+    } catch (authErr) {
+      console.warn(`⚠️ تعذر تسجيل الدخول بالباسورد (${authErr.message}). سيتم المحاولة بدون جلسة مسؤولة.`);
+    }
+  } else {
+    console.log('ℹ️ جاري الفحص بدون جلسة مسؤول (Admin Password غير ممرر).\n');
   }
 
   return { app, auth, db };
@@ -409,7 +430,26 @@ async function main() {
         if (s.heroBannerUrl) activePublicIds.add(extractCloudinaryPublicId(s.heroBannerUrl));
       });
 
-      console.log(`📦 عدد صور المنتجات والإعدادات النشطة في المتجر: ${activePublicIds.size} صورة.`);
+      // 1b. Also protect all active order receipt images from being treated as orphans!
+      try {
+        const ordersSnap = await getDocs(collection(db, 'orders'));
+        let orderReceiptsCount = 0;
+        ordersSnap.forEach(oDoc => {
+          const o = oDoc.data();
+          if (o.paymentProofUrl) {
+            const id = extractCloudinaryPublicId(o.paymentProofUrl);
+            if (id) {
+              activePublicIds.add(id);
+              orderReceiptsCount++;
+            }
+          }
+        });
+        console.log(`🧾 تم فحص وحماية ${orderReceiptsCount} إيصال دفع للطلبات النشطة.`);
+      } catch (orderErr) {
+        console.warn('⚠️ تنبيه: تعذر فحص الطلبات (تحتاج صلاحية أدمن) لحماية إيصالاتها.');
+      }
+
+      console.log(`📦 إجمالي الملفات والصور المحمية في المتجر: ${activePublicIds.size} صورة.`);
 
       // 2. Fetch resources from Cloudinary
       const cRes = await listCloudinaryImages(cloudName, apiKey, apiSecret);
