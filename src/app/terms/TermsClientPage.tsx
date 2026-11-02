@@ -190,6 +190,32 @@ export default function TermsClientPage() {
           </p>
         </div>
 
+        {/* Section 7: Privacy & Cookies Policy */}
+        <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-5 sm:p-7 shadow-xl space-y-3">
+          <div className="flex items-center gap-2.5">
+            <span className="w-1.5 h-6 bg-accent-red rounded-full shrink-0"></span>
+            <h2 className="font-product-title text-base sm:text-lg font-bold text-white">
+              7. حماية الخصوصية وملفات تعريف الارتباط (Cookies Policy)
+            </h2>
+          </div>
+          <div className="space-y-2.5 font-body text-xs sm:text-sm text-text-muted leading-relaxed">
+            <p>
+              نولي في <strong className="text-white">Xpower Nutrition</strong> أقصى درجات الأهمية لحماية بياناتكم الشخصية وخصوصيتكم الرياضية:
+            </p>
+            <ul className="space-y-1.5 list-disc list-inside pr-1">
+              <li>
+                <strong className="text-zinc-200">سرية البيانات الشخصية:</strong> بيانات الاسم، رقم الهاتف، والعنوان تُستخدم حصراً لغرض شحن وتوصيل الطلبات وتأكيد الشحنات عبر الواتساب أو الاتصال المباشر. نلتزم بعدم بيع أو تأجير أو مشاركة بياناتك مع أي طرف ثالث إعلاني أو جهات خارجية إطلاقاً.
+              </li>
+              <li>
+                <strong className="text-zinc-200">ملفات تعريف الارتباط (Cookies):</strong> نستخدم الكوكيز التقنية الضرورية لحفظ منتجات سلة الشراء أثناء التصفح، وتحسين سرعة استجابة الموقع، وتخصيص أقوى العروض الرياضية التي تلائم أهدافك البدنية.
+              </li>
+              <li>
+                <strong className="text-zinc-200">التحكم وإعادة الضبط:</strong> يمكنك في أي وقت إعادة ضبط خيارات الكوكيز والخصوصية عبر الرابط المخصص أسفل الموقع (إعدادات الخصوصية والكوكيز).
+              </li>
+            </ul>
+          </div>
+        </div>
+
         {/* Contact Card */}
         <div className="bg-gradient-to-r from-accent-red/10 via-[#0d0d0d] to-accent-red/5 border border-accent-red/20 rounded-2xl p-5 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
           <div className="space-y-1 text-center sm:text-right">

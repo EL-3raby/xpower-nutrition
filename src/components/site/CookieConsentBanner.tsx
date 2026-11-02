@@ -12,6 +12,13 @@ export default function CookieConsentBanner() {
 
   useEffect(() => {
     setHasMounted(true);
+
+    // Listen for custom trigger to re-open settings from Footer or Links
+    const handleReopen = () => {
+      setIsVisible(true);
+    };
+    window.addEventListener('xpower_open_cookie_consent', handleReopen);
+
     try {
       const consent = localStorage.getItem(STORAGE_KEY);
       if (!consent) {
@@ -19,16 +26,33 @@ export default function CookieConsentBanner() {
         const timer = setTimeout(() => {
           setIsVisible(true);
         }, 1500);
-        return () => clearTimeout(timer);
+        return () => {
+          clearTimeout(timer);
+          window.removeEventListener('xpower_open_cookie_consent', handleReopen);
+        };
       }
     } catch {
       // In case localStorage is blocked by privacy mode
     }
+
+    return () => {
+      window.removeEventListener('xpower_open_cookie_consent', handleReopen);
+    };
   }, []);
 
   const handleAccept = () => {
     try {
       localStorage.setItem(STORAGE_KEY, 'accepted');
+      
+      // Google Consent Mode v2 update if gtag is present
+      if (typeof window !== 'undefined' && typeof (window as any).gtag === 'function') {
+        (window as any).gtag('consent', 'update', {
+          ad_storage: 'granted',
+          ad_user_data: 'granted',
+          ad_personalization: 'granted',
+          analytics_storage: 'granted',
+        });
+      }
     } catch {
       // Ignore storage errors
     }
