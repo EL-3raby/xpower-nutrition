@@ -226,11 +226,6 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
                   {/* Right Column: Hero Headline & Action Deck (7 cols) */}
                   <div className="lg:col-span-7 flex flex-col items-start text-right gap-5">
                     
-                    {/* Eyebrow & Category */}
-                    <span className="text-xs font-product-title font-black uppercase text-accent-red tracking-widest">
-                      ⚡ X-POWER FLASH DROP • {product.category || 'مجموعة الأبطال'}
-                    </span>
-
                     {/* Headline Title */}
                     <h2 className="font-display font-black text-4xl sm:text-5xl lg:text-6xl text-white uppercase tracking-tight leading-[1.08] hover:text-accent-red transition-colors">
                       <Link href={`/products/${product.slug || product.id}`}>
@@ -414,11 +409,6 @@ export default function FlashSaleBigCard({ offers, defaultEndDateTime }: FlashSa
                         ))}
                       </div>
                     )}
-
-                    {/* Super-tag */}
-                    <span className="text-[11px] font-product-title font-black uppercase text-accent-red tracking-wider">
-                      ⚡ X-POWER FLASH DROP
-                    </span>
 
                     {/* Mobile Title */}
                     <h2 className="font-display font-black text-2xl sm:text-3xl text-white uppercase tracking-tight leading-tight">
