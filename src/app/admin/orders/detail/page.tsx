@@ -749,17 +749,19 @@ function OrderDetailContent() {
               display: none !important;
             }
             .shopify-invoice-container {
-              display: flex !important;
-              flex-direction: column !important;
-              width: 190mm !important;
-              max-width: 190mm !important;
-              min-height: 275mm !important;
+              display: block !important;
+              width: 165mm !important;
+              max-width: 165mm !important;
               margin: 0 auto !important;
               padding: 6mm 8mm !important;
               box-sizing: border-box !important;
               background: #ffffff !important;
               color: #000000 !important;
+              border: 2px dashed #000000 !important;
+              border-radius: 8px !important;
               font-family: var(--font-cairo), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+              font-size: 12px !important;
+              line-height: 1.4 !important;
               page-break-after: avoid !important;
               page-break-inside: avoid !important;
             }
@@ -770,233 +772,151 @@ function OrderDetailContent() {
       {/* Main Print Wrapper */}
       <div className="hidden print:block text-black bg-white w-full min-h-screen absolute top-0 left-0 right-0 z-[999999]" dir="rtl">
         
+       {/* 1. SHOPIFY BRAND INVOICE (A4 / Thermal-Receipt Style)                   */}
         {/* ========================================================================= */}
-        {/* 1. SHOPIFY BRAND INVOICE (A4 / Standard)                                  */}
-        {/* ========================================================================= */}
-        <div className="shopify-invoice-container justify-between">
-          <div>
-            {/* Top Brand Header */}
-            <div className="flex justify-between items-start border-b-2 border-zinc-900 pb-5 mb-6">
-              
-              {/* Brand Logo & Store Info */}
-              <div className="flex flex-col text-right">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="w-8 h-8 rounded-lg bg-black text-white flex items-center justify-center font-black text-lg tracking-tighter">
-                    XP
-                  </div>
-                  <div>
-                    <h1 className="text-2xl font-black tracking-wider text-black font-display uppercase leading-none">
-                      XPOWER <span className="text-accent-red font-black">NUTRITION</span>
-                    </h1>
-                    <span className="text-[10px] text-zinc-600 font-bold tracking-widest uppercase block mt-0.5">
-                      Fuel Your Potential | المكملات الأصلية 100%
-                    </span>
-                  </div>
-                </div>
-                <div className="text-xs text-zinc-600 space-y-0.5 mt-2 font-body font-medium">
-                  <p>الموقع الرسمي: <strong className="font-mono text-zinc-800">xpowernutrition-eg.com</strong></p>
-                  <p>خدمة العملاء: <strong className="font-mono text-zinc-800" dir="ltr">{siteConfig?.contactInfo?.phone || '01148445744'}</strong></p>
-                  <p>البريد: <strong className="font-mono text-zinc-800">{siteConfig?.contactInfo?.email || 'support@xpowernutrition-eg.com'}</strong></p>
-                </div>
-              </div>
+        <div className="shopify-invoice-container text-right">
+          
+          {/* Centered Thermal-Style Brand Header */}
+          <div className="text-center pb-3 border-b-2 border-dashed border-black mb-3">
+            <h1 className="text-2xl font-black uppercase tracking-wider text-black font-display">
+              XPOWER NUTRITION
+            </h1>
+            <p className="text-xs font-bold text-black uppercase mt-0.5">مكملات رياضية أصلية 100% — Fuel Your Potential</p>
+            <p className="text-xs font-mono font-bold mt-1" dir="ltr">خدمة العملاء: {siteConfig?.contactInfo?.phone || '01148445744'}</p>
+            <p className="text-[11px] font-mono text-zinc-700">xpowernutrition-eg.com</p>
+          </div>
 
-              {/* Invoice Meta & Barcode */}
-              <div className="text-left flex flex-col items-end">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <span className="text-[10px] font-bold bg-zinc-900 text-white px-2 py-0.5 rounded uppercase tracking-wider">
-                    {o.paymentMethod === 'cod' ? 'COD - دفع عند الاستلام' : 'PREPAID - مدفوع مسبقاً'}
-                  </span>
-                  <h2 className="text-xl font-black text-zinc-900 uppercase">فاتورة بيع وتوصيل</h2>
-                </div>
-                
-                <div className="bg-zinc-100 border border-zinc-300 rounded-lg px-3 py-1 text-center mb-2">
-                  <span className="text-[10px] text-zinc-500 font-bold block">رقم الأوردر (Order ID)</span>
-                  <span className="font-mono text-base font-black text-zinc-900">#{orderId}</span>
-                </div>
-
-                <div className="text-xs text-zinc-600 font-medium space-y-0.5 text-left">
-                  <p>
-                    تاريخ الطلب: <strong className="text-zinc-800 font-mono">
-                      {(o.createdAt instanceof Date 
-                        ? o.createdAt 
-                        : (o.createdAt as any)?.toDate?.() || ((o.createdAt as any)?.seconds ? new Date((o.createdAt as any).seconds * 1000) : new Date())
-                      ).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                    </strong>
-                  </p>
-                  <p>
-                    حالة الشحن: <strong className="text-zinc-800">
-                      {o.status === 'delivered' ? 'تم التسليم' : o.status === 'shipped' ? 'مع المندوب للتوصيل' : 'مؤكد للتجهيز'}
-                    </strong>
-                  </p>
-                </div>
-              </div>
+          {/* Thermal-Style Order Meta Strip */}
+          <div className="text-xs border-b-2 border-dashed border-black pb-3 mb-3 flex justify-between items-center font-bold">
+            <div className="flex items-center gap-2">
+              <span>رقم الأوردر:</span>
+              <span className="font-mono text-base font-black">#{orderId}</span>
             </div>
-
-            {/* Customer & Shipping Cards (Shopify Style Split) */}
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              
-              {/* Recipient Details */}
-              <div className="border border-zinc-300 bg-zinc-50/60 rounded-xl p-3.5 space-y-1.5 text-xs text-right">
-                <div className="flex items-center gap-1.5 border-b border-zinc-200 pb-1.5 mb-2 font-bold text-zinc-900 text-xs uppercase">
-                  <span>👤 بيانات المستلم (Ship To)</span>
-                </div>
-                <p><span className="text-zinc-500 font-bold">اسم العميل:</span> <strong className="text-sm font-black text-zinc-900">{o.customerName}</strong></p>
-                <p><span className="text-zinc-500 font-bold">رقم الهاتف:</span> <strong className="font-mono text-sm font-black text-zinc-900 tracking-wider" dir="ltr">{o.phone}</strong></p>
-                <p><span className="text-zinc-500 font-bold">المحافظة / المدينة:</span> <strong className="text-zinc-900">{o.city}</strong></p>
-                <p><span className="text-zinc-500 font-bold">العنوان التفصيلي:</span> <span className="text-zinc-800 leading-snug">{o.address}</span></p>
-              </div>
-
-              {/* Payment & Delivery Instructions */}
-              <div className="border border-zinc-300 bg-zinc-50/60 rounded-xl p-3.5 space-y-1.5 text-xs text-right">
-                <div className="flex items-center gap-1.5 border-b border-zinc-200 pb-1.5 mb-2 font-bold text-zinc-900 text-xs uppercase">
-                  <span>💳 طريقة الدفع والتحصيل</span>
-                </div>
-                <p>
-                  <span className="text-zinc-500 font-bold">وسيلة الدفع:</span>{' '}
-                  <strong className="text-zinc-900">
-                    {o.paymentMethod === 'vodafone_cash'
-                      ? 'فودافون كاش (دفع كامل مسبقاً)'
-                      : o.paymentMethod === 'instapay'
-                      ? 'انستاباي — InstaPay (دفع كامل مسبقاً)'
-                      : Boolean(o.depositAmount && o.depositAmount > 0)
-                      ? `دفع عند الاستلام (مع ديبوزيت شحن ${o.depositAmount} ج.م)`
-                      : 'الدفع نقداً عند الاستلام (COD)'}
-                  </strong>
-                </p>
-                <p>
-                  <span className="text-zinc-500 font-bold">تعليمات التسليم:</span>{' '}
-                  <strong className="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                    مسموح بفتح الطرد الخارجي والمعاينة قبل السداد
-                  </strong>
-                </p>
-                <div className="pt-1 text-[11px] text-zinc-500 leading-relaxed">
-                  {o.paymentMethod === 'cod' ? (
-                    <p className="text-zinc-700">يقوم مندوب الشحن بتحصيل المبلغ المتبقي نقداً من العميل وتسليم الفاتورة مع الطرد.</p>
-                  ) : (
-                    <p className="text-emerald-700 font-bold">الطلب مسدد بالكامل مسبقاً — يُسلم الطرد للعميل دون تحصيل أي مبالغ.</p>
-                  )}
-                </div>
-              </div>
-
+            <div className="text-xs text-zinc-800">
+              <span>التاريخ:</span>{' '}
+              <span className="font-mono">
+                {(o.createdAt instanceof Date 
+                  ? o.createdAt 
+                  : (o.createdAt as any)?.toDate?.() || ((o.createdAt as any)?.seconds ? new Date((o.createdAt as any).seconds * 1000) : new Date())
+                ).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              </span>
             </div>
-
-            {/* Products Table (Shopify Modern Minimalist Table) */}
-            <div className="mb-6">
-              <table className="w-full text-right border-collapse border border-zinc-300 rounded-lg overflow-hidden text-xs">
-                <thead>
-                  <tr className="bg-zinc-100 text-zinc-800 font-bold border-b border-zinc-300">
-                    <th className="py-2.5 px-3 w-8 text-center border-l border-zinc-200">#</th>
-                    <th className="py-2.5 px-3 border-l border-zinc-200">المنتج والمواصفات</th>
-                    <th className="py-2.5 px-3 w-20 text-center border-l border-zinc-200">الكمية</th>
-                    <th className="py-2.5 px-3 w-28 text-center border-l border-zinc-200">سعر الوحدة</th>
-                    <th className="py-2.5 px-3 w-28 text-center">الإجمالي</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-200 text-zinc-800">
-                  {o.items.map((item, i) => (
-                    <tr key={i} className="hover:bg-zinc-50/50">
-                      <td className="py-2.5 px-3 text-center font-mono text-zinc-500 border-l border-zinc-200">{i + 1}</td>
-                      <td className="py-2.5 px-3 border-l border-zinc-200">
-                        <span className="font-bold text-zinc-900 block text-xs md:text-sm">{item.name}</span>
-                        {item.flavor && (
-                          <span className="inline-block mt-0.5 text-[10px] bg-zinc-100 border border-zinc-200 text-zinc-600 px-1.5 py-0.2 rounded font-medium">
-                            النكهة: {item.flavor}
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-2.5 px-3 text-center font-bold font-mono text-sm border-l border-zinc-200">{item.quantity}</td>
-                      <td className="py-2.5 px-3 text-center font-mono text-xs border-l border-zinc-200">{item.price} ج.م</td>
-                      <td className="py-2.5 px-3 text-center font-mono font-bold text-xs">{item.price * item.quantity} ج.م</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Summary & Due Settlement */}
-            <div className="grid grid-cols-2 gap-6 items-end mb-6">
-              
-              {/* Courier Collection Highlight Box */}
-              <div>
-                {o.paymentMethod === 'cod' ? (
-                  <div className="border-2 border-black bg-zinc-50 p-4 rounded-xl text-center space-y-1">
-                    <span className="text-xs font-bold text-zinc-600 block uppercase">المبلغ المطلوب تحصيله كاش بواسطة المندوب:</span>
-                    <span className="font-mono text-3xl font-black text-black block tracking-tight">
-                      {(o.totalPrice - (o.depositAmount || 0)).toFixed(0)} EGP
-                    </span>
-                    {Boolean(o.depositAmount && o.depositAmount > 0) && (
-                      <span className="text-[11px] font-bold text-emerald-700 block">
-                        (تم سداد ديبوزيت شحن ${o.depositAmount} ج.م مسبقاً)
-                      </span>
-                    )}
-                  </div>
-                ) : (
-                  <div className="border-2 border-emerald-600 bg-emerald-50 p-4 rounded-xl text-center space-y-1">
-                    <span className="text-xs font-bold text-emerald-800 uppercase block">حالة الحساب</span>
-                    <span className="text-xl font-black text-emerald-700 block">مدفوع مسبقاً بالكامل (خالص)</span>
-                    <span className="text-[11px] font-bold text-emerald-600 block">لا يتم تحصيل أي مبالغ إضافية من العميل</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Financial Calculation Breakdown */}
-              <div className="border border-zinc-300 rounded-xl p-3.5 space-y-1.5 text-xs font-medium text-zinc-700 bg-zinc-50/50">
-                <div className="flex justify-between">
-                  <span>المجموع الفرعي للمنتجات:</span>
-                  <span className="font-mono font-bold text-zinc-900">{subtotal} ج.م</span>
-                </div>
-                {o.couponCode && (
-                  <div className="flex justify-between text-rose-600 font-bold">
-                    <span>خصم الكوبون ({o.couponCode}):</span>
-                    <span className="font-mono">-{discountAmount} ج.م</span>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <span>مصاريف الشحن والتوصيل:</span>
-                  <span className="font-mono font-bold text-zinc-900">{shippingCost > 0 ? `${shippingCost} ج.م` : 'شحن مجاني'}</span>
-                </div>
-                {Boolean(o.depositAmount && o.depositAmount > 0) && (
-                  <div className="flex justify-between text-emerald-700 font-bold">
-                    <span>ديبوزيت مسدد مسبقاً:</span>
-                    <span className="font-mono">-{o.depositAmount} ج.م</span>
-                  </div>
-                )}
-                <div className="flex justify-between border-t-2 border-zinc-900 pt-2 mt-1 text-sm font-black text-zinc-900">
-                  <span>إجمالي قيمة الطلب:</span>
-                  <span className="font-mono text-base">{o.totalPrice} ج.م</span>
-                </div>
-              </div>
-
+            <div className="bg-black text-white px-2.5 py-0.5 rounded text-[11px] font-bold">
+              {o.paymentMethod === 'cod' ? 'COD - دفع عند الاستلام' : 'PREPAID - مدفوع مسبقاً'}
             </div>
           </div>
 
-          {/* Bottom Barcode & Footer Notice */}
-          <div className="border-t border-zinc-300 pt-4 mt-auto">
-            <div className="flex justify-between items-center text-xs text-zinc-600">
-              <div className="text-right space-y-0.5">
-                <p className="font-bold text-zinc-900">شكراً لاختياركم Xpower Nutrition — شريكك نحو أقصى أداء بدني 🏆</p>
-                <p className="text-[11px]">معاينة الطرد مكفولة قبل الدفع | سياسة الاستبدال والاسترجاع 14 يوماً وفقاً لقانون حماية المستهلك المصري.</p>
-              </div>
-              
-              {/* Barcode */}
-              <div className="text-center font-mono">
-                <div className="flex items-center gap-0.5 h-8">
-                  {orderId.split('').map((c, i) => (
-                    <span 
-                      key={i} 
-                      className="bg-black inline-block h-full" 
-                      style={{ width: (c.charCodeAt(0) % 3) + 1.2, marginRight: (c.charCodeAt(0) % 2) + 0.8 }} 
-                    />
-                  ))}
-                </div>
-                <span className="text-[9px] tracking-widest text-zinc-500 font-bold block mt-0.5">*{orderId}*</span>
+          {/* Recipient Details for Courier (High Visibility) */}
+          <div className="border-b-2 border-dashed border-black pb-3 mb-3 space-y-1.5 text-xs">
+            <div className="text-xs font-black uppercase bg-black text-white px-3 py-1 text-center mb-2 tracking-wider rounded">
+              بيانات العميل والتسليم (خاص بشركة الشحن والمندوب)
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <p><span className="font-bold">العميل:</span> <strong className="font-bold text-sm">{o.customerName}</strong></p>
+              <p><span className="font-bold">الموبايل:</span> <strong className="font-mono font-black text-base tracking-wider" dir="ltr">{o.phone}</strong></p>
+              <p><span className="font-bold">المحافظة:</span> <strong className="font-bold">{o.city}</strong></p>
+              <p className="col-span-2 leading-relaxed"><span className="font-bold">العنوان التفصيلي:</span> {o.address}</p>
+            </div>
+          </div>
+
+          {/* Thermal-Style Items List */}
+          <div className="border-b-2 border-dashed border-black pb-3 mb-3">
+            <div className="text-xs font-bold border-b border-black pb-1.5 mb-2 flex justify-between uppercase">
+              <span>المنتج والمواصفات</span>
+              <div className="flex gap-8">
+                <span className="w-16 text-center">الكمية</span>
+                <span className="w-20 text-center">سعر الوحدة</span>
+                <span className="w-24 text-left">الإجمالي</span>
               </div>
             </div>
+            <div className="space-y-2 text-xs">
+              {o.items.map((item, idx) => (
+                <div key={idx} className="flex justify-between items-start border-b border-dotted border-zinc-300 pb-1.5">
+                  <div className="text-right flex-1 pr-1">
+                    <span className="font-bold text-sm">{item.quantity}x {item.name}</span>
+                    {item.flavor && <div className="text-[11px] text-zinc-700">النكهة: {item.flavor}</div>}
+                  </div>
+                  <div className="flex gap-8 items-center font-mono">
+                    <span className="w-16 text-center font-bold">{item.quantity}</span>
+                    <span className="w-20 text-center text-zinc-700">{item.price} ج.م</span>
+                    <span className="w-24 text-left font-black">{item.price * item.quantity} ج.م</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Thermal-Style Financial Totals */}
+          <div className="text-xs space-y-1.5 border-b-2 border-dashed border-black pb-3 mb-3">
+            <div className="flex justify-between">
+              <span>المجموع الفرعي:</span>
+              <span className="font-mono font-bold">{subtotal} ج.م</span>
+            </div>
+            {o.couponCode && (
+              <div className="flex justify-between font-bold text-rose-600">
+                <span>خصم الكوبون ({o.couponCode}):</span>
+                <span className="font-mono">-{discountAmount} ج.م</span>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <span>الشحن والتوصيل:</span>
+              <span className="font-mono font-bold">{shippingCost > 0 ? `${shippingCost} ج.م` : 'شحن مجاني'}</span>
+            </div>
+            {Boolean(o.depositAmount && o.depositAmount > 0) && (
+              <div className="flex justify-between font-bold text-emerald-700">
+                <span>ديبوزيت شحن مسدد مسبقاً:</span>
+                <span className="font-mono">-{o.depositAmount} ج.م</span>
+              </div>
+            )}
+            <div className="flex justify-between font-black text-sm pt-1.5 border-t border-black">
+              <span>إجمالي الفاتورة:</span>
+              <span className="font-mono text-base">{o.totalPrice} ج.م</span>
+            </div>
+          </div>
+
+          {/* Courier Cash Collection Box (The Exact High-Contrast Box) */}
+          <div className="border-2 border-black p-3.5 my-3 text-center bg-zinc-50/50">
+            {o.paymentMethod === 'cod' ? (
+              <>
+                <p className="text-xs font-black uppercase text-zinc-800 leading-none mb-1">المطلوب تحصيله كاش للمندوب:</p>
+                <p className="text-3xl font-black font-mono tracking-tight leading-none my-1">
+                  {(o.totalPrice - (o.depositAmount || 0)).toFixed(0)} EGP
+                </p>
+                {Boolean(o.depositAmount && o.depositAmount > 0) && (
+                  <p className="text-[11px] font-bold mt-1 text-zinc-700">(تم سداد {o.depositAmount} ج.م ديبوزيت شحن مسبقاً)</p>
+                )}
+              </>
+            ) : (
+              <>
+                <p className="text-base font-black uppercase text-black leading-none mb-1">مدفوع مسبقاً بالكامل (خالص)</p>
+                <p className="text-xs font-bold text-zinc-800 leading-tight">ممنوع تحصيل أي مبالغ إضافية من العميل نهائياً</p>
+              </>
+            )}
+          </div>
+
+          {/* Thermal-Style Footer & Barcode */}
+          <div className="text-center pt-2 text-xs space-y-1 text-zinc-800">
+            <p className="font-bold text-black">* حق المعاينة مكفول للعميل قبل السداد *</p>
+            <p className="text-[11px]">الاسترجاع 14 يوم بحالة العبوة الأصلية وفقاً لقانون حماية المستهلك المصري</p>
+            <p className="font-bold font-display uppercase tracking-widest text-black pt-1">شكراً لتسوقكم من XPOWER NUTRITION</p>
+            
+            {/* Barcode */}
+            <div className="flex justify-center items-center gap-0.5 h-8 pt-2">
+              {orderId.split('').map((c, i) => (
+                <span 
+                  key={i} 
+                  className="bg-black inline-block h-full" 
+                  style={{ width: (c.charCodeAt(0) % 3) + 1.2, marginRight: (c.charCodeAt(0) % 2) + 0.8 }} 
+                />
+              ))}
+            </div>
+            <span className="text-[10px] font-mono tracking-widest text-zinc-600 block mt-0.5 font-bold">*{orderId}*</span>
           </div>
 
         </div>
 
         {/* ========================================================================= */}
+         {/* ========================================================================= */}
         {/* 2. 80MM POS THERMAL RECEIPT (طابعة الفواتير والبوالص الحرارية الصغيرة)       */}
         {/* ========================================================================= */}
         <div className="thermal-receipt-container text-right">
