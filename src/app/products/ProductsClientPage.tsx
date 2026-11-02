@@ -32,7 +32,7 @@ function ProductsContent() {
     { value: 'latest', label: 'الأحدث وصل حديثاً' },
     { value: 'popular', label: 'الأكثر مبيعاً' },
     { value: 'top-rated', label: 'الأكثر تقييماً' },
-    { value: 'discount-desc', label: 'الخصم الأكبر أولاً 🔥' },
+    { value: 'discount-desc', label: 'الخصم الأكبر أولاً' },
     { value: 'price-asc', label: 'السعر: من الأقل للأعلى' },
     { value: 'price-desc', label: 'السعر: من الأعلى للأقل' }
   ];
@@ -396,14 +396,13 @@ function ProductsContent() {
               setOnlyDiscounted(next);
               if (next && sortBy === 'latest') setSortBy('discount-desc');
             }}
-            className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-display font-black whitespace-nowrap shrink-0 transition-all border active:scale-95 ${
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-display font-bold whitespace-nowrap shrink-0 transition-all border active:scale-95 ${
               onlyDiscounted || sortBy === 'discount-desc'
                 ? 'bg-accent-red text-white border-accent-red shadow-[0_0_15px_rgba(227,30,36,0.4)]'
                 : 'bg-[#0a0a0a] text-zinc-300 border-white/10 hover:border-accent-red/50 hover:text-white'
             }`}
           >
-            <span className="material-symbols-outlined text-sm text-accent-red">local_fire_department</span>
-            <span>عروض وخصومات فقط 🔥</span>
+            <span>عروض وخصومات</span>
             <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
               onlyDiscounted || sortBy === 'discount-desc' ? 'bg-white/20 text-white' : 'bg-white/10 text-zinc-400'
             }`}>
@@ -433,17 +432,16 @@ function ProductsContent() {
             onClick={() => {
               setSortBy(prev => prev === 'popular' ? 'latest' : 'popular');
             }}
-            className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-display font-black whitespace-nowrap shrink-0 transition-all border active:scale-95 ${
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-display font-bold whitespace-nowrap shrink-0 transition-all border active:scale-95 ${
               sortBy === 'popular'
-                ? 'bg-amber-500 text-black border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.4)]'
-                : 'bg-[#0a0a0a] text-zinc-300 border-white/10 hover:border-amber-400/50 hover:text-white'
+                ? 'bg-accent-red text-white border-accent-red shadow-[0_0_15px_rgba(227,30,36,0.4)]'
+                : 'bg-[#0a0a0a] text-zinc-300 border-white/10 hover:border-white/30 hover:text-white'
             }`}
           >
-            <span className="material-symbols-outlined text-sm">workspace_premium</span>
-            <span>الأكثر مبيعاً 🏆</span>
+            <span>الأكثر مبيعاً</span>
             {popularCount > 0 && (
               <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                sortBy === 'popular' ? 'bg-black/20 text-black' : 'bg-white/10 text-zinc-400'
+                sortBy === 'popular' ? 'bg-white/20 text-white' : 'bg-white/10 text-zinc-400'
               }`}>
                 {popularCount}
               </span>
@@ -456,17 +454,16 @@ function ProductsContent() {
             onClick={() => {
               setSortBy(prev => prev === 'top-rated' ? 'latest' : 'top-rated');
             }}
-            className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-display font-black whitespace-nowrap shrink-0 transition-all border active:scale-95 ${
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-display font-bold whitespace-nowrap shrink-0 transition-all border active:scale-95 ${
               sortBy === 'top-rated'
-                ? 'bg-amber-400 text-black border-amber-300 shadow-[0_0_15px_rgba(251,191,36,0.4)]'
-                : 'bg-[#0a0a0a] text-zinc-300 border-white/10 hover:border-amber-400/50 hover:text-white'
+                ? 'bg-accent-red text-white border-accent-red shadow-[0_0_15px_rgba(227,30,36,0.4)]'
+                : 'bg-[#0a0a0a] text-zinc-300 border-white/10 hover:border-white/30 hover:text-white'
             }`}
           >
-            <span className="material-symbols-outlined text-sm">star</span>
-            <span>الأعلى تقييماً ⭐</span>
+            <span>الأعلى تقييماً</span>
             {topRatedCount > 0 && (
               <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                sortBy === 'top-rated' ? 'bg-black/20 text-black' : 'bg-white/10 text-zinc-400'
+                sortBy === 'top-rated' ? 'bg-white/20 text-white' : 'bg-white/10 text-zinc-400'
               }`}>
                 {topRatedCount}
               </span>
@@ -477,14 +474,20 @@ function ProductsContent() {
           <button
             type="button"
             onClick={() => setOnlyInStock(!onlyInStock)}
-            className={`inline-flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-display font-bold whitespace-nowrap shrink-0 transition-all border active:scale-95 ${
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-display font-bold whitespace-nowrap shrink-0 transition-all border active:scale-95 ${
               onlyInStock
                 ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
                 : 'bg-[#0a0a0a] text-zinc-400 border-white/10 hover:text-white'
             }`}
           >
-            <span className="material-symbols-outlined text-xs">check_circle</span>
-            <span>متوفر فقط</span>
+            <span>المتوفر بالمخزن</span>
+            {inStockCount > 0 && (
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                onlyInStock ? 'bg-emerald-400/20 text-emerald-300' : 'bg-white/10 text-zinc-400'
+              }`}>
+                {inStockCount}
+              </span>
+            )}
           </button>
 
           {/* Category Quick Pills */}
@@ -579,23 +582,18 @@ function ProductsContent() {
                 عروض وحالة التوفر
               </h3>
 
-              {/* Discounted / On-Sale Filter (طلب المستخدم: إضافة المنتجات اللي عليها خصم) */}
+              {/* Discounted / On-Sale Filter */}
               <button
                 type="button"
                 onClick={() => setOnlyDiscounted(!onlyDiscounted)}
-                className={`w-full text-right px-4 py-3 rounded-2xl text-xs sm:text-sm font-display font-black transition-all flex items-center justify-between border active:scale-98 ${
+                className={`w-full text-right px-4 py-3 rounded-xl text-xs sm:text-sm font-display font-bold transition-all flex items-center justify-between border active:scale-98 ${
                   onlyDiscounted
                     ? 'bg-accent-red text-white border-accent-red shadow-[0_0_15px_rgba(227,30,36,0.4)]'
                     : 'bg-white/[0.03] border-white/10 text-zinc-300 hover:bg-white/10 hover:text-white'
                 }`}
               >
-                <div className="flex items-center gap-2">
-                  <span className={`material-symbols-outlined text-base ${onlyDiscounted ? 'text-white' : 'text-accent-red'}`}>
-                    local_fire_department
-                  </span>
-                  <span>عروض وخصومات فقط 🔥</span>
-                </div>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${onlyDiscounted ? 'bg-white/20' : 'bg-black/60 text-zinc-400'}`}>
+                <span>عروض وخصومات</span>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${onlyDiscounted ? 'bg-white/20 text-white' : 'bg-black/60 text-zinc-400'}`}>
                   {discountedCount}
                 </span>
               </button>
@@ -604,19 +602,14 @@ function ProductsContent() {
               <button
                 type="button"
                 onClick={() => setSortBy(prev => prev === 'popular' ? 'latest' : 'popular')}
-                className={`w-full text-right px-4 py-3 rounded-2xl text-xs sm:text-sm font-display font-black transition-all flex items-center justify-between border active:scale-98 ${
+                className={`w-full text-right px-4 py-3 rounded-xl text-xs sm:text-sm font-display font-bold transition-all flex items-center justify-between border active:scale-98 ${
                   sortBy === 'popular'
-                    ? 'bg-amber-500 text-black border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.4)]'
+                    ? 'bg-accent-red text-white border-accent-red shadow-[0_0_15px_rgba(227,30,36,0.4)]'
                     : 'bg-white/[0.03] border-white/10 text-zinc-300 hover:bg-white/10 hover:text-white'
                 }`}
               >
-                <div className="flex items-center gap-2">
-                  <span className={`material-symbols-outlined text-base ${sortBy === 'popular' ? 'text-black' : 'text-amber-400'}`}>
-                    workspace_premium
-                  </span>
-                  <span>الأكثر مبيعاً 🏆</span>
-                </div>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${sortBy === 'popular' ? 'bg-black/20 text-black' : 'bg-black/60 text-zinc-400'}`}>
+                <span>الأكثر مبيعاً</span>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${sortBy === 'popular' ? 'bg-white/20 text-white' : 'bg-black/60 text-zinc-400'}`}>
                   {popularCount}
                 </span>
               </button>
@@ -625,19 +618,14 @@ function ProductsContent() {
               <button
                 type="button"
                 onClick={() => setSortBy(prev => prev === 'top-rated' ? 'latest' : 'top-rated')}
-                className={`w-full text-right px-4 py-3 rounded-2xl text-xs sm:text-sm font-display font-black transition-all flex items-center justify-between border active:scale-98 ${
+                className={`w-full text-right px-4 py-3 rounded-xl text-xs sm:text-sm font-display font-bold transition-all flex items-center justify-between border active:scale-98 ${
                   sortBy === 'top-rated'
-                    ? 'bg-amber-400 text-black border-amber-300 shadow-[0_0_15px_rgba(251,191,36,0.4)]'
+                    ? 'bg-accent-red text-white border-accent-red shadow-[0_0_15px_rgba(227,30,36,0.4)]'
                     : 'bg-white/[0.03] border-white/10 text-zinc-300 hover:bg-white/10 hover:text-white'
                 }`}
               >
-                <div className="flex items-center gap-2">
-                  <span className={`material-symbols-outlined text-base ${sortBy === 'top-rated' ? 'text-black' : 'text-amber-400'}`}>
-                    star
-                  </span>
-                  <span>الأعلى تقييماً ⭐</span>
-                </div>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${sortBy === 'top-rated' ? 'bg-black/20 text-black' : 'bg-black/60 text-zinc-400'}`}>
+                <span>الأعلى تقييماً</span>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${sortBy === 'top-rated' ? 'bg-white/20 text-white' : 'bg-black/60 text-zinc-400'}`}>
                   {topRatedCount}
                 </span>
               </button>
@@ -646,19 +634,14 @@ function ProductsContent() {
               <button
                 type="button"
                 onClick={() => setOnlyInStock(!onlyInStock)}
-                className={`w-full text-right px-4 py-3 rounded-2xl text-xs sm:text-sm font-display font-black transition-all flex items-center justify-between border active:scale-98 ${
+                className={`w-full text-right px-4 py-3 rounded-xl text-xs sm:text-sm font-display font-bold transition-all flex items-center justify-between border active:scale-98 ${
                   onlyInStock
                     ? 'bg-emerald-600 text-white border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.35)]'
                     : 'bg-white/[0.03] border-white/10 text-zinc-300 hover:bg-white/10 hover:text-white'
                 }`}
               >
-                <div className="flex items-center gap-2">
-                  <span className={`material-symbols-outlined text-base ${onlyInStock ? 'text-white' : 'text-emerald-400'}`}>
-                    check_circle
-                  </span>
-                  <span>المتوفر بالمخزون فقط</span>
-                </div>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${onlyInStock ? 'bg-white/20' : 'bg-black/60 text-zinc-400'}`}>
+                <span>المتوفر بالمخزن</span>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${onlyInStock ? 'bg-white/20 text-white' : 'bg-black/60 text-zinc-400'}`}>
                   {inStockCount}
                 </span>
               </button>
@@ -769,24 +752,24 @@ function ProductsContent() {
                     </span>
                   )}
                   {sortBy === 'popular' && (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/20 border border-amber-500/40 text-xs font-display text-amber-400 font-bold">
-                      <span>الأكثر مبيعاً 🏆</span>
-                      <button onClick={() => setSortBy('latest')} className="text-amber-400 hover:text-white" aria-label="إلغاء الأكثر مبيعاً">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/10 border border-white/20 text-xs font-display text-white font-bold">
+                      <span>الأكثر مبيعاً</span>
+                      <button onClick={() => setSortBy('latest')} className="text-zinc-400 hover:text-white" aria-label="إلغاء الأكثر مبيعاً">
                         <span className="material-symbols-outlined text-[13px]">close</span>
                       </button>
                     </span>
                   )}
                   {sortBy === 'top-rated' && (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-400/20 border border-amber-400/40 text-xs font-display text-amber-300 font-bold">
-                      <span>الأعلى تقييماً ⭐</span>
-                      <button onClick={() => setSortBy('latest')} className="text-amber-300 hover:text-white" aria-label="إلغاء الأعلى تقييماً">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/10 border border-white/20 text-xs font-display text-white font-bold">
+                      <span>الأعلى تقييماً</span>
+                      <button onClick={() => setSortBy('latest')} className="text-zinc-400 hover:text-white" aria-label="إلغاء الأعلى تقييماً">
                         <span className="material-symbols-outlined text-[13px]">close</span>
                       </button>
                     </span>
                   )}
                   {sortBy === 'discount-desc' && !onlyDiscounted && (
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-accent-red/20 border border-accent-red/40 text-xs font-display text-accent-red font-bold">
-                      <span>الخصم الأكبر 🔥</span>
+                      <span>الخصم الأكبر</span>
                       <button onClick={() => setSortBy('latest')} className="text-accent-red hover:text-white" aria-label="إلغاء الخصم الأكبر">
                         <span className="material-symbols-outlined text-[13px]">close</span>
                       </button>
