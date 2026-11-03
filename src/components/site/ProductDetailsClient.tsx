@@ -514,93 +514,110 @@ export default function ProductDetailsClient({ product }: ProductDetailsClientPr
                 </div>
 
                 <div className="space-y-3.5">
-                  {product.bundleItems.map((bItem, idx) => (
-                    <div key={`${bItem.productId}-${idx}`} className="bg-[#121212] border border-white/5 rounded-xl p-3 sm:p-3.5 flex flex-col gap-2.5">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-lg bg-white/5 border border-white/10 p-1 shrink-0 flex items-center justify-center overflow-hidden">
-                          {bItem.image ? (
-                            <img src={bItem.image} alt={bItem.name} className="w-full h-full object-contain" />
-                          ) : (
-                            <span className="material-symbols-outlined text-text-muted">inventory_2</span>
-                          )}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center justify-between gap-2">
-                            <h4 className="font-product-title font-bold text-white text-xs sm:text-sm truncate">
-                              {bItem.quantity}x {bItem.name}
-                            </h4>
-                            <span className="text-[11px] font-mono text-text-muted shrink-0">{bItem.price} EGP</span>
-                          </div>
-                          <span className="text-[10px] text-text-muted">مشمول بالباقة</span>
-                        </div>
-                      </div>
+                  {product.bundleItems.map((bItem, idx) => {
+                    const activeVariant = bItem.flavorOptions?.find(
+                      (opt) => opt.productId === selectedBundleVariants[bItem.productId]?.productId
+                    );
+                    const currentImage = activeVariant?.image || bItem.image;
+                    const currentName = activeVariant?.name || bItem.name;
 
-                      {/* Flavor Selector for this Component (Product Variants / Options) */}
-                      {bItem.flavorOptions && bItem.flavorOptions.length > 0 ? (
-                        <div className="pt-2 border-t border-white/5 space-y-1.5">
-                          <span className="text-[11px] text-text-muted font-bold block">
-                            اختار نكهة {bItem.name}:
-                          </span>
-                          <div className="flex flex-wrap gap-2">
-                            {bItem.flavorOptions.map((opt) => {
-                              const isSelected = selectedBundleVariants[bItem.productId]?.productId === opt.productId;
-                              const isOut = opt.stock <= 0;
-                              return (
-                                <button
-                                  key={opt.productId}
-                                  type="button"
-                                  disabled={isOut}
-                                  onClick={() => setSelectedBundleVariants(prev => ({
-                                    ...prev,
-                                    [bItem.productId]: {
-                                      productId: opt.productId,
-                                      name: opt.name,
-                                      flavorLabel: opt.flavorLabel
-                                    }
-                                  }))}
-                                  className={`px-3 py-1.5 rounded-lg text-xs font-product-title font-bold transition-all border ${
-                                    isOut
-                                      ? 'opacity-35 border-white/5 bg-black/40 text-text-muted cursor-not-allowed line-through'
-                                      : isSelected
-                                      ? 'border-accent-red text-white bg-accent-red shadow-md shadow-accent-red/30 cursor-pointer'
-                                      : 'border-white/10 text-white/70 bg-[#0a0a0a] hover:border-white/20 hover:text-white cursor-pointer'
-                                  }`}
-                                >
-                                  <span>{opt.flavorLabel}</span>
-                                  {isOut && <span className="text-[9px] mr-1 text-red-400 font-normal">(غير متوفر)</span>}
-                                </button>
-                              );
-                            })}
+                    return (
+                      <div key={`${bItem.productId}-${idx}`} className="bg-[#121212] border border-white/5 rounded-xl p-3 sm:p-3.5 flex flex-col gap-2.5">
+                        <div className="flex items-center gap-3">
+                          <div 
+                            onClick={() => currentImage && setSelectedImage(currentImage)}
+                            className="w-12 h-12 rounded-lg bg-white/5 border border-white/10 p-1 shrink-0 flex items-center justify-center overflow-hidden transition-all cursor-pointer hover:border-accent-red/40"
+                            title="اضغط لتكبير صورة هذا المنتج"
+                          >
+                            {currentImage ? (
+                              <img key={currentImage} src={currentImage} alt={currentName} className="w-full h-full object-contain animate-in fade-in duration-200" />
+                            ) : (
+                              <span className="material-symbols-outlined text-text-muted">inventory_2</span>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-2">
+                              <h4 className="font-product-title font-bold text-white text-xs sm:text-sm truncate transition-colors">
+                                {bItem.quantity}x {currentName}
+                              </h4>
+                              <span className="text-[11px] font-mono text-text-muted shrink-0">{bItem.price} EGP</span>
+                            </div>
+                            <span className="text-[10px] text-text-muted">مشمول بالباقة</span>
                           </div>
                         </div>
-                      ) : bItem.availableFlavors && bItem.availableFlavors.length > 0 ? (
-                        <div className="pt-2 border-t border-white/5 space-y-1.5">
-                          <span className="text-[11px] text-text-muted font-bold block">
-                            اختار نكهة {bItem.name}:
-                          </span>
-                          <div className="flex flex-wrap gap-2">
-                            {bItem.availableFlavors.map((flv) => {
-                              const isSelected = selectedBundleFlavors[bItem.productId] === flv;
-                              return (
-                                <button
-                                  key={flv}
-                                  type="button"
-                                  onClick={() => setSelectedBundleFlavors(prev => ({ ...prev, [bItem.productId]: flv }))}
-                                  className={`px-3 py-1.5 rounded-lg text-xs font-product-title font-bold transition-all border cursor-pointer ${
-                                    isSelected
-                                      ? 'border-accent-red text-white bg-accent-red shadow-md shadow-accent-red/30'
-                                      : 'border-white/10 text-white/70 bg-[#0a0a0a] hover:border-white/20 hover:text-white'
-                                  }`}
-                                >
-                                  {flv}
-                                </button>
-                              );
-                            })}
+
+                        {/* Flavor Selector for this Component (Product Variants / Options) */}
+                        {bItem.flavorOptions && bItem.flavorOptions.length > 0 ? (
+                          <div className="pt-2 border-t border-white/5 space-y-1.5">
+                            <span className="text-[11px] text-text-muted font-bold block">
+                              اختار نكهة {bItem.name}:
+                            </span>
+                            <div className="flex flex-wrap gap-2">
+                              {bItem.flavorOptions.map((opt) => {
+                                const isSelected = selectedBundleVariants[bItem.productId]?.productId === opt.productId;
+                                const isOut = opt.stock <= 0;
+                                return (
+                                  <button
+                                    key={opt.productId}
+                                    type="button"
+                                    disabled={isOut}
+                                    onClick={() => {
+                                      setSelectedBundleVariants((prev) => ({
+                                        ...prev,
+                                        [bItem.productId]: {
+                                          productId: opt.productId,
+                                          name: opt.name,
+                                          flavorLabel: opt.flavorLabel
+                                        }
+                                      }));
+                                      if (opt.image) {
+                                        setSelectedImage(opt.image);
+                                      }
+                                    }}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-product-title font-bold transition-all border ${
+                                      isOut
+                                        ? 'opacity-35 border-white/5 bg-black/40 text-text-muted cursor-not-allowed line-through'
+                                        : isSelected
+                                        ? 'border-accent-red text-white bg-accent-red shadow-md shadow-accent-red/30 cursor-pointer'
+                                        : 'border-white/10 text-white/70 bg-[#0a0a0a] hover:border-white/20 hover:text-white cursor-pointer'
+                                    }`}
+                                  >
+                                    <span>{opt.flavorLabel}</span>
+                                    {isOut && <span className="text-[9px] mr-1 text-red-400 font-normal">(غير متوفر)</span>}
+                                  </button>
+                                );
+                              })}
+                            </div>
                           </div>
-                        </div>
-                      ) : null}
-                    </div>
-                  ))}
+                        ) : bItem.availableFlavors && bItem.availableFlavors.length > 0 ? (
+                          <div className="pt-2 border-t border-white/5 space-y-1.5">
+                            <span className="text-[11px] text-text-muted font-bold block">
+                              اختار نكهة {bItem.name}:
+                            </span>
+                            <div className="flex flex-wrap gap-2">
+                              {bItem.availableFlavors.map((flv) => {
+                                const isSelected = selectedBundleFlavors[bItem.productId] === flv;
+                                return (
+                                  <button
+                                    key={flv}
+                                    type="button"
+                                    onClick={() => setSelectedBundleFlavors((prev) => ({ ...prev, [bItem.productId]: flv }))}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-product-title font-bold transition-all border cursor-pointer ${
+                                      isSelected
+                                        ? 'border-accent-red text-white bg-accent-red shadow-md shadow-accent-red/30'
+                                        : 'border-white/10 text-white/70 bg-[#0a0a0a] hover:border-white/20 hover:text-white'
+                                    }`}
+                                  >
+                                    {flv}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -616,7 +633,13 @@ export default function ProductDetailsClient({ product }: ProductDetailsClientPr
                   {product.flavors.map((flavor) => (
                     <button
                       key={flavor}
-                      onClick={() => setSelectedFlavor(flavor)}
+                      onClick={() => {
+                        setSelectedFlavor(flavor);
+                        const flavorIdx = product.flavors?.indexOf(flavor) ?? -1;
+                        if (flavorIdx >= 0 && product.images[flavorIdx]) {
+                          setSelectedImage(product.images[flavorIdx]);
+                        }
+                      }}
                       className={`px-4 py-2.5 font-product-title text-xs sm:text-sm font-bold tracking-wide transition-all duration-200 rounded-xl border ${selectedFlavor === flavor
                           ? 'border-accent-red text-white bg-accent-red shadow-[0_0_15px_rgba(227,30,36,0.35)]'
                           : 'border-white/[0.08] text-white/70 bg-[#0e0e0e] hover:border-white/20 hover:text-white'
