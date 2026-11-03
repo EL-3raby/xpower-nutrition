@@ -226,6 +226,12 @@ export default function CartDrawer() {
               
               <div className="w-full h-px bg-gradient-to-r from-transparent via-white/10 to-transparent my-4"></div>
 
+              {cart.some(item => typeof item.stock === 'number' && item.stock <= 0) && (
+                <div className="bg-accent-red/15 border border-accent-red/30 p-2.5 rounded-lg text-xs text-accent-red text-center font-bold">
+                  ⚠️ يوجد منتج غير متوفر بالسلة. يرجى حذفه للمتابعة.
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 <Link 
                   href="/cart"
@@ -235,14 +241,24 @@ export default function CartDrawer() {
                   <span className="material-symbols-outlined text-lg">shopping_bag</span>
                   شوف السلة
                 </Link>
-                <Link 
-                  href="/checkout"
-                  onClick={handleClose}
-                  className="w-full text-center bg-accent-red hover:bg-accent-red/90 text-white font-product-title py-3 btn-diagonal shadow-[0_0_15px_rgba(227,30,36,0.4)] hover:scale-105 transition-all duration-300 text-sm flex items-center justify-center gap-2"
-                >
-                  أكد الطلب
-                  <span className="material-symbols-outlined text-lg">arrow_back</span>
-                </Link>
+                {cart.some(item => typeof item.stock === 'number' && item.stock <= 0) ? (
+                  <button 
+                    disabled
+                    className="w-full text-center bg-white/10 text-white/40 font-product-title py-3 text-sm flex items-center justify-center gap-2 cursor-not-allowed rounded-sm"
+                  >
+                    أكد الطلب
+                    <span className="material-symbols-outlined text-lg">block</span>
+                  </button>
+                ) : (
+                  <Link 
+                    href="/checkout"
+                    onClick={handleClose}
+                    className="w-full text-center bg-accent-red hover:bg-accent-red/90 text-white font-product-title py-3 btn-diagonal shadow-[0_0_15px_rgba(227,30,36,0.4)] hover:scale-105 transition-all duration-300 text-sm flex items-center justify-center gap-2"
+                  >
+                    أكد الطلب
+                    <span className="material-symbols-outlined text-lg">arrow_back</span>
+                  </Link>
+                )}
               </div>
             </div>
           )}

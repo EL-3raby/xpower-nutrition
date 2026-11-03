@@ -397,13 +397,28 @@ export default function CartClientPage() {
 
               {/* Desktop Checkout Button */}
               <div className="hidden lg:block pt-2">
-                <Link
-                  href={`/checkout${appliedCoupon ? `?coupon=${appliedCoupon.code}` : ''}`}
-                  className="w-full py-4 bg-gradient-to-r from-accent-red to-red-600 text-white font-product-title font-bold text-lg tracking-wide rounded-xl flex items-center justify-center gap-2 hover:from-red-600 hover:to-accent-red transition-all shadow-[0_0_20px_rgba(227,30,36,0.4)] active:scale-95"
-                >
-                  <span>الانتقال لإتمام الطلب</span>
-                  <span className="material-symbols-outlined text-lg rtl:rotate-180">arrow_back</span>
-                </Link>
+                {cart.some(item => typeof item.stock === 'number' && item.stock <= 0) ? (
+                  <div className="space-y-2">
+                    <div className="bg-accent-red/15 border border-accent-red/30 p-2.5 rounded-lg text-xs text-accent-red text-center font-bold">
+                      ⚠️ يحتوي طلبك على منتجات غير متوفرة حالياً. يرجى حذفها لإتمام الطلب.
+                    </div>
+                    <button
+                      disabled
+                      className="w-full py-4 bg-white/10 text-white/40 font-product-title font-bold text-lg tracking-wide rounded-xl flex items-center justify-center gap-2 cursor-not-allowed"
+                    >
+                      <span>الانتقال لإتمام الطلب</span>
+                      <span className="material-symbols-outlined text-lg">block</span>
+                    </button>
+                  </div>
+                ) : (
+                  <Link
+                    href={`/checkout${appliedCoupon ? `?coupon=${appliedCoupon.code}` : ''}`}
+                    className="w-full py-4 bg-gradient-to-r from-accent-red to-red-600 text-white font-product-title font-bold text-lg tracking-wide rounded-xl flex items-center justify-center gap-2 hover:from-red-600 hover:to-accent-red transition-all shadow-[0_0_20px_rgba(227,30,36,0.4)] active:scale-95"
+                  >
+                    <span>الانتقال لإتمام الطلب</span>
+                    <span className="material-symbols-outlined text-lg rtl:rotate-180">arrow_back</span>
+                  </Link>
+                )}
                 <div className="text-[10px] text-text-muted text-center flex items-center justify-center gap-1.5 mt-3">
                   <span className="material-symbols-outlined text-xs text-emerald-400">verified_user</span>
                   دفع آمن ومضمون 100%
@@ -425,13 +440,23 @@ export default function CartClientPage() {
             </div>
           </div>
 
-          <Link
-            href={`/checkout${appliedCoupon ? `?coupon=${appliedCoupon.code}` : ''}`}
-            className="flex-1 py-3.5 px-4 bg-gradient-to-r from-accent-red to-red-600 hover:from-red-600 hover:to-accent-red text-white font-product-title font-bold text-sm sm:text-base rounded-xl shadow-[0_0_20px_rgba(227,30,36,0.5)] flex items-center justify-center gap-2 active:scale-95 transition-all"
-          >
-            <span>إتمام الشراء</span>
-            <span className="material-symbols-outlined text-lg rtl:rotate-180">arrow_back</span>
-          </Link>
+          {cart.some(item => typeof item.stock === 'number' && item.stock <= 0) ? (
+            <button
+              disabled
+              className="flex-1 py-3 px-3 bg-white/10 text-white/40 font-product-title font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-not-allowed"
+            >
+              <span>منتجات غير متوفرة</span>
+              <span className="material-symbols-outlined text-base">block</span>
+            </button>
+          ) : (
+            <Link
+              href={`/checkout${appliedCoupon ? `?coupon=${appliedCoupon.code}` : ''}`}
+              className="flex-1 py-3.5 px-4 bg-gradient-to-r from-accent-red to-red-600 hover:from-red-600 hover:to-accent-red text-white font-product-title font-bold text-sm sm:text-base rounded-xl shadow-[0_0_20px_rgba(227,30,36,0.5)] flex items-center justify-center gap-2 active:scale-95 transition-all"
+            >
+              <span>إتمام الشراء</span>
+              <span className="material-symbols-outlined text-lg rtl:rotate-180">arrow_back</span>
+            </Link>
+          )}
         </div>
       </div>
     </div>

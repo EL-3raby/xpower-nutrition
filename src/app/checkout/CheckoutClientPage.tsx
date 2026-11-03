@@ -598,6 +598,12 @@ export default function CheckoutClientPage() {
       return;
     }
 
+    if (cart.some(item => typeof item.stock === 'number' && item.stock <= 0)) {
+      setOrderError('يحتوي طلبك على منتجات نفدت من المخزون حالياً. يرجى مراجعة السلة وحذفها للمتابعة.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
     // Security Anti-Spam Check: Prevent rapid repetitive submissions or bot flooding
     const spamCheck = checkOrderSpamLimit();
     if (!spamCheck.allowed) {
