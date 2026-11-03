@@ -451,15 +451,11 @@ export default function CheckoutClientPage() {
     return baseCost;
   }, [subtotal, selectedGovernorate, shippingRates, siteConfig, cart]);
 
-  // Fixed or dynamic deposit amount for COD:
-  // When shippingCost > 0: deposit is shippingCost.
-  // When shippingCost === 0: deposit is depositAmountWhenFree from config (default 100 EGP).
+  // Unified fixed deposit amount for COD (regardless of whether shipping is free or paid):
+  // Drawn from siteConfig (default 100 EGP) and deducted from the total order amount.
   const codDepositAmount = React.useMemo(() => {
-    if (calculatedShippingCost > 0) {
-      return calculatedShippingCost;
-    }
-    return siteConfig?.freeShipping?.depositAmountWhenFree ?? 100;
-  }, [calculatedShippingCost, siteConfig]);
+    return siteConfig?.freeShipping?.codDepositAmount ?? siteConfig?.freeShipping?.depositAmountWhenFree ?? 100;
+  }, [siteConfig]);
 
   // Calculate discount
   const discountAmount = React.useMemo(() => {
@@ -1173,7 +1169,7 @@ export default function CheckoutClientPage() {
                           الدفع عند الاستلام
                         </div>
                         <div className="text-[11px] text-text-muted truncate">
-                          {calculatedShippingCost === 0 ? `شحن مجاني (ديبوزيت ${codDepositAmount} EGP)` : `مع ديبوزيت الشحن (${codDepositAmount} EGP)`}
+                          {calculatedShippingCost === 0 ? `شحن مجاني (ديبوزيت ${codDepositAmount} EGP)` : `ديبوزيت تأكيدي (${codDepositAmount} EGP) يُخصم من الإجمالي`}
                         </div>
                       </div>
                     </div>
@@ -1389,8 +1385,8 @@ export default function CheckoutClientPage() {
                         ? 'تم حفظ البيانات بنجاح، اضغط لتعديلها.'
                         : selectedPaymentMethod === 'cod'
                         ? calculatedShippingCost === 0
-                          ? `طلبك مؤهل للشحن المجاني، يُطلب ديبوزيت تأميني (${codDepositAmount} EGP) يُخصم من إجمالي طلبك.`
-                          : `يُطلب دفع ديبوزيت التوصيل (${codDepositAmount} EGP) لتأكيد الجدية وتجهيز الشحنة.`
+                          ? `طلبك مؤهل للشحن المجاني، يُطلب ديبوزيت تأكيدي (${codDepositAmount} EGP) يُخصم بالكامل من إجمالي طلبك.`
+                          : `يُطلب دفع ديبوزيت تأكيدي (${codDepositAmount} EGP) يُخصم بالكامل من إجمالي طلبك لتأكيد الجدية وتجهيز الشحنة.`
                         : 'اضغط لعرض بيانات التحويل وإرفاق الإيصال.'}
                     </div>
                   </div>
@@ -1547,7 +1543,7 @@ export default function CheckoutClientPage() {
                                 <span className="material-symbols-outlined text-lg sm:text-xl shrink-0">verified</span>
                                 <div>
                                   <div className="font-bold">
-                                    مبروك! طلبك مؤهل للشحن المجاني — لتأكيد الطلب، يُطلب دفع مبلغ تأميني بسيط: <strong className="font-mono text-white text-sm sm:text-base mx-1">{codDepositAmount} جنيه</strong> (سيُخصم من إجمالي طلبك)
+                                    مبروك! طلبك مؤهل للشحن المجاني — لتأكيد الطلب، يُطلب دفع ديبوزيت تأكيدي بسيط: <strong className="font-mono text-white text-sm sm:text-base mx-1">{codDepositAmount} جنيه</strong> (سيُخصم بالكامل من إجمالي طلبك)
                                   </div>
                                 </div>
                               </div>
@@ -1556,7 +1552,7 @@ export default function CheckoutClientPage() {
                                 <span className="material-symbols-outlined text-accent-red text-lg sm:text-xl shrink-0">info</span>
                                 <div>
                                   <div className="font-bold">
-                                    لإتمام الطلب، يُطلب دفع مبلغ التوصيل مقدمًا: <strong className="text-accent-red font-mono text-sm sm:text-base mx-1">{codDepositAmount} جنيه</strong>
+                                    لتأكيد وتجهيز طلبك، يُطلب دفع ديبوزيت تأكيدي: <strong className="text-accent-red font-mono text-sm sm:text-base mx-1">{codDepositAmount} جنيه</strong> (سيُخصم بالكامل من إجمالي طلبك، والباقي كاش للمندوب)
                                   </div>
                                 </div>
                               </div>
@@ -1566,7 +1562,7 @@ export default function CheckoutClientPage() {
                             <div className="grid grid-cols-2 gap-2 sm:gap-3">
                               <div className="bg-[#121212] border border-accent-red/30 p-2.5 sm:p-3.5 rounded-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
                                 <span className="text-[11px] sm:text-xs text-text-muted">
-                                  {calculatedShippingCost === 0 ? 'ديبوزيت تأميني يُخصم من الطلب:' : 'مقدم الشحن الآن:'}
+                                  ديبوزيت تأكيدي يُخصم من الطلب:
                                 </span>
                                 <span className="font-product-title font-bold text-accent-red text-sm sm:text-lg font-mono" dir="ltr">
                                   {codDepositAmount} EGP

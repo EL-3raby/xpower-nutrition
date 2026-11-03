@@ -490,7 +490,7 @@ function OrderDetailContent() {
               {o.paymentMethod === 'cod' && Boolean(o.depositAmount && o.depositAmount > 0) && (
                 <div className="flex flex-col gap-2 bg-amber-500/10 p-4 md:col-span-2 text-amber-300 border border-amber-500/20 rounded-xl">
                   <div className="text-xs text-text-muted font-bold">
-                    بيانات تحويل ديبوزيت التوصيل عبر ({o.depositPaymentMethod === 'instapay' ? 'انستاباي' : 'فودافون كاش'}):
+                    بيانات تحويل ديبوزيت الطلب عبر ({o.depositPaymentMethod === 'instapay' ? 'انستاباي' : 'فودافون كاش'}):
                   </div>
                   <div className="font-bold font-mono select-all text-base tracking-wider text-white" dir="ltr">
                     {o.depositSenderInfo || 'غير محدد'}
@@ -883,7 +883,7 @@ function OrderDetailContent() {
                   {(o.totalPrice - (o.depositAmount || 0)).toFixed(0)} EGP
                 </p>
                 {Boolean(o.depositAmount && o.depositAmount > 0) && (
-                  <p className="text-[11px] font-bold mt-1 text-zinc-700">(تم سداد {o.depositAmount} ج.م ديبوزيت شحن مسبقاً)</p>
+                  <p className="text-[11px] font-bold mt-1 text-zinc-700">(تم سداد {o.depositAmount} ج.م ديبوزيت مسبقاً)</p>
                 )}
               </>
             ) : (
@@ -1015,7 +1015,7 @@ function OrderDetailContent() {
                   {(o.totalPrice - (o.depositAmount || 0)).toFixed(0)} EGP
                 </p>
                 {Boolean(o.depositAmount && o.depositAmount > 0) && (
-                  <p className="text-[9px] font-bold mt-1 text-zinc-700">(تم سداد ${o.depositAmount} ج.م ديبوزيت مسبقاً)</p>
+                  <p className="text-[9px] font-bold mt-1 text-zinc-700">(تم سداد {o.depositAmount} ج.م ديبوزيت مسبقاً)</p>
                 )}
               </>
             ) : (

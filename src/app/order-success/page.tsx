@@ -122,7 +122,7 @@ function OrderSuccessContent() {
   const remainingCash = Math.max(0, order.totalPrice - (order.depositAmount || 0));
   const orderSubtotal = order.items?.reduce((sum, item) => sum + (item.price * item.quantity), 0) || 0;
   const isFreeShippingOrder = Math.max(0, order.totalPrice - (orderSubtotal - (order.discountAmount || 0))) === 0;
-  const codDepositLabel = isFreeShippingOrder ? 'الديبوزيت التأميني' : 'ديبوزيت الشحن';
+  const codDepositLabel = 'الديبوزيت التأكيدي';
 
   // Construct a professional, natural, beautifully-spaced RTL message for WhatsApp confirmation
   let paymentDetailsText = '';

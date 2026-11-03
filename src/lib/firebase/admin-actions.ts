@@ -164,7 +164,8 @@ export const DEFAULT_CONFIG: SiteConfig = {
   freeShipping: {
     isEnabled: true,
     thresholdAmount: 1000,
-    depositAmountWhenFree: 100
+    depositAmountWhenFree: 100,
+    codDepositAmount: 100
   },
   flashSale: {
     isActive: false,

@@ -184,7 +184,7 @@ export default function AdminSettingsPage() {
         // Prepopulate Free Shipping & Deposit
         setFreeShippingEnabled(fetched.freeShipping?.isEnabled ?? false);
         setFreeShippingThreshold(fetched.freeShipping?.thresholdAmount ?? 1000);
-        setFreeShippingDepositAmount(fetched.freeShipping?.depositAmountWhenFree ?? 100);
+        setFreeShippingDepositAmount(fetched.freeShipping?.codDepositAmount ?? fetched.freeShipping?.depositAmountWhenFree ?? 100);
 
         // Prepopulate Maintenance Mode
         setMaintenanceActive(fetched.maintenanceMode?.isActive ?? false);
@@ -271,6 +271,7 @@ export default function AdminSettingsPage() {
           isEnabled: freeShippingEnabled,
           thresholdAmount: Number(freeShippingThreshold) || 1000,
           depositAmountWhenFree: Number(freeShippingDepositAmount) || 100,
+          codDepositAmount: Number(freeShippingDepositAmount) || 100,
         },
         maintenanceMode: {
           isActive: maintenanceActive,
@@ -829,7 +830,7 @@ export default function AdminSettingsPage() {
             </div>
 
             <div>
-              <label className={labelClass}>قيمة الديبوزيت المطلوبة لو الشحن مجاني (جنيه)</label>
+              <label className={labelClass}>قيمة الديبوزيت الموحد لطلبات الدفع عند الاستلام (جنيه)</label>
               <input
                 type="number"
                 min="0"
@@ -839,7 +840,7 @@ export default function AdminSettingsPage() {
                 className={`${inputClass} text-left`}
                 dir="ltr"
               />
-              <p className="text-[11px] text-text-muted mt-1.5">مبلغ الديبوزيت التأميني الثابت المطلوب عند اختيار الدفع عند الاستلام لو الشحن مجاني (يُخصم تلقائياً من إجمالي الأوردر).</p>
+              <p className="text-[11px] text-text-muted mt-1.5">مبلغ الديبوزيت التأكيدي الثابت والموحد لأي أوردر دفع عند الاستلام (سواء الشحن مجاني أو غير مجاني). يُخصم هذا المبلغ تلقائياً من إجمالي الأوردر ويسدد العميل الباقي كاش للمندوب عند الاستلام.</p>
             </div>
           </div>
         </div>

@@ -48,7 +48,7 @@ export default function AdminShippingPage() {
 
       setFreeShippingEnabled(fetchedConfig.freeShipping?.isEnabled ?? false);
       setFreeShippingThreshold(fetchedConfig.freeShipping?.thresholdAmount ?? 0);
-      setFreeShippingDepositAmount(fetchedConfig.freeShipping?.depositAmountWhenFree ?? 100);
+      setFreeShippingDepositAmount(fetchedConfig.freeShipping?.codDepositAmount ?? fetchedConfig.freeShipping?.depositAmountWhenFree ?? 100);
 
       setShippingBannerActive(fetchedConfig.promoBanner?.isActive ?? (fetchedConfig.freeShipping?.isEnabled ?? true));
       const existingBanner = fetchedConfig.promoBanner?.text?.trim() || '';
@@ -120,7 +120,8 @@ export default function AdminShippingPage() {
         freeShipping: {
           isEnabled: freeShippingEnabled,
           thresholdAmount: Number(freeShippingThreshold),
-          depositAmountWhenFree: Number(freeShippingDepositAmount) || 100
+          depositAmountWhenFree: Number(freeShippingDepositAmount) || 100,
+          codDepositAmount: Number(freeShippingDepositAmount) || 100
         },
         promoBanner: {
           isActive: shippingBannerActive,
@@ -347,25 +348,6 @@ export default function AdminShippingPage() {
                     />
                   </div>
 
-                  <div className="flex flex-col gap-2 pt-2 border-t border-text-muted/10">
-                    <label className="font-body text-xs text-text-muted font-bold">
-                      قيمة الديبوزيت المطلوبة لو الشحن مجاني (جنيه)
-                    </label>
-                    <input 
-                      type="number" 
-                      placeholder="100"
-                      value={freeShippingDepositAmount}
-                      onChange={(e) => setFreeShippingDepositAmount(Number(e.target.value))}
-                      min="0"
-                      required
-                      className="bg-bg-primary text-white border border-text-muted/20 px-4 py-2.5 font-body text-sm focus:border-accent-red focus:outline-none text-left"
-                      dir="ltr"
-                    />
-                    <span className="text-[11px] text-text-muted leading-relaxed">
-                      مبلغ الديبوزيت التأميني الثابت عند اختيار الدفع عند الاستلام لو الشحن مجاني (افتراضياً 100 جنيه، ويُخصم من إجمالي الأوردر).
-                    </span>
-                  </div>
-
                   {/* Shipping Ticker Strip (Directly linked to Free Shipping) */}
                   <div className="pt-3 border-t border-text-muted/10 space-y-3">
                     <div className="flex items-center gap-3 py-1">
@@ -413,13 +395,34 @@ export default function AdminShippingPage() {
                 </div>
               )}
 
+              {/* Unified COD Deposit Amount (Always Visible and Configurable) */}
+              <div className="flex flex-col gap-2 pt-3 border-t border-text-muted/10">
+                <label className="font-body text-xs text-white font-bold flex items-center justify-between">
+                  <span>قيمة الديبوزيت الموحد لطلبات الدفع عند الاستلام (جنيه)</span>
+                  <span className="text-[10px] text-accent-red font-mono font-bold bg-accent-red/10 border border-accent-red/20 px-2 py-0.5 rounded">موحد لجميع الطلبات</span>
+                </label>
+                <input 
+                  type="number" 
+                  placeholder="100"
+                  value={freeShippingDepositAmount}
+                  onChange={(e) => setFreeShippingDepositAmount(Number(e.target.value))}
+                  min="0"
+                  required
+                  className="bg-bg-primary text-white border border-text-muted/20 px-4 py-2.5 font-body text-sm focus:border-accent-red focus:outline-none text-left"
+                  dir="ltr"
+                />
+                <span className="text-[11px] text-text-muted leading-relaxed">
+                  مبلغ الديبوزيت التأكيدي الثابت والموحد لأي أوردر دفع عند الاستلام (سواء الشحن مجاني أو مدفوع). يُخصم هذا المبلغ تلقائياً من إجمالي الأوردر ويسدد العميل الباقي كاش للمندوب عند الاستلام.
+                </span>
+              </div>
+
               <div className="pt-2">
                 <button 
                   type="submit"
                   disabled={submittingConfig}
                   className="w-full bg-accent-red hover:bg-accent-red/90 text-white font-product-title font-bold py-3 px-4 btn-diagonal hover:scale-103 transition-transform text-sm"
                 >
-                  {submittingConfig ? 'جاري الحفظ...' : 'حفظ إعدادات الشحن المجاني'}
+                  {submittingConfig ? 'جاري الحفظ...' : 'حفظ إعدادات الشحن والديبوزيت'}
                 </button>
               </div>
             </form>

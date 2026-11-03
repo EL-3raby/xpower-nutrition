@@ -133,6 +133,7 @@ export interface SiteConfig {
     isEnabled: boolean;
     thresholdAmount: number;
     depositAmountWhenFree?: number;
+    codDepositAmount?: number;
   };
   flashSale?: {
     isActive: boolean;
