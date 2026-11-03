@@ -213,12 +213,25 @@ export default function ProductDetailsClient({ product }: ProductDetailsClientPr
             name: item.flavorOptions[0].name,
             flavorLabel: item.flavorOptions[0].flavorLabel
           };
-          flavorParts.push(`${item.name} (${chosen.flavorLabel})`);
+
+          const baseName = item.name.includes('_') 
+            ? item.name.split('_')[0].trim() 
+            : item.name.includes(' - ') 
+            ? item.name.split(' - ')[0].trim() 
+            : item.name;
+
+          const isDuplicate = baseName.toLowerCase() === chosen.flavorLabel.toLowerCase() || chosen.flavorLabel.toLowerCase() === item.name.toLowerCase();
+          const cleanPart = isDuplicate 
+            ? baseName 
+            : `${baseName} (${chosen.flavorLabel})`;
+
+          flavorParts.push(cleanPart);
+
           return {
             productId: chosen.productId,
-            name: chosen.name,
+            name: isDuplicate ? baseName : (chosen.name || `${baseName} - ${chosen.flavorLabel}`),
             quantity: item.quantity,
-            selectedFlavor: chosen.flavorLabel
+            selectedFlavor: isDuplicate ? undefined : chosen.flavorLabel
           };
         } else {
           const legacyChosen = selectedBundleFlavors[item.productId] || item.availableFlavors?.[0] || '';

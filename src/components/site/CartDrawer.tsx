@@ -126,14 +126,58 @@ export default function CartDrawer() {
                   
                   {/* Product details */}
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-product-title text-white text-base truncate font-black uppercase tracking-wide group-hover:text-accent-red transition-colors">{item.name}</h3>
-                    {(item.flavor || item.size) && (
-                      <p className="font-body text-xs text-text-muted mt-1 bg-black/40 inline-block px-1.5 py-0.5 rounded-sm">
-                        {item.flavor && `نكهة: ${item.flavor}`}
-                        {item.flavor && item.size && ' - '}
-                        {item.size && `حجم: ${item.size}`}
-                      </p>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-product-title text-white text-base truncate font-black uppercase tracking-wide group-hover:text-accent-red transition-colors">{item.name}</h3>
+                      {item.isBundle && (
+                        <span className="text-[10px] font-product-title font-bold text-accent-red bg-accent-red/10 border border-accent-red/20 px-2 py-0.5 rounded-full shrink-0">
+                          باقة
+                        </span>
+                      )}
+                    </div>
+
+                    {item.isBundle ? (
+                      <div className="mt-2 space-y-1.5">
+                        <div className="flex items-center gap-1 text-[11px] text-accent-red font-product-title font-bold">
+                          <span className="material-symbols-outlined text-[13px]">all_inclusive</span>
+                          <span>محتويات الباقة:</span>
+                        </div>
+                        <div className="bg-black/60 border border-white/10 rounded-lg p-2 space-y-1">
+                          {item.bundleItems && item.bundleItems.length > 0 ? (
+                            item.bundleItems.map((b, bi) => {
+                              const hasDistinctFlavor = b.selectedFlavor && !b.name.toLowerCase().includes(b.selectedFlavor.toLowerCase());
+                              return (
+                                <div key={bi} className="flex items-center justify-between gap-2 text-[11px]">
+                                  <span className="text-white/90 truncate">
+                                    {b.quantity > 1 ? `${b.quantity}x ` : '• '}{b.name}
+                                  </span>
+                                  {hasDistinctFlavor && (
+                                    <span className="text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded font-bold shrink-0">
+                                      {b.selectedFlavor}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })
+                          ) : item.flavor ? (
+                            item.flavor.split(' + ').map((part, pi) => (
+                              <div key={pi} className="flex items-center gap-1.5 text-[11px] text-white/90">
+                                <span className="w-1 h-1 rounded-full bg-accent-red shrink-0"></span>
+                                <span className="truncate">{part}</span>
+                              </div>
+                            ))
+                          ) : null}
+                        </div>
+                      </div>
+                    ) : (
+                      (item.flavor || item.size) && (
+                        <p className="font-body text-xs text-text-muted mt-1 bg-black/40 inline-block px-1.5 py-0.5 rounded-sm">
+                          {item.flavor && `نكهة: ${item.flavor}`}
+                          {item.flavor && item.size && ' - '}
+                          {item.size && `حجم: ${item.size}`}
+                        </p>
+                      )
                     )}
+
                     <span className="font-product-title text-accent-red text-lg block mt-1 font-bold">
                       {item.price} <span className="text-xs text-white/60 font-body">EGP</span>
                     </span>

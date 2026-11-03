@@ -911,9 +911,47 @@ export default function CheckoutClientPage() {
                           className="w-full h-full object-contain"
                         />
                       </div>
-                      <div className="flex-grow">
-                        <div className="font-bold text-white text-xs line-clamp-1">{item.name}</div>
-                        {item.flavor && <div className="text-[10px] text-text-muted">الطعم: <span className="text-white">{item.flavor}</span></div>}
+                      <div className="flex-grow min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <div className="font-bold text-white text-xs truncate">{item.name}</div>
+                          {item.isBundle && (
+                            <span className="text-[9px] font-product-title font-bold text-accent-red bg-accent-red/10 border border-accent-red/20 px-1.5 py-0.5 rounded-full shrink-0">
+                              باقة
+                            </span>
+                          )}
+                        </div>
+                        {item.isBundle ? (
+                          <div className="mt-1 space-y-1">
+                            <div className="bg-black/60 border border-white/10 rounded-lg p-2 space-y-1">
+                              {item.bundleItems && item.bundleItems.length > 0 ? (
+                                item.bundleItems.map((b, bi) => {
+                                  const hasDistinctFlavor = b.selectedFlavor && !b.name.toLowerCase().includes(b.selectedFlavor.toLowerCase());
+                                  return (
+                                    <div key={bi} className="flex items-center justify-between gap-1.5 text-[10px]">
+                                      <span className="text-white/85 truncate">
+                                        {b.quantity > 1 ? `${b.quantity}x ` : '• '}{b.name}
+                                      </span>
+                                      {hasDistinctFlavor && (
+                                        <span className="text-[9px] text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded font-bold shrink-0">
+                                          {b.selectedFlavor}
+                                        </span>
+                                      )}
+                                    </div>
+                                  );
+                                })
+                              ) : item.flavor ? (
+                                item.flavor.split(' + ').map((part, pi) => (
+                                  <div key={pi} className="flex items-center gap-1.5 text-[10px] text-white/85">
+                                    <span className="w-1 h-1 rounded-full bg-accent-red shrink-0"></span>
+                                    <span className="truncate">{part}</span>
+                                  </div>
+                                ))
+                              ) : null}
+                            </div>
+                          </div>
+                        ) : (
+                          item.flavor && <div className="text-[10px] text-text-muted mt-0.5">الطعم: <span className="text-white">{item.flavor}</span></div>
+                        )}
                         <div className="flex justify-between items-center mt-1">
                           <div className="text-[11px] text-text-muted">{item.quantity} × {item.price} EGP</div>
                           <div className="font-product-title text-sm font-bold text-white" dir="ltr">
@@ -2079,10 +2117,48 @@ export default function CheckoutClientPage() {
                       alt={item.name} 
                       className="w-12 h-12 object-contain bg-white/5 border border-white/10 p-1 rounded-xl shrink-0"
                     />
-                    <div>
-                      <div className="font-bold text-white text-xs line-clamp-1">{item.name}</div>
-                      {item.flavor && <div className="text-[10px] text-text-muted">الطعم: {item.flavor}</div>}
-                      <div className="text-[11px] text-text-muted">{item.quantity} x {item.price} EGP</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <div className="font-bold text-white text-xs truncate">{item.name}</div>
+                        {item.isBundle && (
+                          <span className="text-[9px] font-product-title font-bold text-accent-red bg-accent-red/10 border border-accent-red/20 px-1.5 py-0.5 rounded-full shrink-0">
+                            باقة
+                          </span>
+                        )}
+                      </div>
+                      {item.isBundle ? (
+                        <div className="mt-1 space-y-1">
+                          <div className="bg-black/60 border border-white/10 rounded-lg p-2 space-y-1">
+                            {item.bundleItems && item.bundleItems.length > 0 ? (
+                              item.bundleItems.map((b, bi) => {
+                                const hasDistinctFlavor = b.selectedFlavor && !b.name.toLowerCase().includes(b.selectedFlavor.toLowerCase());
+                                return (
+                                  <div key={bi} className="flex items-center justify-between gap-2 text-[10px]">
+                                    <span className="text-white/85 truncate">
+                                      {b.quantity > 1 ? `${b.quantity}x ` : '• '}{b.name}
+                                    </span>
+                                    {hasDistinctFlavor && (
+                                      <span className="text-[9px] text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded font-bold shrink-0">
+                                        {b.selectedFlavor}
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              })
+                            ) : item.flavor ? (
+                              item.flavor.split(' + ').map((part, pi) => (
+                                <div key={pi} className="flex items-center gap-1.5 text-[10px] text-white/85">
+                                  <span className="w-1 h-1 rounded-full bg-accent-red shrink-0"></span>
+                                  <span className="truncate">{part}</span>
+                                </div>
+                              ))
+                            ) : null}
+                          </div>
+                        </div>
+                      ) : (
+                        item.flavor && <div className="text-[10px] text-text-muted mt-0.5">الطعم: {item.flavor}</div>
+                      )}
+                      <div className="text-[11px] text-text-muted mt-1">{item.quantity} x {item.price} EGP</div>
                     </div>
                   </div>
                   <div className="font-mono text-sm font-bold text-white" dir="ltr">

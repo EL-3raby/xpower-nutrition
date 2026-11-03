@@ -176,15 +176,57 @@ export default function CartClientPage() {
                   </div>
 
                   <div className="text-right flex-grow">
-                    <div className="font-product-title font-bold text-white text-base md:text-lg block mb-1">
-                      {item.name}
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="font-product-title font-bold text-white text-base md:text-lg">
+                        {item.name}
+                      </div>
+                      {item.isBundle && (
+                        <span className="text-[10px] font-product-title font-bold text-accent-red bg-accent-red/10 border border-accent-red/20 px-2 py-0.5 rounded-full shrink-0">
+                          باقة توفير
+                        </span>
+                      )}
                     </div>
 
-                    {item.flavor && (
-                      <div className="text-[11px] text-text-muted mb-3 flex items-center gap-1.5">
-                        <span>الطعم:</span>
-                        <span className="text-white font-bold bg-white/10 px-2 py-0.5 rounded-md border border-white/5">{item.flavor}</span>
+                    {item.isBundle ? (
+                      <div className="mb-3 space-y-1.5 max-w-md">
+                        <div className="flex items-center gap-1.5 text-xs text-accent-red font-product-title font-bold">
+                          <span className="material-symbols-outlined text-sm">all_inclusive</span>
+                          <span>محتويات الباقة:</span>
+                        </div>
+                        <div className="bg-black/50 border border-white/10 rounded-xl p-2.5 space-y-1.5 text-xs">
+                          {item.bundleItems && item.bundleItems.length > 0 ? (
+                            item.bundleItems.map((b, bi) => {
+                              const hasDistinctFlavor = b.selectedFlavor && !b.name.toLowerCase().includes(b.selectedFlavor.toLowerCase());
+                              return (
+                                <div key={bi} className="flex items-center justify-between gap-3 text-xs text-white/90">
+                                  <span className="truncate">
+                                    {b.quantity > 1 ? `${b.quantity}x ` : '• '}{b.name}
+                                  </span>
+                                  {hasDistinctFlavor && (
+                                    <span className="text-[11px] text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded font-bold shrink-0">
+                                      {b.selectedFlavor}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })
+                          ) : item.flavor ? (
+                            item.flavor.split(' + ').map((part, pi) => (
+                              <div key={pi} className="flex items-center gap-2 text-xs text-white/90">
+                                <span className="w-1.5 h-1.5 rounded-full bg-accent-red shrink-0"></span>
+                                <span className="truncate">{part}</span>
+                              </div>
+                            ))
+                          ) : null}
+                        </div>
                       </div>
+                    ) : (
+                      item.flavor && (
+                        <div className="text-[11px] text-text-muted mb-3 flex items-center gap-1.5">
+                          <span>الطعم:</span>
+                          <span className="text-white font-bold bg-white/10 px-2 py-0.5 rounded-md border border-white/5">{item.flavor}</span>
+                        </div>
+                      )
                     )}
 
                     <div className="font-product-title text-accent-red font-black text-sm md:text-base">
