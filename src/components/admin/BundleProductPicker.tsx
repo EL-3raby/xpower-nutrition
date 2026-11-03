@@ -331,3 +331,4 @@ export default function BundleProductPicker({ allProducts, onAddProduct }: Bundl
     </div>
   );
 }
+

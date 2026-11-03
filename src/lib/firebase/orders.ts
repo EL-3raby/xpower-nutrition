@@ -82,7 +82,7 @@ export async function createOrder(orderData: Omit<Order, 'id' | 'createdAt' | 's
       const productData = itemInfo.data;
 
       const isBundle = Boolean(productData.isBundle || item.isBundle);
-      const bundleItems = productData.bundleItems || item.bundleItems;
+      const bundleItems = (item.bundleItems && item.bundleItems.length > 0) ? item.bundleItems : productData.bundleItems;
 
       if (isBundle && bundleItems && bundleItems.length > 0) {
         // Record sales count increment for the bundle itself

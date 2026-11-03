@@ -1,5 +1,14 @@
 import { Timestamp } from 'firebase/firestore';
 
+export interface BundleVariantOption {
+  productId: string;
+  name: string;
+  flavorLabel: string;
+  image?: string;
+  price: number;
+  stock: number;
+}
+
 export interface BundleItem {
   productId: string;
   name: string;
@@ -8,6 +17,7 @@ export interface BundleItem {
   quantity: number;
   availableFlavors?: string[];
   selectedFlavor?: string;
+  flavorOptions?: BundleVariantOption[];
 }
 
 export interface Product {

@@ -19,6 +19,24 @@ export default function ProductDetailsClient({ product }: ProductDetailsClientPr
   const { addToCart } = useCart();
   const [selectedImage, setSelectedImage] = useState(product.images[0] || '/images/no-image.png');
   const [selectedFlavor, setSelectedFlavor] = useState(product.flavors?.[0] || '');
+  const [selectedBundleVariants, setSelectedBundleVariants] = useState<Record<string, { productId: string; name: string; flavorLabel: string }>>(() => {
+    if (product.isBundle && product.bundleItems) {
+      const initial: Record<string, { productId: string; name: string; flavorLabel: string }> = {};
+      product.bundleItems.forEach(item => {
+        if (item.flavorOptions && item.flavorOptions.length > 0) {
+          const inStock = item.flavorOptions.find(o => o.stock > 0) || item.flavorOptions[0];
+          initial[item.productId] = {
+            productId: inStock.productId,
+            name: inStock.name,
+            flavorLabel: inStock.flavorLabel
+          };
+        }
+      });
+      return initial;
+    }
+    return {};
+  });
+
   const [selectedBundleFlavors, setSelectedBundleFlavors] = useState<Record<string, string>>(() => {
     if (product.isBundle && product.bundleItems) {
       const initial: Record<string, string> = {};
@@ -165,18 +183,33 @@ export default function ProductDetailsClient({ product }: ProductDetailsClientPr
     if (product.isBundle && product.bundleItems && product.bundleItems.length > 0) {
       const flavorParts: string[] = [];
       const structuredItems = product.bundleItems.map(item => {
-        const chosen = selectedBundleFlavors[item.productId] || item.availableFlavors?.[0] || '';
-        if (chosen) {
-          flavorParts.push(`${item.name} (${chosen})`);
+        if (item.flavorOptions && item.flavorOptions.length > 0) {
+          const chosen = selectedBundleVariants[item.productId] || {
+            productId: item.flavorOptions[0].productId,
+            name: item.flavorOptions[0].name,
+            flavorLabel: item.flavorOptions[0].flavorLabel
+          };
+          flavorParts.push(`${item.name} (${chosen.flavorLabel})`);
+          return {
+            productId: chosen.productId,
+            name: chosen.name,
+            quantity: item.quantity,
+            selectedFlavor: chosen.flavorLabel
+          };
         } else {
-          flavorParts.push(item.name);
+          const legacyChosen = selectedBundleFlavors[item.productId] || item.availableFlavors?.[0] || '';
+          if (legacyChosen) {
+            flavorParts.push(`${item.name} (${legacyChosen})`);
+          } else {
+            flavorParts.push(item.name);
+          }
+          return {
+            productId: item.productId,
+            name: item.name,
+            quantity: item.quantity,
+            selectedFlavor: legacyChosen || undefined
+          };
         }
-        return {
-          productId: item.productId,
-          name: item.name,
-          quantity: item.quantity,
-          selectedFlavor: chosen || undefined
-        };
       });
 
       const combinedFlavorStr = flavorParts.join(' + ');
@@ -478,8 +511,45 @@ export default function ProductDetailsClient({ product }: ProductDetailsClientPr
                         </div>
                       </div>
 
-                      {/* Flavor Selector for this Component */}
-                      {bItem.availableFlavors && bItem.availableFlavors.length > 0 && (
+                      {/* Flavor Selector for this Component (Product Variants / Options) */}
+                      {bItem.flavorOptions && bItem.flavorOptions.length > 0 ? (
+                        <div className="pt-2 border-t border-white/5 space-y-1.5">
+                          <span className="text-[11px] text-text-muted font-bold block">
+                            اختار نكهة {bItem.name}:
+                          </span>
+                          <div className="flex flex-wrap gap-2">
+                            {bItem.flavorOptions.map((opt) => {
+                              const isSelected = selectedBundleVariants[bItem.productId]?.productId === opt.productId;
+                              const isOut = opt.stock <= 0;
+                              return (
+                                <button
+                                  key={opt.productId}
+                                  type="button"
+                                  disabled={isOut}
+                                  onClick={() => setSelectedBundleVariants(prev => ({
+                                    ...prev,
+                                    [bItem.productId]: {
+                                      productId: opt.productId,
+                                      name: opt.name,
+                                      flavorLabel: opt.flavorLabel
+                                    }
+                                  }))}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-product-title font-bold transition-all border ${
+                                    isOut
+                                      ? 'opacity-35 border-white/5 bg-black/40 text-text-muted cursor-not-allowed line-through'
+                                      : isSelected
+                                      ? 'border-accent-red text-white bg-accent-red shadow-md shadow-accent-red/30 cursor-pointer'
+                                      : 'border-white/10 text-white/70 bg-[#0a0a0a] hover:border-white/20 hover:text-white cursor-pointer'
+                                  }`}
+                                >
+                                  <span>{opt.flavorLabel}</span>
+                                  {isOut && <span className="text-[9px] mr-1 text-red-400 font-normal">(غير متوفر)</span>}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ) : bItem.availableFlavors && bItem.availableFlavors.length > 0 ? (
                         <div className="pt-2 border-t border-white/5 space-y-1.5">
                           <span className="text-[11px] text-text-muted font-bold block">
                             اختار نكهة {bItem.name}:
@@ -504,7 +574,7 @@ export default function ProductDetailsClient({ product }: ProductDetailsClientPr
                             })}
                           </div>
                         </div>
-                      )}
+                      ) : null}
                     </div>
                   ))}
                 </div>

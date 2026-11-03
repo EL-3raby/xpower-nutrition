@@ -12,6 +12,7 @@ import { Category, Product, BundleItem } from '@/lib/types';
 import { isDummyFirebase } from '@/lib/firebase/client';
 import Spinner from '@/components/ui/Spinner';
 import BundleProductPicker from '@/components/admin/BundleProductPicker';
+import BundleItemCard from '@/components/admin/BundleItemCard';
 
 // Zod Validation Schema (matches create)
 const productSchema = z.object({
@@ -80,12 +81,24 @@ function EditProductContent() {
         return;
       }
       try {
-        const [fetchedProduct, fetchedCats] = await Promise.all([
+        const [fetchedProduct, fetchedCats, fetchedProducts] = await Promise.all([
           getProductById(productId),
-          getCategories()
+          getCategories(),
+          getProducts(undefined, false)
         ]);
         
-        setCategories(fetchedCats.filter(c => c.isActive));
+        const activeCats = fetchedCats.filter(c => c.isActive);
+        if (!activeCats.some(c => c.slug === 'bundles')) {
+          activeCats.unshift({
+            id: 'cat-bundles',
+            name: 'باندلز',
+            slug: 'bundles',
+            order: 0,
+            isActive: true
+          });
+        }
+        setCategories(activeCats);
+        setAllProducts(fetchedProducts.filter(p => p.id !== productId && !p.isBundle));
 
         if (fetchedProduct) {
           setValue('name', fetchedProduct.name);
@@ -102,6 +115,11 @@ function EditProductContent() {
           setValue('stock', fetchedProduct.stock);
           setValue('isActive', fetchedProduct.isActive);
           setValue('isFreeShipping', Boolean(fetchedProduct.isFreeShipping));
+
+          if (fetchedProduct.isBundle) {
+            setIsBundle(true);
+            setBundleItems(fetchedProduct.bundleItems || []);
+          }
         } else {
           setErrorMsg('المنتج المطلوب غير موجود.');
         }
@@ -115,19 +133,33 @@ function EditProductContent() {
     loadData();
   }, [productId, setValue]);
 
+  const recalculateBundleValues = (items: BundleItem[]) => {
+    if (items.length > 0) {
+      const totalOriginal = items.reduce((acc, it) => acc + (it.price * it.quantity), 0);
+      const virtualStock = Math.min(...items.map(it => {
+        if (it.flavorOptions && it.flavorOptions.length > 0) {
+          const totalFlavorStock = it.flavorOptions.reduce((sum, opt) => {
+            const p = allProducts.find(prod => prod.id === opt.productId);
+            return sum + (p ? p.stock : (opt.stock || 0));
+          }, 0);
+          return Math.floor(totalFlavorStock / it.quantity);
+        }
+        const p = allProducts.find(prod => prod.id === it.productId);
+        return p ? Math.floor(p.stock / it.quantity) : 0;
+      }));
+      setValue('oldPrice', totalOriginal);
+      setValue('stock', Math.max(0, virtualStock));
+    } else {
+      setValue('oldPrice', undefined);
+      setValue('stock', 0);
+    }
+  };
+
   const handleToggleBundle = (enabled: boolean) => {
     setIsBundle(enabled);
     if (enabled) {
       setValue('category', 'bundles');
-      if (bundleItems.length > 0) {
-        const totalOriginal = bundleItems.reduce((acc, it) => acc + (it.price * it.quantity), 0);
-        const virtualStock = Math.min(...bundleItems.map(it => {
-          const p = allProducts.find(prod => prod.id === it.productId);
-          return p ? Math.floor(p.stock / it.quantity) : 0;
-        }));
-        setValue('oldPrice', totalOriginal);
-        setValue('stock', Math.max(0, virtualStock));
-      }
+      recalculateBundleValues(bundleItems);
     }
   };
 
@@ -139,6 +171,13 @@ function EditProductContent() {
         updated = [...prev];
         updated[existingIdx].quantity += qty;
       } else {
+        let flavorLabel = targetProduct.name;
+        if (targetProduct.name.includes('_')) {
+          flavorLabel = targetProduct.name.split('_').slice(1).join(' ').trim();
+        } else if (targetProduct.name.includes(' - ')) {
+          flavorLabel = targetProduct.name.split(' - ').slice(1).join(' ').trim();
+        }
+
         updated = [
           ...prev,
           {
@@ -147,19 +186,22 @@ function EditProductContent() {
             image: targetProduct.images?.[0] || '',
             price: targetProduct.price,
             quantity: qty,
-            availableFlavors: targetProduct.flavors || []
+            availableFlavors: targetProduct.flavors || [],
+            flavorOptions: [
+              {
+                productId: targetProduct.id!,
+                name: targetProduct.name,
+                flavorLabel: flavorLabel || targetProduct.name,
+                image: targetProduct.images?.[0] || '',
+                price: targetProduct.price,
+                stock: targetProduct.stock
+              }
+            ]
           }
         ];
       }
 
-      const totalOriginal = updated.reduce((acc, it) => acc + (it.price * it.quantity), 0);
-      const virtualStock = Math.min(...updated.map(it => {
-        const p = allProducts.find(prod => prod.id === it.productId);
-        return p ? Math.floor(p.stock / it.quantity) : 0;
-      }));
-      setValue('oldPrice', totalOriginal);
-      setValue('stock', Math.max(0, virtualStock));
-
+      recalculateBundleValues(updated);
       return updated;
     });
   };
@@ -169,55 +211,23 @@ function EditProductContent() {
     const targetProduct = allProducts.find(p => p.id === selectedProductIdToAdd);
     if (!targetProduct) return;
 
-    setBundleItems(prev => {
-      const existingIdx = prev.findIndex(item => item.productId === targetProduct.id);
-      let updated: BundleItem[];
-      if (existingIdx > -1) {
-        updated = [...prev];
-        updated[existingIdx].quantity += selectedProductQtyToAdd;
-      } else {
-        updated = [
-          ...prev,
-          {
-            productId: targetProduct.id!,
-            name: targetProduct.name,
-            image: targetProduct.images?.[0] || '',
-            price: targetProduct.price,
-            quantity: selectedProductQtyToAdd,
-            availableFlavors: targetProduct.flavors || []
-          }
-        ];
-      }
-
-      const totalOriginal = updated.reduce((acc, it) => acc + (it.price * it.quantity), 0);
-      const virtualStock = Math.min(...updated.map(it => {
-        const p = allProducts.find(prod => prod.id === it.productId);
-        return p ? Math.floor(p.stock / it.quantity) : 0;
-      }));
-      setValue('oldPrice', totalOriginal);
-      setValue('stock', Math.max(0, virtualStock));
-
-      return updated;
-    });
-
+    handleAddProductFromPicker(targetProduct, selectedProductQtyToAdd);
     setSelectedProductIdToAdd('');
     setSelectedProductQtyToAdd(1);
+  };
+
+  const handleUpdateBundleItem = (updatedItem: BundleItem) => {
+    setBundleItems(prev => {
+      const updated = prev.map(item => item.productId === updatedItem.productId ? updatedItem : item);
+      recalculateBundleValues(updated);
+      return updated;
+    });
   };
 
   const handleRemoveBundleItem = (productId: string) => {
     setBundleItems(prev => {
       const updated = prev.filter(item => item.productId !== productId);
-      if (updated.length > 0) {
-        const totalOriginal = updated.reduce((acc, it) => acc + (it.price * it.quantity), 0);
-        const virtualStock = Math.min(...updated.map(it => {
-          const p = allProducts.find(prod => prod.id === it.productId);
-          return p ? Math.floor(p.stock / it.quantity) : 0;
-        }));
-        setValue('oldPrice', totalOriginal);
-        setValue('stock', Math.max(0, virtualStock));
-      } else {
-        setValue('oldPrice', undefined);
-      }
+      recalculateBundleValues(updated);
       return updated;
     });
   };
@@ -231,13 +241,7 @@ function EditProductContent() {
         }
         return item;
       });
-      const totalOriginal = updated.reduce((acc, it) => acc + (it.price * it.quantity), 0);
-      const virtualStock = Math.min(...updated.map(it => {
-        const p = allProducts.find(prod => prod.id === it.productId);
-        return p ? Math.floor(p.stock / it.quantity) : 0;
-      }));
-      setValue('oldPrice', totalOriginal);
-      setValue('stock', Math.max(0, virtualStock));
+      recalculateBundleValues(updated);
       return updated;
     });
   };
@@ -371,7 +375,9 @@ function EditProductContent() {
         images: values.images,
         stock: values.stock,
         isActive: values.isActive,
-        isFreeShipping: values.isFreeShipping ?? false
+        isFreeShipping: values.isFreeShipping ?? false,
+        isBundle: isBundle || false,
+        bundleItems: isBundle ? bundleItems : undefined
       };
 
       await updateProduct(productId, payload);
@@ -549,73 +555,20 @@ function EditProductContent() {
 
                     {bundleItems.length === 0 ? (
                       <div className="border border-dashed border-white/10 p-6 rounded-xl text-center text-text-muted text-xs">
-                        لم تقم بإضافة أي منتجات للباقة بعد. اختر منتجاً من القائمة أعلاه واضغط على زر إضافة.
+                        لم تقم بإضافة أي منتجات للباقة بعد. ابحث عن منتج أو اختره من القائمة واضغط على زر الإضافة.
                       </div>
                     ) : (
-                      <div className="space-y-2.5">
-                        {bundleItems.map((item) => {
-                          const originalProd = allProducts.find(p => p.id === item.productId);
-                          const currentStock = originalProd?.stock ?? 0;
-                          return (
-                            <div key={item.productId} className="bg-bg-primary border border-white/10 p-3 sm:p-4 rounded-xl flex items-center justify-between gap-3">
-                              <div className="flex items-center gap-3 min-w-0">
-                                <div className="w-12 h-12 rounded-lg bg-white/5 border border-white/10 p-1 shrink-0 flex items-center justify-center overflow-hidden">
-                                  {item.image ? (
-                                    <img src={item.image} alt={item.name} className="w-full h-full object-contain" />
-                                  ) : (
-                                    <span className="material-symbols-outlined text-text-muted">image</span>
-                                  )}
-                                </div>
-                                <div className="min-w-0">
-                                  <h4 className="text-white font-bold text-xs sm:text-sm truncate">{item.name}</h4>
-                                  <div className="flex flex-wrap items-center gap-2 mt-1 text-[11px] text-text-muted">
-                                    <span className="font-mono text-white font-bold">{item.price} EGP</span>
-                                    <span>•</span>
-                                    <span>المخزون الحالي: <strong className={currentStock > 0 ? 'text-emerald-400 font-mono' : 'text-accent-red font-mono'}>{currentStock}</strong></span>
-                                    {item.availableFlavors && item.availableFlavors.length > 0 && (
-                                      <>
-                                        <span>•</span>
-                                        <span className="text-amber-400/90 text-[10px] bg-amber-500/10 px-2 py-0.5 rounded">
-                                          نكهات يختارها العميل: {item.availableFlavors.join('، ')}
-                                        </span>
-                                      </>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-3 shrink-0">
-                                {/* Quantity Stepper */}
-                                <div className="flex items-center bg-[#050505] border border-white/10 rounded-lg overflow-hidden">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleUpdateBundleItemQty(item.productId, -1)}
-                                    className="px-2.5 py-1 text-text-muted hover:text-white hover:bg-white/5 transition-colors text-xs font-bold"
-                                  >
-                                    -
-                                  </button>
-                                  <span className="px-2 text-xs font-bold font-mono text-white">{item.quantity}</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleUpdateBundleItemQty(item.productId, 1)}
-                                    className="px-2.5 py-1 text-text-muted hover:text-white hover:bg-white/5 transition-colors text-xs font-bold"
-                                  >
-                                    +
-                                  </button>
-                                </div>
-
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveBundleItem(item.productId)}
-                                  className="w-8 h-8 rounded-lg bg-accent-red/10 hover:bg-accent-red/20 text-accent-red flex items-center justify-center transition-colors cursor-pointer"
-                                  title="حذف من الباقة"
-                                >
-                                  <span className="material-symbols-outlined text-base">delete</span>
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
+                      <div className="space-y-3">
+                        {bundleItems.map((item) => (
+                          <BundleItemCard
+                            key={item.productId}
+                            item={item}
+                            allProducts={allProducts}
+                            onUpdateQty={(delta) => handleUpdateBundleItemQty(item.productId, delta)}
+                            onRemove={() => handleRemoveBundleItem(item.productId)}
+                            onUpdateItem={handleUpdateBundleItem}
+                          />
+                        ))}
                       </div>
                     )}
                   </div>
