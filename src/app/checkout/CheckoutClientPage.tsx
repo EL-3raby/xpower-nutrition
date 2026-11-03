@@ -1169,7 +1169,7 @@ export default function CheckoutClientPage() {
                           الدفع عند الاستلام
                         </div>
                         <div className="text-[11px] text-text-muted truncate">
-                          {calculatedShippingCost === 0 ? `شحن مجاني (ديبوزيت ${codDepositAmount} EGP)` : `ديبوزيت تأكيدي (${codDepositAmount} EGP) يُخصم من الإجمالي`}
+                          {calculatedShippingCost === 0 ? `شحن مجاني (عربون ${codDepositAmount} جنيه بس)` : `عربون ${codDepositAmount} جنيه بس والباقي كاش للمندوب`}
                         </div>
                       </div>
                     </div>
@@ -1380,13 +1380,13 @@ export default function CheckoutClientPage() {
                     </div>
                     <div className="text-[11px] sm:text-xs text-text-muted mt-0.5">
                       {!selectedPaymentMethod
-                        ? 'اضغط على أي من الخيارات الثلاثة أعلاه (الدفع عند الاستلام، فودافون كاش، أو انستاباي) لاختيارها.'
+                        ? 'اختار الطريقة اللي تناسبك فوق (دفع عند الاستلام، فودافون كاش، أو انستاباي).'
                         : paymentProofFile
-                        ? 'تم حفظ البيانات بنجاح، اضغط لتعديلها.'
+                        ? 'تمام! بيانات التحويل اتسجلت، دوس لو حابب تعدلها.'
                         : selectedPaymentMethod === 'cod'
                         ? calculatedShippingCost === 0
-                          ? `طلبك مؤهل للشحن المجاني، يُطلب ديبوزيت تأكيدي (${codDepositAmount} EGP) يُخصم بالكامل من إجمالي طلبك.`
-                          : `يُطلب دفع ديبوزيت تأكيدي (${codDepositAmount} EGP) يُخصم بالكامل من إجمالي طلبك لتأكيد الجدية وتجهيز الشحنة.`
+                          ? `أوردرك شحنه مجاني، بتدفع بس ${codDepositAmount} جنيه عربون تأكيد بيتخصم من إجمالي الأوردر.`
+                          : `بتدفع عربون بسيط ${codDepositAmount} جنيه بيتخصم من إجمالي الأوردر عشان نجهزه ونشحنه فوراً.`
                         : 'اضغط لعرض بيانات التحويل وإرفاق الإيصال.'}
                     </div>
                   </div>
@@ -1452,13 +1452,13 @@ export default function CheckoutClientPage() {
                       <div className="min-w-0">
                         <h3 className="font-product-title font-bold text-white text-sm sm:text-lg truncate">
                           {selectedPaymentMethod === 'cod'
-                            ? 'الدفع عند الاستلام (ديبوزيت الشحن)'
+                            ? `الدفع عند الاستلام (عربون ${codDepositAmount} جنيه)`
                             : selectedPaymentMethod === 'vodafone_cash'
                             ? 'التحويل عبر فودافون كاش'
                             : 'التحويل عبر انستاباي (InstaPay)'}
                         </h3>
                         <span className="text-[10px] sm:text-[11px] text-text-muted truncate block">
-                          {selectedPaymentMethod === 'cod' ? 'سداد قيمة الشحن لتأكيد خروج الشحنة' : 'سداد إجمالي الطلب مسبقاً وتأكيده'}
+                          {selectedPaymentMethod === 'cod' ? 'عربون بسيط بيتخصم من الأوردر لتأكيد وتجهيز شحنتك فوراً' : 'سداد إجمالي الطلب مسبقاً وتأكيده'}
                         </span>
                       </div>
                     </div>
@@ -1486,7 +1486,7 @@ export default function CheckoutClientPage() {
                           }`}
                         >
                           <span className="material-symbols-outlined text-xs sm:text-sm">local_shipping</span>
-                          <span className="truncate">كاش (ديبوزيت)</span>
+                          <span className="truncate">دفع عند الاستلام</span>
                         </button>
                       )}
                       {isVodafoneCashEnabled && (
@@ -1533,7 +1533,7 @@ export default function CheckoutClientPage() {
                         {!selectedGovernorate ? (
                           <div className="flex items-center gap-3 p-3.5 sm:p-4 bg-white/5 border border-white/10 rounded-xl text-text-muted text-xs sm:text-sm">
                             <span className="material-symbols-outlined text-accent-red text-lg sm:text-xl shrink-0">location_on</span>
-                            <span>يرجى اختيار المحافظة والمدينة أولاً في بيانات الشحن لمعرفة مبلغ ديبوزيت التوصيل المطلوب.</span>
+                            <span>اختار المحافظة والمدينة الأول في بيانات الشحن عشان تكمّل الأوردر.</span>
                           </div>
                         ) : (
                           <>
@@ -1543,7 +1543,7 @@ export default function CheckoutClientPage() {
                                 <span className="material-symbols-outlined text-lg sm:text-xl shrink-0">verified</span>
                                 <div>
                                   <div className="font-bold">
-                                    مبروك! طلبك مؤهل للشحن المجاني — لتأكيد الطلب، يُطلب دفع ديبوزيت تأكيدي بسيط: <strong className="font-mono text-white text-sm sm:text-base mx-1">{codDepositAmount} جنيه</strong> (سيُخصم بالكامل من إجمالي طلبك)
+                                    عاش يا بطل! أوردرك شحنه مجاني 🎉 بتدفع بس عربون تأكيد <strong className="font-mono text-white text-sm sm:text-base mx-1">{codDepositAmount} جنيه</strong> (بيتخصم بالكامل من تمن الأوردر، والباقي بتدفعه كاش للمندوب لما تستلم وتطمن على حاجتك).
                                   </div>
                                 </div>
                               </div>
@@ -1552,7 +1552,7 @@ export default function CheckoutClientPage() {
                                 <span className="material-symbols-outlined text-accent-red text-lg sm:text-xl shrink-0">info</span>
                                 <div>
                                   <div className="font-bold">
-                                    لتأكيد وتجهيز طلبك، يُطلب دفع ديبوزيت تأكيدي: <strong className="text-accent-red font-mono text-sm sm:text-base mx-1">{codDepositAmount} جنيه</strong> (سيُخصم بالكامل من إجمالي طلبك، والباقي كاش للمندوب)
+                                    عشان نأكد أوردرك ونجهزه للشحن فوراً، بندفع عربون بسيط <strong className="text-accent-red font-mono text-sm sm:text-base mx-1">{codDepositAmount} جنيه</strong> (بيتخصم بالكامل من إجمالي الأوردر، والباقي بتدفعه كاش للمندوب وقت الاستلام بعد ما تعاين حاجتك).
                                   </div>
                                 </div>
                               </div>
@@ -1562,14 +1562,14 @@ export default function CheckoutClientPage() {
                             <div className="grid grid-cols-2 gap-2 sm:gap-3">
                               <div className="bg-[#121212] border border-accent-red/30 p-2.5 sm:p-3.5 rounded-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
                                 <span className="text-[11px] sm:text-xs text-text-muted">
-                                  ديبوزيت تأكيدي يُخصم من الطلب:
+                                  العربون المطلوب دلوقتي (مخصوم):
                                 </span>
                                 <span className="font-product-title font-bold text-accent-red text-sm sm:text-lg font-mono" dir="ltr">
                                   {codDepositAmount} EGP
                                 </span>
                               </div>
                               <div className="bg-[#121212] border border-white/10 p-2.5 sm:p-3.5 rounded-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-                                <span className="text-[11px] sm:text-xs text-text-muted">الباقي كاش للمندوب:</span>
+                                <span className="text-[11px] sm:text-xs text-text-muted">الباقي كاش للمندوب وقت الاستلام:</span>
                                 <span className="font-product-title font-bold text-white text-sm sm:text-lg font-mono" dir="ltr">
                                   {Math.max(0, finalTotal - codDepositAmount).toFixed(2)} EGP
                                 </span>
@@ -1578,8 +1578,8 @@ export default function CheckoutClientPage() {
 
                             {/* Sub-choice: Vodafone Cash vs InstaPay */}
                             <div className="space-y-1.5 sm:space-y-2">
-                              <label className="text-xs font-bold text-text-muted block">
-                                طريقة تحويل الديبوزيت ({codDepositAmount} جنيه):
+                              <label className="text-xs font-bold text-white block">
+                                هتحوّل الـ {codDepositAmount} جنيه إزاي؟ اختار طريقتك:
                               </label>
                               <div className="grid grid-cols-2 gap-2 sm:gap-3">
                                 <button
@@ -1618,7 +1618,7 @@ export default function CheckoutClientPage() {
                             {watchedDepositMethod === 'vodafone_cash' ? (
                               <div className="space-y-2.5 sm:space-y-3 pt-1">
                                 <p className="text-xs text-text-muted leading-relaxed">
-                                  1. قم بتحويل مبلغ الديبوزيت (<strong className="text-white font-mono">{codDepositAmount} جنيه</strong>) إلى محفظة فودافون كاش:
+                                  1. حوّل الـ <strong className="text-white font-mono">{codDepositAmount} جنيه</strong> على رقم فودافون كاش ده:
                                 </p>
                                 <div className="bg-[#121212] border border-white/10 p-2.5 sm:p-3.5 rounded-xl flex items-center justify-between gap-2">
                                   <div className="flex items-center gap-2.5 min-w-0">
@@ -1641,7 +1641,7 @@ export default function CheckoutClientPage() {
                                       <span className="material-symbols-outlined text-sm">
                                         {copiedField === 'cod-vf' ? 'check' : 'content_copy'}
                                       </span>
-                                      <span>{copiedField === 'cod-vf' ? 'تم النسخ' : 'نسخ'}</span>
+                                      <span>{copiedField === 'cod-vf' ? 'تم النسخ' : 'نسخ الرقم'}</span>
                                     </button>
                                     <button
                                       type="button"
@@ -1651,13 +1651,13 @@ export default function CheckoutClientPage() {
                                       <div className="w-4 h-4 shrink-0 flex items-center justify-center">
                                         <img src="/images/vodafone.png" alt="Vodafone Cash" className="w-full h-full object-contain" />
                                       </div>
-                                      <span>الدفع من التطبيق</span>
+                                      <span>ادفع من التطبيق</span>
                                     </button>
                                   </div>
                                 </div>
 
                                 <div>
-                                  <label htmlFor="depositSenderInfo" className="text-xs font-bold text-text-muted mb-1 block">رقم المحفظة المحول منها الديبوزيت *</label>
+                                  <label htmlFor="depositSenderInfo" className="text-xs font-bold text-text-muted mb-1 block">2. اكتب رقم الموبايل اللي حوّلت منه *</label>
                                   <input
                                     id="depositSenderInfo"
                                     type="tel"
@@ -1676,7 +1676,7 @@ export default function CheckoutClientPage() {
                             ) : (
                               <div className="space-y-2.5 sm:space-y-3 pt-1">
                                 <p className="text-xs text-text-muted leading-relaxed">
-                                  1. قم بتحويل مبلغ الديبوزيت (<strong className="text-white font-mono">{codDepositAmount} جنيه</strong>) إلى حساب انستاباي:
+                                  1. حوّل الـ <strong className="text-white font-mono">{codDepositAmount} جنيه</strong> على عنوان انستاباي ده:
                                 </p>
                                 <div className="bg-[#121212] border border-white/10 p-2.5 sm:p-3.5 rounded-xl flex items-center justify-between gap-2">
                                   <div className="flex items-center gap-2.5 min-w-0">
@@ -1699,7 +1699,7 @@ export default function CheckoutClientPage() {
                                       <span className="material-symbols-outlined text-sm">
                                         {copiedField === 'cod-insta' ? 'check' : 'content_copy'}
                                       </span>
-                                      <span>{copiedField === 'cod-insta' ? 'تم النسخ' : 'نسخ'}</span>
+                                      <span>{copiedField === 'cod-insta' ? 'تم النسخ' : 'نسخ العنوان'}</span>
                                     </button>
                                     <button
                                       type="button"
@@ -1709,13 +1709,13 @@ export default function CheckoutClientPage() {
                                       <div className="w-4 h-4 shrink-0 flex items-center justify-center">
                                         <img src="/images/instapay.png" alt="InstaPay" className="w-full h-full object-contain" />
                                       </div>
-                                      <span>الدفع من التطبيق</span>
+                                      <span>ادفع من التطبيق</span>
                                     </button>
                                   </div>
                                 </div>
 
                                 <div>
-                                  <label htmlFor="depositSenderInfo" className="text-xs font-bold text-text-muted mb-1 block">رقم أو عنوان انستاباي (IPA) المحول منه *</label>
+                                  <label htmlFor="depositSenderInfo" className="text-xs font-bold text-text-muted mb-1 block">2. اكتب يوزرنيم أو رقم حسابك على انستاباي اللي حوّلت منه *</label>
                                   <input
                                     id="depositSenderInfo"
                                     type="text"
@@ -1735,7 +1735,7 @@ export default function CheckoutClientPage() {
 
                             {/* Receipt Upload Dropzone */}
                             <div>
-                              <label className="text-xs font-bold text-text-muted mb-1.5 block">إرفاق صورة إيصال تحويل الديبوزيت *</label>
+                              <label className="text-xs font-bold text-text-muted mb-1.5 block">3. ارفع سكرين شوت أو صورة وصل التحويل *</label>
                               <input
                                 type="file"
                                 accept="image/*"
@@ -1753,7 +1753,7 @@ export default function CheckoutClientPage() {
                                     <img src={paymentProofPreview} alt="Receipt Preview" className="max-h-24 sm:max-h-32 max-w-full object-contain border border-white/10 rounded-lg shadow-md" />
                                     <span className="text-xs text-accent-red font-bold flex items-center gap-1">
                                       <span className="material-symbols-outlined text-sm">cached</span>
-                                      <span>تغيير صورة الإيصال</span>
+                                      <span>تغيير صورة الوصل</span>
                                     </span>
                                   </div>
                                 ) : (
@@ -1761,8 +1761,8 @@ export default function CheckoutClientPage() {
                                     <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-text-muted group-hover:text-accent-red group-hover:border-accent-red/30 transition-colors">
                                       <span className="material-symbols-outlined text-lg sm:text-xl">upload_file</span>
                                     </div>
-                                    <span className="text-xs font-bold text-white">اضغط هنا لرفع صورة الإيصال</span>
-                                    <span className="text-[10px] text-text-muted">JPG, PNG أو WebP (الحد الأقصى 5 ميجابايت)</span>
+                                    <span className="text-xs font-bold text-white">دوس هنا وارفع سكرين شوت أو صورة التحويل</span>
+                                    <span className="text-[10px] text-text-muted">صورة واضحة لرسالة أو إشعار التحويل (JPG, PNG أو WebP)</span>
                                   </div>
                                 )}
                               </label>
@@ -1799,7 +1799,7 @@ export default function CheckoutClientPage() {
                         </div>
 
                         <div className="space-y-2.5 sm:space-y-3 text-xs text-text-muted leading-relaxed">
-                          <p>1. قم بتحويل المبلغ أعلاه إلى رقم محفظة فودافون كاش الرسمية التالية:</p>
+                          <p>1. حوّل المبلغ ده على رقم فودافون كاش ده:</p>
                           <div className="bg-[#121212] border border-white/10 p-2.5 sm:p-3.5 rounded-xl flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2.5 min-w-0">
                               <div className="w-8 h-8 rounded-lg bg-rose-500/10 border border-rose-500/20 p-1.5 shrink-0 flex items-center justify-center">
@@ -1821,7 +1821,7 @@ export default function CheckoutClientPage() {
                                 <span className="material-symbols-outlined text-sm">
                                   {copiedField === 'vf-full' ? 'check' : 'content_copy'}
                                 </span>
-                                <span>{copiedField === 'vf-full' ? 'تم النسخ' : 'نسخ'}</span>
+                                <span>{copiedField === 'vf-full' ? 'تم النسخ' : 'نسخ الرقم'}</span>
                               </button>
                               <button
                                 type="button"
@@ -1831,15 +1831,15 @@ export default function CheckoutClientPage() {
                                 <div className="w-4 h-4 shrink-0 flex items-center justify-center">
                                   <img src="/images/vodafone.png" alt="Vodafone Cash" className="w-full h-full object-contain" />
                                 </div>
-                                <span>الدفع من التطبيق</span>
+                                <span>ادفع من التطبيق</span>
                               </button>
                             </div>
                           </div>
-                          <p className="pt-0.5">2. اكتب رقم المحفظة المحول منها، وارفق صورة إيصال التحويل:</p>
+                          <p className="pt-0.5">2. اكتب رقم الموبايل اللي حوّلت منه، وارفع صورة وصل التحويل:</p>
                         </div>
 
                         <div>
-                          <label htmlFor="vodafoneCashNumber" className="text-xs font-bold text-text-muted mb-1 block">رقم المحفظة المحول منها (11 رقم) *</label>
+                          <label htmlFor="vodafoneCashNumber" className="text-xs font-bold text-text-muted mb-1 block">رقم الموبايل اللي حوّلت منه (11 رقم) *</label>
                           <input
                             id="vodafoneCashNumber"
                             autoComplete="tel"
@@ -1858,7 +1858,7 @@ export default function CheckoutClientPage() {
 
                         {/* Receipt Upload Dropzone */}
                         <div>
-                          <label className="text-xs font-bold text-text-muted mb-1.5 block">إرفاق صورة إيصال التحويل *</label>
+                          <label className="text-xs font-bold text-text-muted mb-1.5 block">3. ارفع سكرين شوت أو صورة وصل التحويل *</label>
                           <input
                             type="file"
                             accept="image/*"
@@ -1876,7 +1876,7 @@ export default function CheckoutClientPage() {
                                 <img src={paymentProofPreview} alt="Receipt Preview" className="max-h-24 sm:max-h-32 max-w-full object-contain border border-white/10 rounded-lg shadow-md" />
                                 <span className="text-xs text-accent-red font-bold flex items-center gap-1">
                                   <span className="material-symbols-outlined text-sm">cached</span>
-                                  <span>تغيير صورة الإيصال</span>
+                                  <span>تغيير صورة الوصل</span>
                                 </span>
                               </div>
                             ) : (
@@ -1884,8 +1884,8 @@ export default function CheckoutClientPage() {
                                 <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-text-muted group-hover:text-accent-red group-hover:border-accent-red/30 transition-colors">
                                   <span className="material-symbols-outlined text-lg sm:text-xl">upload_file</span>
                                 </div>
-                                <span className="text-xs font-bold text-white">اضغط هنا لرفع صورة الإيصال</span>
-                                <span className="text-[10px] text-text-muted">JPG, PNG أو WebP (الحد الأقصى 5 ميجابايت)</span>
+                                <span className="text-xs font-bold text-white">دوس هنا وارفع سكرين شوت أو صورة التحويل</span>
+                                <span className="text-[10px] text-text-muted">صورة واضحة لرسالة أو إشعار التحويل (JPG, PNG أو WebP)</span>
                               </div>
                             )}
                           </label>
@@ -1920,14 +1920,14 @@ export default function CheckoutClientPage() {
                         </div>
 
                         <div className="space-y-2.5 sm:space-y-3 text-xs text-text-muted leading-relaxed">
-                          <p>1. قم بتحويل المبلغ أعلاه إلى حساب أو عنوان انستاباي الرسمي التالي:</p>
+                          <p>1. حوّل المبلغ ده على عنوان انستاباي ده:</p>
                           <div className="bg-[#121212] border border-white/10 p-2.5 sm:p-3.5 rounded-xl flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2.5 min-w-0">
                               <div className="w-8 h-8 rounded-lg bg-purple-500/10 border border-purple-500/20 p-1.5 shrink-0 flex items-center justify-center">
                                 <img src="/images/instapay.png" alt="InstaPay" className="w-full h-full object-contain" />
                               </div>
                               <div className="flex flex-col text-right min-w-0">
-                                <span className="text-[10px] text-text-muted font-bold">عنوان أو حساب انستاباي (IPA):</span>
+                                <span className="text-[10px] text-text-muted font-bold">عنوان انستاباي (IPA):</span>
                                 <span className="font-mono font-bold text-sm sm:text-lg text-white tracking-wider select-all truncate" dir="ltr">
                                   {siteConfig?.paymentReceivingInfo?.instapayHandle || 'ahmeeedel3raby@instapay'}
                                 </span>
@@ -1942,7 +1942,7 @@ export default function CheckoutClientPage() {
                                 <span className="material-symbols-outlined text-sm">
                                   {copiedField === 'insta-full' ? 'check' : 'content_copy'}
                                 </span>
-                                <span>{copiedField === 'insta-full' ? 'تم النسخ' : 'نسخ'}</span>
+                                <span>{copiedField === 'insta-full' ? 'تم النسخ' : 'نسخ العنوان'}</span>
                               </button>
                               <button
                                 type="button"
@@ -1952,15 +1952,15 @@ export default function CheckoutClientPage() {
                                 <div className="w-4 h-4 shrink-0 flex items-center justify-center">
                                   <img src="/images/instapay.png" alt="InstaPay" className="w-full h-full object-contain" />
                                 </div>
-                                <span>الدفع من التطبيق</span>
+                                <span>ادفع من التطبيق</span>
                               </button>
                             </div>
                           </div>
-                          <p className="pt-0.5">2. اكتب رقم الموبايل أو عنوان انستاباي المحول منه، وارفق صورة الإيصال:</p>
+                          <p className="pt-0.5">2. اكتب يوزرنيم أو رقم حسابك على انستاباي، وارفع صورة وصل التحويل:</p>
                         </div>
 
                         <div>
-                          <label htmlFor="instapayHandle" className="text-xs font-bold text-text-muted mb-1 block">رقم أو عنوان انستاباي (IPA) المحول منه *</label>
+                          <label htmlFor="instapayHandle" className="text-xs font-bold text-text-muted mb-1 block">يوزرنيم أو رقم انستاباي اللي حوّلت منه *</label>
                           <input
                             id="instapayHandle"
                             type="text"
@@ -1978,7 +1978,7 @@ export default function CheckoutClientPage() {
 
                         {/* Receipt Upload Dropzone */}
                         <div>
-                          <label className="text-xs font-bold text-text-muted mb-1.5 block">إرفاق صورة إيصال التحويل *</label>
+                          <label className="text-xs font-bold text-text-muted mb-1.5 block">3. ارفع سكرين شوت أو صورة وصل التحويل *</label>
                           <input
                             type="file"
                             accept="image/*"
@@ -1996,7 +1996,7 @@ export default function CheckoutClientPage() {
                                 <img src={paymentProofPreview} alt="Receipt Preview" className="max-h-24 sm:max-h-32 max-w-full object-contain border border-white/10 rounded-lg shadow-md" />
                                 <span className="text-xs text-accent-red font-bold flex items-center gap-1">
                                   <span className="material-symbols-outlined text-sm">cached</span>
-                                  <span>تغيير صورة الإيصال</span>
+                                  <span>تغيير صورة الوصل</span>
                                 </span>
                               </div>
                             ) : (
@@ -2004,8 +2004,8 @@ export default function CheckoutClientPage() {
                                 <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-text-muted group-hover:text-accent-red group-hover:border-accent-red/30 transition-colors">
                                   <span className="material-symbols-outlined text-lg sm:text-xl">upload_file</span>
                                 </div>
-                                <span className="text-xs font-bold text-white">اضغط هنا لرفع صورة الإيصال</span>
-                                <span className="text-[10px] text-text-muted">JPG, PNG أو WebP (الحد الأقصى 5 ميجابايت)</span>
+                                <span className="text-xs font-bold text-white">دوس هنا وارفع سكرين شوت أو صورة التحويل</span>
+                                <span className="text-[10px] text-text-muted">صورة واضحة لرسالة أو إشعار التحويل (JPG, PNG أو WebP)</span>
                               </div>
                             )}
                           </label>
@@ -2038,7 +2038,7 @@ export default function CheckoutClientPage() {
                       onClick={() => setIsPaymentModalOpen(false)}
                       className="w-full sm:w-auto order-2 sm:order-1 py-2 sm:py-3 px-4 rounded-xl text-text-muted hover:text-white text-xs font-bold transition-colors text-center cursor-pointer"
                     >
-                      إغلاق
+                      رجوع
                     </button>
                     <button
                       type="button"
@@ -2046,7 +2046,7 @@ export default function CheckoutClientPage() {
                       className="w-full sm:w-auto order-1 sm:order-2 py-3.5 sm:py-3 px-6 rounded-xl bg-accent-red hover:bg-accent-red/90 text-white font-product-title font-bold text-sm sm:text-base flex items-center justify-center gap-2 shadow-lg shadow-accent-red/25 transition-transform active:scale-[0.98] cursor-pointer"
                     >
                       <span className="material-symbols-outlined text-lg">check</span>
-                      <span>حفظ وتأكيد بيانات الدفع</span>
+                      <span>أكّد التحويل وكمل الأوردر</span>
                     </button>
                   </div>
                 </div>
