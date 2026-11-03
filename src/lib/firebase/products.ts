@@ -76,6 +76,51 @@ export async function getProductBySlug(slug: string, options?: CacheOptions): Pr
       if (snapshot.empty) return null;
       const docSnapshot = snapshot.docs[0];
       const data = docSnapshot.data();
+
+      // If this is a bundle, resolve live real-time stock for all component flavor options
+      if (data.isBundle && data.bundleItems && Array.isArray(data.bundleItems)) {
+        const refIds = new Set<string>();
+        data.bundleItems.forEach((it: any) => {
+          if (it.productId) refIds.add(it.productId);
+          if (it.flavorOptions && Array.isArray(it.flavorOptions)) {
+            it.flavorOptions.forEach((opt: any) => {
+              if (opt.productId) refIds.add(opt.productId);
+            });
+          }
+        });
+
+        if (refIds.size > 0) {
+          const liveStockMap = new Map<string, number>();
+          await Promise.all(
+            Array.from(refIds).map(async (prodId) => {
+              try {
+                const pSnap = await getDoc(doc(db, 'products', prodId));
+                if (pSnap.exists()) {
+                  const pData = pSnap.data();
+                  liveStockMap.set(prodId, typeof pData.stock === 'number' ? pData.stock : 0);
+                }
+              } catch (e) {
+                console.warn('Failed to fetch live component stock:', prodId, e);
+              }
+            })
+          );
+
+          data.bundleItems = data.bundleItems.map((it: any) => {
+            let updatedOptions = it.flavorOptions;
+            if (updatedOptions && Array.isArray(updatedOptions)) {
+              updatedOptions = updatedOptions.map((opt: any) => ({
+                ...opt,
+                stock: liveStockMap.has(opt.productId) ? liveStockMap.get(opt.productId)! : (opt.stock ?? 0)
+              }));
+            }
+            return {
+              ...it,
+              flavorOptions: updatedOptions
+            };
+          });
+        }
+      }
+
       return {
         id: docSnapshot.id,
         ...data,

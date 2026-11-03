@@ -23,7 +23,7 @@ export default function ProductDetailContainer({ initialProduct, slug }: Product
 
     async function refreshProduct() {
       try {
-        const latest = await getProductBySlug(slug);
+        const latest = await getProductBySlug(slug, { forceRefresh: true });
         if (isSubscribed) {
           if (latest) {
             setProduct(latest);

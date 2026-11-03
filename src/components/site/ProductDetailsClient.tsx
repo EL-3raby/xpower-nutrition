@@ -49,6 +49,30 @@ export default function ProductDetailsClient({ product }: ProductDetailsClientPr
     }
     return {};
   });
+
+  // Synchronize variant selection whenever live product updates
+  useEffect(() => {
+    if (product.isBundle && product.bundleItems) {
+      setSelectedBundleVariants(prev => {
+        const next = { ...prev };
+        product.bundleItems?.forEach(item => {
+          if (item.flavorOptions && item.flavorOptions.length > 0) {
+            const currentSelectedId = prev[item.productId]?.productId;
+            const currentOption = item.flavorOptions.find(o => o.productId === currentSelectedId);
+            if (!currentOption || (currentOption.stock <= 0 && item.flavorOptions.some(o => o.stock > 0))) {
+              const inStock = item.flavorOptions.find(o => o.stock > 0) || item.flavorOptions[0];
+              next[item.productId] = {
+                productId: inStock.productId,
+                name: inStock.name,
+                flavorLabel: inStock.flavorLabel
+              };
+            }
+          }
+        });
+        return next;
+      });
+    }
+  }, [product]);
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState<'desc' | 'usage' | 'shipping'>('desc');
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
