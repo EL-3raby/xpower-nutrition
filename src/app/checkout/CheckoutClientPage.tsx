@@ -672,20 +672,30 @@ export default function CheckoutClientPage() {
         phone: data.phone.trim(),
         address: cleanAddress,
         city: cleanCity,
-        items: cart.map(item => ({
-          productId: item.productId,
-          name: sanitizeText(item.name + (item.flavor ? ` (${item.flavor})` : ''), 150),
-          price: item.price,
-          quantity: item.quantity,
-          flavor: item.flavor || undefined,
-          isBundle: item.isBundle || undefined,
-          bundleItems: item.bundleItems ? item.bundleItems.map(b => ({
-            productId: b.productId,
-            name: sanitizeText(b.name, 100),
-            quantity: b.quantity,
-            selectedFlavor: b.selectedFlavor ? sanitizeText(b.selectedFlavor, 50) : undefined
-          })) : undefined
-        })),
+        items: cart.map(item => {
+          const itemData: any = {
+            productId: item.productId,
+            name: sanitizeText(item.name + (item.flavor ? ` (${item.flavor})` : ''), 150),
+            price: item.price,
+            quantity: item.quantity,
+          };
+          if (item.flavor) itemData.flavor = item.flavor;
+          if (item.isBundle) itemData.isBundle = true;
+          if (item.bundleItems && item.bundleItems.length > 0) {
+            itemData.bundleItems = item.bundleItems.map(b => {
+              const bItem: any = {
+                productId: b.productId,
+                name: sanitizeText(b.name, 100),
+                quantity: b.quantity,
+              };
+              if (b.selectedFlavor) {
+                bItem.selectedFlavor = sanitizeText(b.selectedFlavor, 50);
+              }
+              return bItem;
+            });
+          }
+          return itemData;
+        }),
         totalPrice: finalTotal,
         paymentMethod: data.paymentMethod,
         vodafoneCashNumber: isVodafone && data.vodafoneCashNumber ? data.vodafoneCashNumber.trim() : undefined,

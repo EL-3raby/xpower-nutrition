@@ -2,7 +2,7 @@ import { db, isDummyFirebase } from './client';
 import { 
   collection, 
   doc, 
-  getDoc,
+  getDoc, 
   getDocs, 
   query, 
   orderBy, 
@@ -16,6 +16,35 @@ import {
 import { Order, Product } from '../types';
 import { logAdminActivity } from './admin-actions';
 import { invalidateCache } from '../cache';
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (typeof value !== 'object' || value === null) return false;
+  const proto = Object.getPrototypeOf(value);
+  return proto === null || proto === Object.prototype;
+}
+
+/**
+ * Recursively removes all `undefined` values from an object or array.
+ * Preserves custom class instances (Firestore Timestamp, FieldValue, Date, etc.)
+ */
+export function removeUndefinedDeep<T>(data: T): T {
+  if (data === null || data === undefined) return data;
+  if (Array.isArray(data)) {
+    return data
+      .filter(item => item !== undefined)
+      .map(item => removeUndefinedDeep(item)) as unknown as T;
+  }
+  if (isPlainObject(data)) {
+    const clean: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (value !== undefined) {
+        clean[key] = removeUndefinedDeep(value);
+      }
+    }
+    return clean as unknown as T;
+  }
+  return data;
+}
 
 // Place an order using Firestore Transaction for Stock Safeguard
 // phone is passed separately to atomically mark any abandoned checkout as converted
@@ -194,12 +223,17 @@ export async function createOrder(orderData: Omit<Order, 'id' | 'createdAt' | 's
           cleanItem.isBundle = true;
         }
         if (item.bundleItems && Array.isArray(item.bundleItems)) {
-          cleanItem.bundleItems = item.bundleItems.map((b: any) => ({
-            productId: b.productId,
-            name: b.name,
-            quantity: b.quantity,
-            selectedFlavor: b.selectedFlavor || undefined
-          }));
+          cleanItem.bundleItems = item.bundleItems.map((b: any) => {
+            const cleanB: any = {
+              productId: b.productId,
+              name: b.name,
+              quantity: b.quantity
+            };
+            if (b.selectedFlavor) {
+              cleanB.selectedFlavor = b.selectedFlavor;
+            }
+            return cleanB;
+          });
         }
         return cleanItem;
       }),
@@ -249,12 +283,10 @@ export async function createOrder(orderData: Omit<Order, 'id' | 'createdAt' | 's
       }
     }
 
-    // Final safety: strip any remaining undefined values from root level
-    Object.keys(orderPayload).forEach(key => {
-      if (orderPayload[key] === undefined) delete orderPayload[key];
-    });
+    // Final safety: recursively strip any undefined values from all levels (nested objects & arrays)
+    const sanitizedOrderPayload = removeUndefinedDeep(orderPayload);
 
-    transaction.set(newOrderDocRef, orderPayload);
+    transaction.set(newOrderDocRef, sanitizedOrderPayload);
 
     // 2c. Atomically mark the abandoned checkout as converted (if it existed)
     if (abandonedExists) {

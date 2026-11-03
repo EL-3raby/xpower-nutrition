@@ -14,6 +14,7 @@ import {
   Timestamp
 } from 'firebase/firestore';
 import { AbandonedCheckout } from '../types';
+import { removeUndefinedDeep } from './orders';
 
 // Save/update an abandoned checkout — document ID = phone number
 export async function saveAbandonedCheckout(data: Omit<AbandonedCheckout, 'lastUpdatedAt' | 'isContacted' | 'isConverted'>) {
@@ -52,7 +53,7 @@ export async function saveAbandonedCheckout(data: Omit<AbandonedCheckout, 'lastU
 
   const isContacted = shouldResetContacted ? false : (existingData?.isContacted || false);
 
-  await setDoc(docRef, {
+  await setDoc(docRef, removeUndefinedDeep({
     customerName: data.customerName || '',
     phone: data.phone,
     items: data.items,
@@ -60,7 +61,7 @@ export async function saveAbandonedCheckout(data: Omit<AbandonedCheckout, 'lastU
     lastUpdatedAt: serverTimestamp(),
     isContacted,
     isConverted: false,
-  });
+  }));
 }
 
 // Mark an abandoned checkout as converted (order was completed)
