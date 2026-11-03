@@ -69,7 +69,7 @@ const checkoutSchema = z.object({
     if (!data.governorate) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'اختر المحافظة والمدينة أولاً لحساب مبلغ الديبوزيت.',
+        message: 'اختار المحافظة والمدينة الأول لتأكيد الأوردر.',
         path: ['governorate'],
       });
     }
@@ -340,20 +340,20 @@ export default function CheckoutClientPage() {
         setError('depositSenderInfo', {
           type: 'manual',
           message: watchedDepositMethod === 'vodafone_cash'
-            ? 'يرجى كتابة رقم محفظة فودافون كاش المحول منها ديبوزيت التوصيل.'
-            : 'يرجى كتابة رقم الموبايل أو عنوان انستاباي المحول منه ديبوزيت التوصيل.'
+            ? 'اكتب رقم فودافون كاش اللي حوّلت منه العربون.'
+            : 'اكتب رقم الموبايل أو عنوان انستاباي اللي حوّلت منه العربون.'
         });
         return;
       }
       if (watchedDepositMethod === 'vodafone_cash' && !phoneRegex.test(senderVal)) {
         setError('depositSenderInfo', {
           type: 'manual',
-          message: 'يرجى كتابة رقم محفظة فودافون كاش صحيح مكون من 11 رقم (مثال: 01012345678).'
+          message: 'اكتب رقم فودافون كاش صحيح مكون من 11 رقم (مثال: 01012345678).'
         });
         return;
       }
       if (!paymentProofFile) {
-        setUploadError('يرجى إرفاق صورة إيصال تحويل مبلغ الديبوزيت.');
+        setUploadError('ارفع صورة أو سكرين شوت لوصل تحويل العربون.');
         return;
       }
     }
@@ -625,15 +625,15 @@ export default function CheckoutClientPage() {
         if (!data.depositSenderInfo || data.depositSenderInfo.trim().length < 3) {
           setUploadError(
             data.depositPaymentMethod === 'instapay'
-              ? 'يرجى كتابة رقم الموبايل أو عنوان انستاباي المحول منه ديبوزيت التوصيل.'
-              : 'يرجى كتابة رقم محفظة فودافون كاش المحول منها ديبوزيت التوصيل.'
+              ? 'اكتب رقم الموبايل أو عنوان انستاباي اللي حوّلت منه العربون.'
+              : 'اكتب رقم فودافون كاش اللي حوّلت منه العربون.'
           );
           setIsPaymentModalOpen(true);
           setIsSubmitting(false);
           return;
         }
         if (data.depositPaymentMethod === 'vodafone_cash' && !phoneRegex.test(data.depositSenderInfo.trim())) {
-          setUploadError('يرجى كتابة رقم محفظة فودافون كاش صحيح مكون من 11 رقم.');
+          setUploadError('اكتب رقم فودافون كاش صحيح مكون من 11 رقم.');
           setIsPaymentModalOpen(true);
           setIsSubmitting(false);
           return;
@@ -642,7 +642,7 @@ export default function CheckoutClientPage() {
 
       if (requiresProof) {
         if (!paymentProofFile) {
-          setUploadError('يرجى إرفاق صورة إيصال التحويل (الاسكرين شوت) لتأكيد الطلب.');
+          setUploadError('ارفع سكرين شوت أو صورة وصل التحويل لتأكيد الأوردر.');
           setIsPaymentModalOpen(true);
           setIsSubmitting(false);
           return;
@@ -1366,10 +1366,8 @@ export default function CheckoutClientPage() {
                         ? 'اختر طريقة الدفع المناسبة'
                         : selectedPaymentMethod === 'cod'
                         ? paymentProofFile
-                          ? 'تم إرفاق إيصال ديبوزيت التوصيل بنجاح'
-                          : calculatedShippingCost === 0
-                          ? 'مطلوب إرفاق إيصال الديبوزيت التأميني'
-                          : 'مطلوب إرفاق إيصال ديبوزيت التوصيل'
+                          ? 'تمام! تم إرفاق وصل العربون بنجاح'
+                          : 'مطلوب إرفاق وصل تحويل العربون'
                         : selectedPaymentMethod === 'vodafone_cash'
                         ? paymentProofFile
                           ? 'تم إرفاق إيصال تحويل فودافون كاش بنجاح'

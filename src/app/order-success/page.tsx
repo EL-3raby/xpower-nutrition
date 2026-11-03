@@ -122,7 +122,7 @@ function OrderSuccessContent() {
   const remainingCash = Math.max(0, order.totalPrice - (order.depositAmount || 0));
   const orderSubtotal = order.items?.reduce((sum, item) => sum + (item.price * item.quantity), 0) || 0;
   const isFreeShippingOrder = Math.max(0, order.totalPrice - (orderSubtotal - (order.discountAmount || 0))) === 0;
-  const codDepositLabel = 'الديبوزيت التأكيدي';
+  const codDepositLabel = 'العربون التأكيدي';
 
   // Construct a professional, natural, beautifully-spaced RTL message for WhatsApp confirmation
   let paymentDetailsText = '';
@@ -214,13 +214,13 @@ function OrderSuccessContent() {
                     <span className="material-symbols-outlined text-amber-400 text-2xl animate-spin-slow">sync</span>
                     <span>
                       {isCodDeposit
-                        ? (isFreeShippingOrder ? 'مراجعة إيصال الديبوزيت التأميني' : 'مراجعة إيصال ديبوزيت التوصيل')
+                        ? ('مراجعة وصل تحويل العربون')
                         : 'مراجعة إثبات التحويل'}
                     </span>
                   </h3>
                   <p className="font-body text-xs sm:text-sm text-text-muted leading-relaxed">
                     {isCodDeposit
-                      ? `نقوم الآن بمراجعة إيصال تحويل ${codDepositLabel} (${order.depositAmount} جنيه). وسيتم تأكيد الطلب فور مطابقة البيانات، على أن يتم تحصيل باقي المبلغ (${remainingCash.toFixed(0)} جنيه) كاش عند الاستلام.`
+                      ? `بنراجع دلوقتي وصل تحويل العربون (${order.depositAmount} جنيه). والأوردر هيتأكد ويطلع للتجهيز على طول، وباقي المبلغ (${remainingCash.toFixed(0)} جنيه) هتدفعه كاش للمندوب لما تستلم.`
                       : isInstapay
                       ? 'نقوم الآن بمراجعة صورة تحويل انستاباي. وسيتم تأكيد الطلب والبدء في شحنه فور مطابقة المعاملة.'
                       : 'نقوم الآن بمراجعة صورة تحويل فودافون كاش. وسيتم تأكيد الطلب والبدء في شحنه فور مطابقة المعاملة.'}
@@ -237,7 +237,7 @@ function OrderSuccessContent() {
                   </h3>
                   <p className="font-body text-xs sm:text-sm text-text-muted leading-relaxed">
                     {isCodDeposit
-                      ? `تم تأكيد استلام ديبوزيت الشحن بنجاح، وجاري تجهيز الشحنة. باقي المبلغ (${remainingCash.toFixed(0)} جنيه) سيتم سداده كاش للمندوب عند الاستلام.`
+                      ? `تم تأكيد استلام العربون بنجاح، وجاري تجهيز شحنتك فوراً. باقي المبلغ (${remainingCash.toFixed(0)} جنيه) هتدفعه كاش للمندوب وقت الاستلام.`
                       : 'تمت الموافقة على التحويل بنجاح، وجاري تجهيز الشحنة لتسليمها لشركة الشحن في أقرب وقت.'}
                   </p>
                 </div>
@@ -312,7 +312,7 @@ function OrderSuccessContent() {
                   <span>انستاباي — InstaPay (دفع كامل)</span>
                 </>
               ) : isCodDeposit ? (
-                <span>كاش عند الاستلام (مع ديبوزيت شحن)</span>
+                <span>كاش عند الاستلام (عربون مسترد من الإجمالي)</span>
               ) : (
                 <span>الدفع كاش عند الاستلام</span>
               )}
@@ -340,7 +340,7 @@ function OrderSuccessContent() {
           {isCodDeposit && (
             <>
               <div className="flex justify-between items-center py-1 border-b border-white/5">
-                <span className="text-amber-400">ديبوزيت الشحن المسدد:</span>
+                <span className="text-amber-400">العربون المسدد:</span>
                 <span className="text-amber-300 font-mono font-bold bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-lg text-xs dir-ltr">
                   {order.depositAmount} EGP عبر {order.depositPaymentMethod === 'instapay' ? 'انستاباي' : 'فودافون كاش'}
                 </span>
