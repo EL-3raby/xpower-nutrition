@@ -48,13 +48,30 @@ export async function getCategories(options?: CacheOptions): Promise<Category[]>
       const colRef = collection(db, 'categories');
       const q = query(colRef, orderBy('order', 'asc'));
       const snapshot = await getDocs(q);
-      return snapshot.docs.map(docSnapshot => ({
+      const list = snapshot.docs.map(docSnapshot => ({
         id: docSnapshot.id,
         ...docSnapshot.data()
       } as Category));
+
+      if (list.length === 0) {
+        return DEFAULT_CATEGORIES;
+      }
+
+      // Ensure 'bundles' category is always present
+      if (!list.some(c => c.slug === 'bundles')) {
+        list.unshift({
+          id: 'cat-bundles',
+          name: 'باندلز',
+          slug: 'bundles',
+          order: 0,
+          isActive: true
+        });
+      }
+
+      return list;
     } catch (error) {
       console.error('Error fetching categories:', error);
-      return [];
+      return DEFAULT_CATEGORIES;
     }
   }, options);
 }
@@ -128,7 +145,7 @@ export async function deleteCoupon(id: string) {
 // Site Config Settings Actions
 // ==========================================
 const DEFAULT_CATEGORIES: Category[] = [
-  { id: 'cat-bundles', name: 'باقات وعروض التوفير', slug: 'bundles', order: 0, isActive: true },
+  { id: 'cat-bundles', name: 'باندلز', slug: 'bundles', order: 0, isActive: true },
   { id: 'cat1', name: 'بروتينات', slug: 'protein', order: 1, isActive: true },
   { id: 'cat2', name: 'كرياتين', slug: 'creatine', order: 2, isActive: true },
   { id: 'cat3', name: 'ضخامة عضلية', slug: 'mass-gainer', order: 3, isActive: true }

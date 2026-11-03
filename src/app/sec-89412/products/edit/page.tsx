@@ -11,6 +11,7 @@ import { getCategories } from '@/lib/firebase/admin-actions';
 import { Category, Product, BundleItem } from '@/lib/types';
 import { isDummyFirebase } from '@/lib/firebase/client';
 import Spinner from '@/components/ui/Spinner';
+import BundleProductPicker from '@/components/admin/BundleProductPicker';
 
 // Zod Validation Schema (matches create)
 const productSchema = z.object({
@@ -128,6 +129,39 @@ function EditProductContent() {
         setValue('stock', Math.max(0, virtualStock));
       }
     }
+  };
+
+  const handleAddProductFromPicker = (targetProduct: Product, qty: number) => {
+    setBundleItems(prev => {
+      const existingIdx = prev.findIndex(item => item.productId === targetProduct.id);
+      let updated: BundleItem[];
+      if (existingIdx > -1) {
+        updated = [...prev];
+        updated[existingIdx].quantity += qty;
+      } else {
+        updated = [
+          ...prev,
+          {
+            productId: targetProduct.id!,
+            name: targetProduct.name,
+            image: targetProduct.images?.[0] || '',
+            price: targetProduct.price,
+            quantity: qty,
+            availableFlavors: targetProduct.flavors || []
+          }
+        ];
+      }
+
+      const totalOriginal = updated.reduce((acc, it) => acc + (it.price * it.quantity), 0);
+      const virtualStock = Math.min(...updated.map(it => {
+        const p = allProducts.find(prod => prod.id === it.productId);
+        return p ? Math.floor(p.stock / it.quantity) : 0;
+      }));
+      setValue('oldPrice', totalOriginal);
+      setValue('stock', Math.max(0, virtualStock));
+
+      return updated;
+    });
   };
 
   const handleAddBundleItem = () => {
@@ -496,54 +530,11 @@ function EditProductContent() {
                     </div>
                   </div>
 
-                  {/* Add Component Picker */}
-                  <div className="bg-bg-primary border border-white/10 p-4 sm:p-5 rounded-xl space-y-4">
-                    <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                      <span className="material-symbols-outlined text-accent-red text-base">add_circle</span>
-                      إضافة منتج إلى الباقة
-                    </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
-                      <div className="sm:col-span-8 flex flex-col gap-1.5">
-                        <label className="text-[11px] text-text-muted font-bold">اختر المنتج من المتجر:</label>
-                        <select
-                          value={selectedProductIdToAdd}
-                          onChange={(e) => setSelectedProductIdToAdd(e.target.value)}
-                          className="bg-[#050505] text-white border border-white/10 px-3.5 py-2.5 rounded-lg text-xs focus:border-accent-red focus:outline-none w-full"
-                        >
-                          <option value="">-- اضغط لاختيار منتج --</option>
-                          {allProducts.map(p => (
-                            <option key={p.id} value={p.id}>
-                              {p.name} — ({p.price} EGP | المخزون: {p.stock} قطعة)
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className="sm:col-span-2 flex flex-col gap-1.5">
-                        <label className="text-[11px] text-text-muted font-bold">الكمية في الباقة:</label>
-                        <input
-                          type="number"
-                          min="1"
-                          max="99"
-                          value={selectedProductQtyToAdd}
-                          onChange={(e) => setSelectedProductQtyToAdd(Math.max(1, parseInt(e.target.value) || 1))}
-                          className="bg-[#050505] text-white border border-white/10 px-3 py-2.5 rounded-lg text-xs font-bold text-center focus:border-accent-red focus:outline-none w-full"
-                        />
-                      </div>
-
-                      <div className="sm:col-span-2">
-                        <button
-                          type="button"
-                          onClick={handleAddBundleItem}
-                          disabled={!selectedProductIdToAdd}
-                          className="w-full py-2.5 px-3 rounded-lg bg-accent-red hover:bg-accent-red/90 text-white text-xs font-bold font-product-title transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 cursor-pointer"
-                        >
-                          <span className="material-symbols-outlined text-base">add</span>
-                          إضافة
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                  {/* Searchable Bilingual Product Picker */}
+                  <BundleProductPicker 
+                    allProducts={allProducts} 
+                    onAddProduct={handleAddProductFromPicker} 
+                  />
 
                   {/* Components List */}
                   <div className="space-y-3">
