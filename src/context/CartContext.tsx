@@ -55,7 +55,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     if (typeof window === 'undefined') return [];
     try {
       const storedCart = localStorage.getItem('xpower_cart');
-      return storedCart ? JSON.parse(storedCart) : [];
+      const parsed = storedCart ? JSON.parse(storedCart) : [];
+      if (Array.isArray(parsed)) {
+        return parsed.map((item: any) => ({
+          ...item,
+          quantity: typeof item.stock === 'number' && item.stock > 0 
+            ? Math.min(item.quantity, item.stock) 
+            : item.quantity
+        }));
+      }
+      return [];
     } catch (error) {
       console.error('Error loading cart from storage:', error);
       return [];
@@ -121,7 +130,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         const newCart = [...prevCart];
         const newQuantity = newCart[existingIndex].quantity + quantity;
         // Enforce product stock limit
-        newCart[existingIndex].quantity = Math.min(newQuantity, product.stock);
+        const limitStock = typeof product.stock === 'number' && product.stock > 0 ? product.stock : 999;
+        newCart[existingIndex].quantity = Math.min(newQuantity, limitStock);
         newCart[existingIndex].stock = product.stock;
         return newCart;
       }

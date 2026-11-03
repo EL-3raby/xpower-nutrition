@@ -192,12 +192,47 @@ export default function ProductDetailsClient({ product }: ProductDetailsClientPr
     };
   }, [product.category, product.id]);
 
-  const isOutOfStock = product.stock === 0;
-  const isLowStock = product.stock > 0 && product.stock <= 3;
+  // Dynamic effective stock calculation (especially for Bundles based on active flavor selections)
+  const effectiveStock = useMemo(() => {
+    if (!product.isBundle || !product.bundleItems || product.bundleItems.length === 0) {
+      return product.stock;
+    }
+
+    const componentMaxBundles = product.bundleItems.map(item => {
+      const qtyPerBundle = item.quantity || 1;
+      if (item.flavorOptions && item.flavorOptions.length > 0) {
+        const selected = selectedBundleVariants[item.productId];
+        if (selected) {
+          const opt = item.flavorOptions.find(o => o.productId === selected.productId);
+          if (opt && typeof opt.stock === 'number') {
+            return Math.floor(opt.stock / qtyPerBundle);
+          }
+        }
+        // Fallback: maximum stock available across valid options
+        const maxOptStock = Math.max(...item.flavorOptions.map(o => typeof o.stock === 'number' ? o.stock : 0), 0);
+        return Math.floor(maxOptStock / qtyPerBundle);
+      }
+      return Math.floor((item.stock ?? 0) / qtyPerBundle);
+    });
+
+    return Math.max(0, Math.min(...componentMaxBundles));
+  }, [product, selectedBundleVariants]);
+
+  // Keep quantity within bounds if selected variants change available stock
+  useEffect(() => {
+    if (effectiveStock <= 0) {
+      setQuantity(1);
+    } else if (quantity > effectiveStock) {
+      setQuantity(effectiveStock);
+    }
+  }, [effectiveStock, quantity]);
+
+  const isOutOfStock = effectiveStock <= 0;
+  const isLowStock = effectiveStock > 0 && effectiveStock <= 3;
 
   const handleQuantityChange = (val: number) => {
     if (val < 1) return;
-    if (val > product.stock) return;
+    if (val > effectiveStock) return;
     setQuantity(val);
   };
 
@@ -250,9 +285,11 @@ export default function ProductDetailsClient({ product }: ProductDetailsClientPr
       });
 
       const combinedFlavorStr = flavorParts.join(' + ');
-      addToCart(product, quantity, combinedFlavorStr, undefined, structuredItems);
+      const productWithLiveStock = { ...product, stock: effectiveStock };
+      addToCart(productWithLiveStock, Math.min(quantity, effectiveStock), combinedFlavorStr, undefined, structuredItems);
     } else {
-      addToCart(product, quantity, selectedFlavor || undefined);
+      const productWithLiveStock = { ...product, stock: effectiveStock };
+      addToCart(productWithLiveStock, Math.min(quantity, effectiveStock), selectedFlavor || undefined);
     }
 
     setShowToast(true);
@@ -428,7 +465,7 @@ export default function ProductDetailsClient({ product }: ProductDetailsClientPr
                 {isOutOfStock ? (
                   <span className="bg-accent-red text-white text-[10px] sm:text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide shadow-[0_0_15px_rgba(227,30,36,0.3)]">غيـر متـوفر</span>
                 ) : isLowStock ? (
-                  <span className="bg-warning/20 border border-warning/50 text-warning text-[10px] sm:text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">كمية محدودة! ({product.stock})</span>
+                  <span className="bg-warning/20 border border-warning/50 text-warning text-[10px] sm:text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">كمية محدودة! ({effectiveStock})</span>
                 ) : (
                   <span className="bg-success/10 border border-success/30 text-success text-[10px] sm:text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide flex items-center gap-1.5">
                     <span className="material-symbols-outlined text-[14px]">check_circle</span>
@@ -680,7 +717,7 @@ export default function ProductDetailsClient({ product }: ProductDetailsClientPr
                 <input
                   type="number"
                   min="1"
-                  max={product.stock}
+                  max={effectiveStock}
                   value={quantity}
                   onChange={(e) => handleQuantityChange(Number(e.target.value))}
                   disabled={isOutOfStock}
@@ -689,7 +726,7 @@ export default function ProductDetailsClient({ product }: ProductDetailsClientPr
                 <button
                   onClick={() => handleQuantityChange(quantity + 1)}
                   className="w-8 h-8 flex items-center justify-center text-text-muted hover:text-white text-lg font-bold hover:bg-white/[0.06] transition-colors rounded-lg active:scale-95 disabled:opacity-30"
-                  disabled={isOutOfStock || quantity >= product.stock}
+                  disabled={isOutOfStock || quantity >= effectiveStock}
                   aria-label="Increase quantity"
                 >
                   +

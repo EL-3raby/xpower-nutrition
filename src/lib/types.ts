@@ -18,6 +18,7 @@ export interface BundleItem {
   availableFlavors?: string[];
   selectedFlavor?: string;
   flavorOptions?: BundleVariantOption[];
+  stock?: number;
 }
 
 export interface Product {

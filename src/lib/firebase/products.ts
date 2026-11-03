@@ -118,6 +118,21 @@ export async function getProductBySlug(slug: string, options?: CacheOptions): Pr
               flavorOptions: updatedOptions
             };
           });
+
+          // Dynamically compute the bundle's maximum purchasable stock based on live component inventory
+          const bundleMaxStock = data.bundleItems.map((it: any) => {
+            const qtyPerBundle = it.quantity || 1;
+            if (it.flavorOptions && Array.isArray(it.flavorOptions) && it.flavorOptions.length > 0) {
+              const maxFlavorStock = Math.max(
+                ...it.flavorOptions.map((opt: any) => liveStockMap.get(opt.productId) ?? (opt.stock ?? 0)),
+                0
+              );
+              return Math.floor(maxFlavorStock / qtyPerBundle);
+            }
+            const compStock = liveStockMap.get(it.productId) ?? (it.stock ?? 0);
+            return Math.floor(compStock / qtyPerBundle);
+          });
+          data.stock = Math.max(0, Math.min(...bundleMaxStock));
         }
       }
 
