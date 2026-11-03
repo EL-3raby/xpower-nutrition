@@ -1,5 +1,15 @@
 import { Timestamp } from 'firebase/firestore';
 
+export interface BundleItem {
+  productId: string;
+  name: string;
+  image?: string;
+  price: number;
+  quantity: number;
+  availableFlavors?: string[];
+  selectedFlavor?: string;
+}
+
 export interface Product {
   id?: string;
   name: string;
@@ -21,6 +31,8 @@ export interface Product {
   isFreeShipping?: boolean;
   freeShippingEndDate?: string | Timestamp | Date;
   createdAt: Timestamp | Date;
+  isBundle?: boolean;
+  bundleItems?: BundleItem[];
 }
 
 export interface Review {
@@ -38,6 +50,13 @@ export interface OrderItem {
   price: number;
   quantity: number;
   flavor?: string;
+  isBundle?: boolean;
+  bundleItems?: {
+    productId: string;
+    name: string;
+    quantity: number;
+    selectedFlavor?: string;
+  }[];
 }
 
 export interface Order {

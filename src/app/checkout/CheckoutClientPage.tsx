@@ -677,7 +677,14 @@ export default function CheckoutClientPage() {
           name: sanitizeText(item.name + (item.flavor ? ` (${item.flavor})` : ''), 150),
           price: item.price,
           quantity: item.quantity,
-          flavor: item.flavor || undefined
+          flavor: item.flavor || undefined,
+          isBundle: item.isBundle || undefined,
+          bundleItems: item.bundleItems ? item.bundleItems.map(b => ({
+            productId: b.productId,
+            name: sanitizeText(b.name, 100),
+            quantity: b.quantity,
+            selectedFlavor: b.selectedFlavor ? sanitizeText(b.selectedFlavor, 50) : undefined
+          })) : undefined
         })),
         totalPrice: finalTotal,
         paymentMethod: data.paymentMethod,

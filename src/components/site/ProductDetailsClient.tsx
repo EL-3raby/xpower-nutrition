@@ -19,6 +19,18 @@ export default function ProductDetailsClient({ product }: ProductDetailsClientPr
   const { addToCart } = useCart();
   const [selectedImage, setSelectedImage] = useState(product.images[0] || '/images/no-image.png');
   const [selectedFlavor, setSelectedFlavor] = useState(product.flavors?.[0] || '');
+  const [selectedBundleFlavors, setSelectedBundleFlavors] = useState<Record<string, string>>(() => {
+    if (product.isBundle && product.bundleItems) {
+      const initial: Record<string, string> = {};
+      product.bundleItems.forEach(item => {
+        if (item.availableFlavors && item.availableFlavors.length > 0) {
+          initial[item.productId] = item.availableFlavors[0];
+        }
+      });
+      return initial;
+    }
+    return {};
+  });
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState<'desc' | 'usage' | 'shipping'>('desc');
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
@@ -149,7 +161,29 @@ export default function ProductDetailsClient({ product }: ProductDetailsClientPr
 
   const handleAddToCart = () => {
     if (isOutOfStock) return;
-    addToCart(product, quantity, selectedFlavor || undefined);
+
+    if (product.isBundle && product.bundleItems && product.bundleItems.length > 0) {
+      const flavorParts: string[] = [];
+      const structuredItems = product.bundleItems.map(item => {
+        const chosen = selectedBundleFlavors[item.productId] || item.availableFlavors?.[0] || '';
+        if (chosen) {
+          flavorParts.push(`${item.name} (${chosen})`);
+        } else {
+          flavorParts.push(item.name);
+        }
+        return {
+          productId: item.productId,
+          name: item.name,
+          quantity: item.quantity,
+          selectedFlavor: chosen || undefined
+        };
+      });
+
+      const combinedFlavorStr = flavorParts.join(' + ');
+      addToCart(product, quantity, combinedFlavorStr, undefined, structuredItems);
+    } else {
+      addToCart(product, quantity, selectedFlavor || undefined);
+    }
 
     setShowToast(true);
     if (toastTimerRef.current) {
@@ -405,8 +439,80 @@ export default function ProductDetailsClient({ product }: ProductDetailsClientPr
               </div>
             )}
 
-            {/* Flavors Select */}
-            {product.flavors && product.flavors.length > 0 && (
+            {/* Bundle Items & Flavors Selection */}
+            {product.isBundle && product.bundleItems && product.bundleItems.length > 0 && (
+              <div className="space-y-4 bg-[#0a0a0a] border border-white/10 rounded-2xl p-4 sm:p-5">
+                <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-accent-red text-xl">all_inclusive</span>
+                    <h3 className="font-product-title font-bold text-white text-sm sm:text-base">
+                      محتويات هذه الباقة ({product.bundleItems.length} منتجات)
+                    </h3>
+                  </div>
+                  {product.oldPrice && product.oldPrice > product.price && (
+                    <span className="text-[11px] font-product-title font-bold text-accent-red bg-accent-red/10 border border-accent-red/20 px-2.5 py-1 rounded-full">
+                      وفرت {product.oldPrice - product.price} EGP
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-3.5">
+                  {product.bundleItems.map((bItem, idx) => (
+                    <div key={`${bItem.productId}-${idx}`} className="bg-[#121212] border border-white/5 rounded-xl p-3 sm:p-3.5 flex flex-col gap-2.5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-lg bg-white/5 border border-white/10 p-1 shrink-0 flex items-center justify-center overflow-hidden">
+                          {bItem.image ? (
+                            <img src={bItem.image} alt={bItem.name} className="w-full h-full object-contain" />
+                          ) : (
+                            <span className="material-symbols-outlined text-text-muted">inventory_2</span>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <h4 className="font-product-title font-bold text-white text-xs sm:text-sm truncate">
+                              {bItem.quantity}x {bItem.name}
+                            </h4>
+                            <span className="text-[11px] font-mono text-text-muted shrink-0">{bItem.price} EGP</span>
+                          </div>
+                          <span className="text-[10px] text-text-muted">مشمول بالباقة</span>
+                        </div>
+                      </div>
+
+                      {/* Flavor Selector for this Component */}
+                      {bItem.availableFlavors && bItem.availableFlavors.length > 0 && (
+                        <div className="pt-2 border-t border-white/5 space-y-1.5">
+                          <span className="text-[11px] text-text-muted font-bold block">
+                            اختار نكهة {bItem.name}:
+                          </span>
+                          <div className="flex flex-wrap gap-2">
+                            {bItem.availableFlavors.map((flv) => {
+                              const isSelected = selectedBundleFlavors[bItem.productId] === flv;
+                              return (
+                                <button
+                                  key={flv}
+                                  type="button"
+                                  onClick={() => setSelectedBundleFlavors(prev => ({ ...prev, [bItem.productId]: flv }))}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-product-title font-bold transition-all border cursor-pointer ${
+                                    isSelected
+                                      ? 'border-accent-red text-white bg-accent-red shadow-md shadow-accent-red/30'
+                                      : 'border-white/10 text-white/70 bg-[#0a0a0a] hover:border-white/20 hover:text-white'
+                                  }`}
+                                >
+                                  {flv}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Flavors Select (Standard Products Only) */}
+            {!product.isBundle && product.flavors && product.flavors.length > 0 && (
               <div className="space-y-2.5">
                 <span className="text-xs uppercase font-product-title font-bold text-text-muted tracking-wider flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-accent-red"></span>

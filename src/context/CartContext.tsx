@@ -15,11 +15,29 @@ export interface CartItem {
   stock?: number;
   isFreeShipping?: boolean;
   freeShippingEndDate?: string;
+  isBundle?: boolean;
+  bundleItems?: {
+    productId: string;
+    name: string;
+    quantity: number;
+    selectedFlavor?: string;
+  }[];
 }
 
 interface CartContextType {
   cart: CartItem[];
-  addToCart: (product: Product, quantity: number, flavor?: string, size?: string) => void;
+  addToCart: (
+    product: Product,
+    quantity: number,
+    flavor?: string,
+    size?: string,
+    bundleItems?: {
+      productId: string;
+      name: string;
+      quantity: number;
+      selectedFlavor?: string;
+    }[]
+  ) => void;
   updateQuantity: (productId: string, quantity: number, flavor?: string, size?: string) => void;
   removeFromCart: (productId: string, flavor?: string, size?: string) => void;
   clearCart: () => void;
@@ -62,7 +80,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }, [cart, isInitialized]);
 
-  const addToCart = (product: Product, quantity: number, flavor?: string, size?: string) => {
+  const addToCart = (
+    product: Product,
+    quantity: number,
+    flavor?: string,
+    size?: string,
+    bundleItems?: {
+      productId: string;
+      name: string;
+      quantity: number;
+      selectedFlavor?: string;
+    }[]
+  ) => {
     // Track Add To Cart Event (GA4 & Meta Pixel)
     if (product.id) {
       trackAddToCart({
@@ -109,6 +138,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           size,
           stock: product.stock,
           isFreeShipping: Boolean(product.isFreeShipping),
+          isBundle: Boolean(product.isBundle),
+          bundleItems: bundleItems || (product.isBundle && product.bundleItems ? product.bundleItems.map(b => ({
+            productId: b.productId,
+            name: b.name,
+            quantity: b.quantity,
+            selectedFlavor: b.selectedFlavor
+          })) : undefined),
           freeShippingEndDate: product.freeShippingEndDate 
             ? (product.freeShippingEndDate instanceof Date 
                 ? product.freeShippingEndDate.toISOString() 

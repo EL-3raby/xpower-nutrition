@@ -590,9 +590,27 @@ function OrderDetailContent() {
                   {o.items.map((item, index) => (
                     <tr key={index} className="hover:bg-white/[0.02] transition-colors">
                       <td className="py-4 pr-4 text-right text-white font-bold font-product-title tracking-wide">
-                        <div>{item.name}</div>
+                        <div className="flex items-center gap-2">
+                          <span>{item.name}</span>
+                          {item.isBundle && (
+                            <span className="text-[10px] bg-accent-red/20 text-accent-red border border-accent-red/30 px-2 py-0.5 rounded font-mono font-bold">
+                              باقة توفير (Bundle)
+                            </span>
+                          )}
+                        </div>
                         {item.flavor && (
-                          <div className="text-xs text-text-muted font-body mt-0.5 font-normal">النكهة: {item.flavor}</div>
+                          <div className="text-xs text-text-muted font-body mt-0.5 font-normal">النكهات المختارة: {item.flavor}</div>
+                        )}
+                        {item.isBundle && item.bundleItems && item.bundleItems.length > 0 && (
+                          <div className="mt-2 bg-white/5 border border-white/5 rounded-lg p-2.5 space-y-1">
+                            <span className="text-[10px] text-accent-red font-bold block">محتويات الباقة للتجهيز والتغليف:</span>
+                            {item.bundleItems.map((b, bIdx) => (
+                              <div key={bIdx} className="text-xs text-white/80 flex items-center justify-between font-normal">
+                                <span>• {b.quantity * item.quantity}x {b.name}</span>
+                                {b.selectedFlavor && <span className="text-amber-400 text-[11px] font-mono">({b.selectedFlavor})</span>}
+                              </div>
+                            ))}
+                          </div>
                         )}
                       </td>
                       <td className="py-4 text-center font-mono font-bold text-white">{item.quantity}</td>
@@ -834,7 +852,17 @@ function OrderDetailContent() {
                 <div key={idx} className="flex justify-between items-start border-b border-dotted border-zinc-300 pb-1.5">
                   <div className="text-right flex-1 pr-1">
                     <span className="font-bold text-sm">{item.quantity}x {item.name}</span>
-                    {item.flavor && <div className="text-[11px] text-zinc-700">النكهة: {item.flavor}</div>}
+                    {item.isBundle && <span className="text-[10px] font-mono text-zinc-600 block">[باقة توفير]</span>}
+                    {item.flavor && <div className="text-[11px] text-zinc-700">النكهات: {item.flavor}</div>}
+                    {item.isBundle && item.bundleItems && (
+                      <div className="text-[10px] text-zinc-600 space-y-0.5 mt-1 border-r-2 border-zinc-400 pr-1.5">
+                        {item.bundleItems.map((b, bIdx) => (
+                          <div key={bIdx}>
+                            • {b.quantity * item.quantity}x {b.name} {b.selectedFlavor ? `(${b.selectedFlavor})` : ''}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="flex gap-8 items-center font-mono">
                     <span className="w-16 text-center font-bold">{item.quantity}</span>

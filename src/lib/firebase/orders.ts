@@ -60,26 +60,87 @@ export async function createOrder(orderData: Omit<Order, 'id' | 'createdAt' | 's
 
     // === PHASE 1: ALL READS ===
 
-    // 1a. Verify stock for each item
+    // 1a. First, read each order item's product document to check if it's a regular product or a bundle
+    const itemProductSnaps = new Map<string, { ref: any; data: Product }>();
     for (const item of orderData.items) {
-      const productRef = doc(db, 'products', item.productId);
-      const productSnapshot = await transaction.get(productRef);
-
-      if (!productSnapshot.exists()) {
-        throw new Error("المنتج " + item.name + " غير موجود في قاعدة البيانات.");
+      if (!itemProductSnaps.has(item.productId)) {
+        const productRef = doc(db, 'products', item.productId);
+        const productSnapshot = await transaction.get(productRef);
+        if (!productSnapshot.exists()) {
+          throw new Error("المنتج " + item.name + " غير موجود في قاعدة البيانات.");
+        }
+        itemProductSnaps.set(item.productId, { ref: productRef, data: productSnapshot.data() as Product });
       }
+    }
 
-      const productData = productSnapshot.data() as Product;
-      
-      if (productData.stock < item.quantity) {
+    // Calculate required stock deductions for every individual component/product
+    const requiredQuantities = new Map<string, { ref: any; name: string; requiredQty: number }>();
+    const bundleSalesUpdates: { productRef: any; salesIncrement: number }[] = [];
+
+    for (const item of orderData.items) {
+      const itemInfo = itemProductSnaps.get(item.productId)!;
+      const productData = itemInfo.data;
+
+      const isBundle = Boolean(productData.isBundle || item.isBundle);
+      const bundleItems = productData.bundleItems || item.bundleItems;
+
+      if (isBundle && bundleItems && bundleItems.length > 0) {
+        // Record sales count increment for the bundle itself
+        bundleSalesUpdates.push({ productRef: itemInfo.ref, salesIncrement: item.quantity });
+
+        // For each component, read its product document if not already read
+        for (const bItem of bundleItems) {
+          if (!requiredQuantities.has(bItem.productId) && !itemProductSnaps.has(bItem.productId)) {
+            const compRef = doc(db, 'products', bItem.productId);
+            const compSnap = await transaction.get(compRef);
+            if (!compSnap.exists()) {
+              throw new Error("المنتج المكون [" + (bItem.name || bItem.productId) + "] داخل الباقة غير موجود.");
+            }
+            itemProductSnaps.set(bItem.productId, { ref: compRef, data: compSnap.data() as Product });
+          }
+
+          const compInfo = itemProductSnaps.get(bItem.productId)!;
+          const compData = compInfo.data;
+          const needed = bItem.quantity * item.quantity;
+
+          const curr = requiredQuantities.get(bItem.productId);
+          if (curr) {
+            curr.requiredQty += needed;
+          } else {
+            requiredQuantities.set(bItem.productId, {
+              ref: compInfo.ref,
+              name: compData.name,
+              requiredQty: needed
+            });
+          }
+        }
+      } else {
+        // Regular product
+        const needed = item.quantity;
+        const curr = requiredQuantities.get(item.productId);
+        if (curr) {
+          curr.requiredQty += needed;
+        } else {
+          requiredQuantities.set(item.productId, {
+            ref: itemInfo.ref,
+            name: productData.name,
+            requiredQty: needed
+          });
+        }
+      }
+    }
+
+    // Verify stock availability for every required product
+    for (const [prodId, req] of requiredQuantities.entries()) {
+      const pData = itemProductSnaps.get(prodId)!.data;
+      if (pData.stock < req.requiredQty) {
         throw new Error(
-          "الكمية المطلوبة من " + productData.name + " غير متوفرة حالياً. المتاح بالمخزون: " + productData.stock + " فقط."
+          "الكمية المطلوبة من [" + req.name + "] غير متوفرة حالياً. المتاح بالمخزون: " + pData.stock + " فقط."
         );
       }
-
-      const newStock = productData.stock - item.quantity;
-      const newSalesCount = (productData.salesCount || 0) + item.quantity;
-      stockUpdates.push({ productRef, newStock, newSalesCount });
+      const newStock = pData.stock - req.requiredQty;
+      const newSalesCount = (pData.salesCount || 0) + req.requiredQty;
+      stockUpdates.push({ productRef: req.ref, newStock, newSalesCount });
     }
 
     // 1b. Read abandoned checkout doc (must be in Phase 1 before any writes)
@@ -94,12 +155,22 @@ export async function createOrder(orderData: Omit<Order, 'id' | 'createdAt' | 's
 
     // === PHASE 2: ALL WRITES ===
 
-    // 2a. Update product stock
+    // 2a. Update product stock for components and regular products
     for (const update of stockUpdates) {
       transaction.update(update.productRef, { 
         stock: update.newStock,
         salesCount: update.newSalesCount
       });
+    }
+
+    // 2b. Update bundle sales counts
+    for (const bSale of bundleSalesUpdates) {
+      const bData = itemProductSnaps.get(bSale.productRef.id)?.data;
+      if (bData) {
+        transaction.update(bSale.productRef, {
+          salesCount: (bData.salesCount || 0) + bSale.salesIncrement
+        });
+      }
     }
 
     // 2b. Create the order
@@ -118,6 +189,17 @@ export async function createOrder(orderData: Omit<Order, 'id' | 'createdAt' | 's
         };
         if (item.flavor !== undefined && item.flavor !== null) {
           cleanItem.flavor = item.flavor;
+        }
+        if (item.isBundle) {
+          cleanItem.isBundle = true;
+        }
+        if (item.bundleItems && Array.isArray(item.bundleItems)) {
+          cleanItem.bundleItems = item.bundleItems.map((b: any) => ({
+            productId: b.productId,
+            name: b.name,
+            quantity: b.quantity,
+            selectedFlavor: b.selectedFlavor || undefined
+          }));
         }
         return cleanItem;
       }),
@@ -319,21 +401,51 @@ export async function updateOrderStatus(id: string, newStatus: Order['status']) 
         return;
       }
 
-      // 1. Gather current product data and calculate new stock
-      const stockUpdates: { productRef: any; newStock: number; newSalesCount: number }[] = [];
+      // 1. Gather all items to restore (accounting for bundles)
+      const itemsToRestore: { productId: string; name: string; quantity: number }[] = [];
       for (const item of orderData.items) {
-        const productRef = doc(db, 'products', item.productId);
+        if (item.isBundle && item.bundleItems && item.bundleItems.length > 0) {
+          for (const bItem of item.bundleItems) {
+            itemsToRestore.push({
+              productId: bItem.productId,
+              name: `${bItem.name} (من باقة: ${item.name})`,
+              quantity: bItem.quantity * item.quantity
+            });
+          }
+        } else {
+          itemsToRestore.push({
+            productId: item.productId,
+            name: item.name,
+            quantity: item.quantity
+          });
+        }
+      }
+
+      // Group by productId to prevent duplicate reads/writes
+      const restoreMap = new Map<string, { name: string; quantity: number }>();
+      for (const it of itemsToRestore) {
+        const existing = restoreMap.get(it.productId);
+        if (existing) {
+          existing.quantity += it.quantity;
+        } else {
+          restoreMap.set(it.productId, { name: it.name, quantity: it.quantity });
+        }
+      }
+
+      const stockUpdates: { productRef: any; newStock: number; newSalesCount: number }[] = [];
+      for (const [prodId, req] of restoreMap.entries()) {
+        const productRef = doc(db, 'products', prodId);
         const productSnap = await transaction.get(productRef);
         if (productSnap.exists()) {
           const productData = productSnap.data() as Product;
           stockUpdates.push({
             productRef,
-            newStock: productData.stock + item.quantity,
-            newSalesCount: Math.max(0, (productData.salesCount || 0) - item.quantity)
+            newStock: productData.stock + req.quantity,
+            newSalesCount: Math.max(0, (productData.salesCount || 0) - req.quantity)
           });
-          restoredItems.push({ name: item.name, quantity: item.quantity });
+          restoredItems.push({ name: req.name, quantity: req.quantity });
         } else {
-          failedItems.push({ name: item.name });
+          failedItems.push({ name: req.name });
         }
       }
 

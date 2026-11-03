@@ -167,6 +167,9 @@ export async function updateProduct(id: string, product: Partial<Product>) {
   if (updateData.servings === undefined || updateData.servings === null || updateData.servings === 0 || isNaN(updateData.servings)) {
     updateData.servings = deleteField();
   }
+  if (updateData.isBundle === false) {
+    updateData.bundleItems = deleteField();
+  }
 
   // Clean up any remaining undefined fields
   Object.keys(updateData).forEach(key => {
