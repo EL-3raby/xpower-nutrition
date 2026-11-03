@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Product } from '@/lib/types';
 import { useCart } from '@/hooks/useCart';
 import { motion } from 'framer-motion';
@@ -14,6 +15,7 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product, hideAddToCart = false, viewMode = 'grid' }: ProductCardProps) {
+  const router = useRouter();
   const { addToCart } = useCart();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   
@@ -44,6 +46,10 @@ export default function ProductCard({ product, hideAddToCart = false, viewMode =
     e.preventDefault();
     e.stopPropagation();
     if (isOutOfStock) return;
+    if (product.isBundle) {
+      router.push(`/products/${product.slug}`);
+      return;
+    }
     addToCart(product, 1);
   };
 
@@ -175,6 +181,11 @@ export default function ProductCard({ product, hideAddToCart = false, viewMode =
                 >
                   {isOutOfStock ? (
                     <span>Out of Stock</span>
+                  ) : product.isBundle ? (
+                    <>
+                      <span className="material-symbols-outlined text-[16px]">tune</span>
+                      <span>تخصيص الباقة</span>
+                    </>
                   ) : (
                     <>
                       <span className="material-symbols-outlined text-[16px]">shopping_bag</span>
@@ -343,6 +354,11 @@ export default function ProductCard({ product, hideAddToCart = false, viewMode =
               >
                 {isOutOfStock ? (
                   <span className="tracking-wider uppercase text-[11px]">Out of Stock</span>
+                ) : product.isBundle ? (
+                  <>
+                    <span className="material-symbols-outlined text-[17px] sm:text-[18px]">tune</span>
+                    <span>تخصيص الباقة</span>
+                  </>
                 ) : (
                   <>
                     <span className="material-symbols-outlined text-[17px] sm:text-[18px]">shopping_bag</span>

@@ -48,7 +48,7 @@ export async function getProducts(categorySlug?: string, activeOnly = false, opt
       }
 
       const snapshot = await getDocs(q);
-      return snapshot.docs.map(docSnapshot => {
+      const list: Product[] = snapshot.docs.map(docSnapshot => {
         const data = docSnapshot.data();
         return {
           id: docSnapshot.id,
@@ -56,6 +56,64 @@ export async function getProducts(categorySlug?: string, activeOnly = false, opt
           createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt
         } as Product;
       });
+
+      // Synchronize live real-time stock for all bundles in the product list
+      const bundleProducts = list.filter(p => p.isBundle && p.bundleItems && p.bundleItems.length > 0);
+      if (bundleProducts.length > 0) {
+        const liveStockMap = new Map<string, number>();
+        list.forEach(p => {
+          if (p.id) liveStockMap.set(p.id, typeof p.stock === 'number' ? p.stock : 0);
+        });
+
+        const missingIds = new Set<string>();
+        bundleProducts.forEach(b => {
+          b.bundleItems?.forEach(item => {
+            if (item.productId && !liveStockMap.has(item.productId)) missingIds.add(item.productId);
+            if (item.flavorOptions) {
+              item.flavorOptions.forEach(opt => {
+                if (opt.productId && !liveStockMap.has(opt.productId)) missingIds.add(opt.productId);
+              });
+            }
+          });
+        });
+
+        if (missingIds.size > 0) {
+          await Promise.all(
+            Array.from(missingIds).map(async (prodId) => {
+              try {
+                const pSnap = await getDoc(doc(db, 'products', prodId));
+                if (pSnap.exists()) {
+                  const pData = pSnap.data();
+                  liveStockMap.set(prodId, typeof pData.stock === 'number' ? pData.stock : 0);
+                }
+              } catch (e) {
+                console.warn('Failed to fetch missing bundle component stock:', prodId, e);
+              }
+            })
+          );
+        }
+
+        // Dynamically compute real stock for each bundle
+        bundleProducts.forEach(b => {
+          if (!b.bundleItems) return;
+          const componentMaxBundles = b.bundleItems.map(item => {
+            const qtyPerBundle = item.quantity || 1;
+            if (item.flavorOptions && item.flavorOptions.length > 0) {
+              const maxOptionStock = Math.max(
+                ...item.flavorOptions.map(opt => liveStockMap.get(opt.productId) ?? (opt.stock ?? 0)),
+                0
+              );
+              return Math.floor(maxOptionStock / qtyPerBundle);
+            }
+            const compStock = liveStockMap.get(item.productId) ?? (item.stock ?? 0);
+            return Math.floor(compStock / qtyPerBundle);
+          });
+
+          b.stock = Math.max(0, Math.min(...componentMaxBundles));
+        });
+      }
+
+      return list;
     } catch (error) {
       console.error('Error fetching products:', error);
       return [];
@@ -239,6 +297,84 @@ export async function updateProduct(id: string, product: Partial<Product>) {
   });
 
   await updateDoc(docRef, updateData);
+
+  // If a regular product's stock was updated, propagate changes to any bundles that include it
+  if (typeof updateData.stock === 'number') {
+    try {
+      const bundlesSnap = await getDocs(query(collection(db, 'products'), where('isBundle', '==', true)));
+      for (const bDoc of bundlesSnap.docs) {
+        const bData = bDoc.data();
+        if (!bData.bundleItems || !Array.isArray(bData.bundleItems)) continue;
+
+        const isReferenced = bData.bundleItems.some((item: any) => 
+          item.productId === id || 
+          (item.flavorOptions && item.flavorOptions.some((opt: any) => opt.productId === id))
+        );
+
+        if (isReferenced) {
+          const refIds = new Set<string>();
+          bData.bundleItems.forEach((item: any) => {
+            if (item.productId) refIds.add(item.productId);
+            if (item.flavorOptions) {
+              item.flavorOptions.forEach((opt: any) => {
+                if (opt.productId) refIds.add(opt.productId);
+              });
+            }
+          });
+
+          const liveMap = new Map<string, number>();
+          liveMap.set(id, updateData.stock);
+
+          await Promise.all(
+            Array.from(refIds).filter(rId => rId !== id).map(async (rId) => {
+              try {
+                const s = await getDoc(doc(db, 'products', rId));
+                if (s.exists()) {
+                  liveMap.set(rId, typeof s.data().stock === 'number' ? s.data().stock : 0);
+                }
+              } catch (e) {
+                console.warn('Failed to fetch component stock during bundle sync:', rId, e);
+              }
+            })
+          );
+
+          const updatedBundleItems = bData.bundleItems.map((item: any) => {
+            let updatedOpts = item.flavorOptions;
+            if (updatedOpts && Array.isArray(updatedOpts)) {
+              updatedOpts = updatedOpts.map((opt: any) => ({
+                ...opt,
+                stock: liveMap.get(opt.productId) ?? (opt.stock || 0)
+              }));
+            }
+            return {
+              ...item,
+              stock: liveMap.get(item.productId) ?? (item.stock || 0),
+              flavorOptions: updatedOpts
+            };
+          });
+
+          const compMax = updatedBundleItems.map((item: any) => {
+            const qty = item.quantity || 1;
+            if (item.flavorOptions && item.flavorOptions.length > 0) {
+              const maxOpt = Math.max(...item.flavorOptions.map((opt: any) => liveMap.get(opt.productId) ?? (opt.stock || 0)), 0);
+              return Math.floor(maxOpt / qty);
+            }
+            const s = liveMap.get(item.productId) ?? (item.stock || 0);
+            return Math.floor(s / qty);
+          });
+
+          const newBundleStock = Math.max(0, Math.min(...compMax));
+          await updateDoc(doc(db, 'products', bDoc.id), {
+            stock: newBundleStock,
+            bundleItems: updatedBundleItems
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to auto-sync bundle stocks:', e);
+    }
+  }
+
   invalidateCache('product');
   await logAdminActivity('updated product', id);
 }

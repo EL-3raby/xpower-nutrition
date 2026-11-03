@@ -101,6 +101,31 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       selectedFlavor?: string;
     }[]
   ) => {
+    // Strict Guard: Never add out-of-stock products or out-of-stock bundles
+    if (typeof product.stock === 'number' && product.stock <= 0) {
+      console.warn('Cannot add out-of-stock product to cart:', product.name);
+      return;
+    }
+
+    if (product.isBundle && product.bundleItems && product.bundleItems.length > 0) {
+      const hasOutOfStockComponent = product.bundleItems.some(item => {
+        if (item.flavorOptions && item.flavorOptions.length > 0) {
+          const chosen = bundleItems?.find(b => b.productId === item.productId);
+          if (chosen?.selectedFlavor) {
+            const opt = item.flavorOptions.find(o => o.flavorLabel.toLowerCase() === chosen.selectedFlavor?.toLowerCase());
+            if (opt && opt.stock <= 0) return true;
+          }
+          return item.flavorOptions.every(o => (o.stock ?? 0) <= 0);
+        }
+        return (item.stock ?? 0) <= 0;
+      });
+
+      if (hasOutOfStockComponent) {
+        console.warn('Cannot add bundle to cart: contains out-of-stock components:', product.name);
+        return;
+      }
+    }
+
     // Track Add To Cart Event (GA4 & Meta Pixel)
     if (product.id) {
       trackAddToCart({

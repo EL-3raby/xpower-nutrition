@@ -118,7 +118,9 @@ function EditProductContent() {
 
           if (fetchedProduct.isBundle) {
             setIsBundle(true);
-            setBundleItems(fetchedProduct.bundleItems || []);
+            const bItems = fetchedProduct.bundleItems || [];
+            setBundleItems(bItems);
+            recalculateBundleValues(bItems, fetchedProducts);
           }
         } else {
           setErrorMsg('المنتج المطلوب غير موجود.');
@@ -133,19 +135,21 @@ function EditProductContent() {
     loadData();
   }, [productId, setValue]);
 
-  const recalculateBundleValues = (items: BundleItem[]) => {
+  const recalculateBundleValues = (items: BundleItem[], productsList = allProducts) => {
     if (items.length > 0) {
       const totalOriginal = items.reduce((acc, it) => acc + (it.price * it.quantity), 0);
       const virtualStock = Math.min(...items.map(it => {
+        const qty = it.quantity || 1;
         if (it.flavorOptions && it.flavorOptions.length > 0) {
-          const totalFlavorStock = it.flavorOptions.reduce((sum, opt) => {
-            const p = allProducts.find(prod => prod.id === opt.productId);
-            return sum + (p ? p.stock : (opt.stock || 0));
-          }, 0);
-          return Math.floor(totalFlavorStock / it.quantity);
+          const maxFlavorStock = Math.max(...it.flavorOptions.map(opt => {
+            const p = productsList.find(prod => prod.id === opt.productId);
+            return p ? (typeof p.stock === 'number' ? p.stock : 0) : (opt.stock || 0);
+          }), 0);
+          return Math.floor(maxFlavorStock / qty);
         }
-        const p = allProducts.find(prod => prod.id === it.productId);
-        return p ? Math.floor(p.stock / it.quantity) : 0;
+        const p = productsList.find(prod => prod.id === it.productId);
+        const compStock = p ? (typeof p.stock === 'number' ? p.stock : 0) : (it.stock || 0);
+        return Math.floor(compStock / qty);
       }));
       setValue('oldPrice', totalOriginal);
       setValue('stock', Math.max(0, virtualStock));
