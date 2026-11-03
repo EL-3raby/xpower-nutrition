@@ -11,6 +11,27 @@ interface BundleItemCardProps {
   onUpdateItem: (updated: BundleItem) => void;
 }
 
+const BILINGUAL_SYNONYMS: Record<string, string[]> = {
+  'شيكر': ['shaker', 'شيكرات', 'كوب'],
+  'shaker': ['شيكر', 'شيكرات', 'كوب'],
+  'كارب': ['carb', 'كربوهيدرات'],
+  'carb': ['كارب', 'كربوهيدرات'],
+  'بامب': ['pump', 'طاقة', 'pre-workout'],
+  'pump': ['بامب', 'طاقة', 'pre-workout'],
+  'كرياتين': ['creatine', 'كرياتين نقي'],
+  'creatine': ['كرياتين'],
+  'بروتين': ['protein', 'واي', 'whey'],
+  'protein': ['بروتين', 'واي', 'whey'],
+  'استراب': ['strap', 'احزمة', 'حزام'],
+  'strap': ['استراب', 'احزمة', 'حزام'],
+  'ركبة': ['knee', 'ركب'],
+  'knee': ['ركبة', 'ركب'],
+  'كوع': ['elbow', 'اكواع'],
+  'elbow': ['كوع', 'اكواع'],
+  'معصم': ['wrist', 'ريست'],
+  'wrist': ['معصم', 'ريست']
+};
+
 function extractBaseName(name: string): string {
   if (!name) return '';
   if (name.includes('_')) return name.split('_')[0].trim().toLowerCase();
@@ -40,6 +61,7 @@ export default function BundleItemCard({
 }: BundleItemCardProps) {
   const [isAddingFlavor, setIsAddingFlavor] = useState(false);
   const [flavorSearchQuery, setFlavorSearchQuery] = useState('');
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
 
   const originalProd = useMemo(() => {
     return allProducts.find((p) => p.id === item.productId);
@@ -78,17 +100,38 @@ export default function BundleItemCard({
     });
   }, [allProducts, item.name, item.productId, currentOptions]);
 
-  // Filter products for manual flavor addition search
+  // Filter products for manual flavor addition search (bilingual + default list)
   const searchableProducts = useMemo(() => {
-    if (!flavorSearchQuery.trim()) return [];
-    const q = flavorSearchQuery.trim().toLowerCase();
     const existingIds = new Set(currentOptions.map((opt) => opt.productId));
+    existingIds.add(item.productId);
 
-    return allProducts.filter((p) => {
-      if (existingIds.has(p.id!)) return false;
-      return p.name.toLowerCase().includes(q) || (p.category && p.category.toLowerCase().includes(q));
-    }).slice(0, 8);
-  }, [allProducts, flavorSearchQuery, currentOptions]);
+    const available = allProducts.filter((p) => !existingIds.has(p.id!));
+
+    if (!flavorSearchQuery.trim()) {
+      return available.slice(0, 15);
+    }
+
+    const q = flavorSearchQuery.trim().toLowerCase();
+    const queryTokens = q.split(/\s+/).filter(Boolean);
+
+    // Expand search with synonyms
+    const expandedTokens = new Set<string>();
+    queryTokens.forEach((t) => {
+      expandedTokens.add(t);
+      if (BILINGUAL_SYNONYMS[t]) {
+        BILINGUAL_SYNONYMS[t].forEach((syn) => expandedTokens.add(syn.toLowerCase()));
+      }
+    });
+
+    return available.filter((p) => {
+      const name = p.name.toLowerCase();
+      const cat = (p.category || '').toLowerCase();
+      const desc = (p.description || '').toLowerCase();
+      const targetStr = `${name} ${cat} ${desc}`;
+
+      return Array.from(expandedTokens).some((token) => targetStr.includes(token));
+    }).slice(0, 20);
+  }, [allProducts, flavorSearchQuery, currentOptions, item.productId]);
 
   // Calculate combined virtual stock for this item
   const totalItemStock = useMemo(() => {
@@ -101,7 +144,47 @@ export default function BundleItemCard({
     return originalProd?.stock ?? 0;
   }, [currentOptions, allProducts, originalProd]);
 
-  const handleAddFlavorOption = (prod: Product) => {
+  const handleToggleSelect = (prodId: string) => {
+    setSelectedProductIds((prev) =>
+      prev.includes(prodId) ? prev.filter((id) => id !== prodId) : [...prev, prodId]
+    );
+  };
+
+  const handleSelectAllVisible = () => {
+    const visibleIds = searchableProducts.map((p) => p.id!);
+    const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedProductIds.includes(id));
+    if (allSelected) {
+      setSelectedProductIds((prev) => prev.filter((id) => !visibleIds.includes(id)));
+    } else {
+      setSelectedProductIds((prev) => Array.from(new Set([...prev, ...visibleIds])));
+    }
+  };
+
+  const handleAddSelectedOptions = () => {
+    if (selectedProductIds.length === 0) return;
+    const prodsToAdd = allProducts.filter((p) => selectedProductIds.includes(p.id!));
+
+    const newOptions: BundleVariantOption[] = prodsToAdd.map((prod) => ({
+      productId: prod.id!,
+      name: prod.name,
+      flavorLabel: extractFlavorLabel(prod.name),
+      image: prod.images?.[0] || '',
+      price: prod.price,
+      stock: prod.stock
+    }));
+
+    onUpdateItem({
+      ...item,
+      flavorOptions: [...currentOptions, ...newOptions]
+    });
+
+    setSelectedProductIds([]);
+    setIsAddingFlavor(false);
+    setFlavorSearchQuery('');
+  };
+
+  const handleAddSingleOption = (prod: Product, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     const newOption: BundleVariantOption = {
       productId: prod.id!,
       name: prod.name,
@@ -111,14 +194,12 @@ export default function BundleItemCard({
       stock: prod.stock
     };
 
-    const updatedOptions = [...currentOptions, newOption];
     onUpdateItem({
       ...item,
-      flavorOptions: updatedOptions
+      flavorOptions: [...currentOptions, newOption]
     });
 
-    setIsAddingFlavor(false);
-    setFlavorSearchQuery('');
+    setSelectedProductIds((prev) => prev.filter((id) => id !== prod.id));
   };
 
   const handleRemoveFlavorOption = (prodId: string) => {
@@ -216,7 +297,7 @@ export default function BundleItemCard({
             <button
               key={s.id}
               type="button"
-              onClick={() => handleAddFlavorOption(s)}
+              onClick={() => handleAddSingleOption(s)}
               className="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-[11px] font-bold transition-all border border-amber-500/30 flex items-center gap-1 cursor-pointer active:scale-95"
             >
               <span>+ {s.name}</span>
@@ -235,7 +316,10 @@ export default function BundleItemCard({
           {!isAddingFlavor && (
             <button
               type="button"
-              onClick={() => setIsAddingFlavor(true)}
+              onClick={() => {
+                setIsAddingFlavor(true);
+                setSelectedProductIds([]);
+              }}
               className="text-accent-red hover:underline font-bold flex items-center gap-1 cursor-pointer"
             >
               <span className="material-symbols-outlined text-sm">add</span>
@@ -288,45 +372,154 @@ export default function BundleItemCard({
           })}
         </div>
 
-        {/* Manual Flavor Add Search Form */}
+        {/* Manual Flavor Add Search Form with Multi-Select Checkboxes */}
         {isAddingFlavor && (
-          <div className="bg-[#101010] border border-accent-red/30 p-2.5 rounded-lg space-y-2 mt-2 animate-in fade-in duration-150">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-bold text-white">اختر المنتج الذي يمثل الطعم البديل من المتجر:</span>
+          <div className="bg-[#101010] border border-accent-red/40 p-3 sm:p-4 rounded-xl space-y-3 mt-2 animate-in fade-in duration-150 shadow-xl shadow-black/60">
+            <div className="flex items-center justify-between text-xs border-b border-white/10 pb-2.5">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-accent-red text-base">checklist</span>
+                <span className="font-bold text-white">اختر أو علّم (Select) على المنتجات البديلة:</span>
+              </div>
               <button
                 type="button"
                 onClick={() => {
                   setIsAddingFlavor(false);
                   setFlavorSearchQuery('');
+                  setSelectedProductIds([]);
                 }}
-                className="text-text-muted hover:text-white text-xs"
+                className="text-text-muted hover:text-white text-xs px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
               >
-                إلغاء
+                إغلاق
               </button>
             </div>
 
-            <input
-              type="text"
-              autoFocus
-              value={flavorSearchQuery}
-              onChange={(e) => setFlavorSearchQuery(e.target.value)}
-              placeholder="ابحث باسم المنتج البديل (مثال: watermelon أو بطيخ أو black)..."
-              className="w-full bg-[#050505] text-white border border-white/10 focus:border-accent-red px-3 py-2 rounded-lg text-xs focus:outline-none"
-            />
+            {/* Search Input Bar */}
+            <div className="relative">
+              <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-text-muted text-base pointer-events-none">
+                search
+              </span>
+              <input
+                type="text"
+                autoFocus
+                value={flavorSearchQuery}
+                onChange={(e) => setFlavorSearchQuery(e.target.value)}
+                placeholder="ابحث باسم المنتج أو النكهة (عربي أو إنجليزي)..."
+                className="w-full bg-[#050505] text-white border border-white/10 focus:border-accent-red pr-9 pl-8 py-2 rounded-lg text-xs focus:outline-none transition-colors"
+              />
+              {flavorSearchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setFlavorSearchQuery('')}
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-white text-xs"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
 
+            {/* Quick Actions Bar: Select All / Count info */}
             {searchableProducts.length > 0 && (
-              <div className="max-h-40 overflow-y-auto custom-scrollbar space-y-1 pt-1">
-                {searchableProducts.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => handleAddFlavorOption(p)}
-                    className="w-full text-right p-2 rounded bg-white/5 hover:bg-white/10 border border-transparent hover:border-white/10 flex items-center justify-between text-xs transition-colors cursor-pointer"
-                  >
-                    <span className="font-bold text-white truncate">{p.name}</span>
-                    <span className="text-[10px] text-text-muted font-mono shrink-0">المخزون: {p.stock}</span>
-                  </button>
-                ))}
+              <div className="flex items-center justify-between text-[11px] text-text-muted px-1">
+                <span>نتائج البحث المتاحة ({searchableProducts.length}):</span>
+                <button
+                  type="button"
+                  onClick={handleSelectAllVisible}
+                  className="text-accent-red hover:underline font-bold transition-colors cursor-pointer flex items-center gap-1"
+                >
+                  <span className="material-symbols-outlined text-xs">
+                    {searchableProducts.every((p) => selectedProductIds.includes(p.id!)) ? 'deselect' : 'select_all'}
+                  </span>
+                  <span>
+                    {searchableProducts.every((p) => selectedProductIds.includes(p.id!))
+                      ? 'إلغاء تحديد الكل'
+                      : 'تحديد كل النتائج الظاهرة'}
+                  </span>
+                </button>
+              </div>
+            )}
+
+            {/* Searchable Products List with Checkboxes */}
+            {searchableProducts.length > 0 ? (
+              <div className="max-h-56 overflow-y-auto custom-scrollbar space-y-1.5 pt-1 pr-0.5">
+                {searchableProducts.map((p) => {
+                  const isChecked = selectedProductIds.includes(p.id!);
+                  return (
+                    <div
+                      key={p.id}
+                      onClick={() => handleToggleSelect(p.id!)}
+                      className={`w-full p-2.5 rounded-lg border transition-all cursor-pointer flex items-center justify-between gap-3 select-none ${
+                        isChecked
+                          ? 'border-accent-red bg-accent-red/10 shadow-sm shadow-accent-red/20'
+                          : 'border-white/10 bg-[#070707] hover:border-white/25 hover:bg-white/5'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        {/* Custom Athletic Checkbox */}
+                        <div
+                          className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
+                            isChecked
+                              ? 'bg-accent-red border-accent-red text-white'
+                              : 'border-white/25 bg-black/60 hover:border-white/40'
+                          }`}
+                        >
+                          {isChecked && (
+                            <span className="material-symbols-outlined text-[13px] font-black leading-none text-white">
+                              check
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Thumbnail */}
+                        <div className="w-8 h-8 rounded bg-white/5 border border-white/10 p-0.5 shrink-0 flex items-center justify-center overflow-hidden">
+                          {p.images?.[0] ? (
+                            <img src={p.images[0]} alt={p.name} className="w-full h-full object-contain" />
+                          ) : (
+                            <span className="material-symbols-outlined text-xs text-text-muted">image</span>
+                          )}
+                        </div>
+
+                        {/* Name and Stock */}
+                        <div className="min-w-0">
+                          <span className={`block font-bold text-xs truncate ${isChecked ? 'text-white' : 'text-white/90'}`}>
+                            {p.name}
+                          </span>
+                          <span className="text-[10px] text-text-muted font-mono block">
+                            المخزون: <strong className={p.stock > 0 ? 'text-emerald-400' : 'text-accent-red'}>{p.stock} قطعة</strong>
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Direct + Button */}
+                      <button
+                        type="button"
+                        onClick={(e) => handleAddSingleOption(p, e)}
+                        className="px-2.5 py-1 rounded bg-white/5 hover:bg-accent-red text-white text-[11px] font-bold transition-colors shrink-0 flex items-center gap-1 cursor-pointer"
+                        title="إضافة فورية لهذا المنتج فقط"
+                      >
+                        <span className="material-symbols-outlined text-xs">add</span>
+                        <span>إضافة</span>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="p-4 text-center text-text-muted text-xs border border-dashed border-white/10 rounded-lg">
+                لا توجد منتجات مطابقة للبحث أو تم إضافتها جميعاً بالفعل.
+              </div>
+            )}
+
+            {/* Bulk Action Submit Button */}
+            {selectedProductIds.length > 0 && (
+              <div className="pt-2 border-t border-white/10 animate-in fade-in slide-in-from-bottom-2 duration-150">
+                <button
+                  type="button"
+                  onClick={handleAddSelectedOptions}
+                  className="w-full py-2.5 px-4 rounded-xl bg-accent-red hover:bg-accent-red-hover text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg shadow-accent-red/25 transition-all cursor-pointer active:scale-98"
+                >
+                  <span className="material-symbols-outlined text-base">done_all</span>
+                  <span>إضافة المنتجات المحددة ({selectedProductIds.length}) دفعة واحدة إلى البند</span>
+                </button>
               </div>
             )}
           </div>
@@ -335,4 +528,3 @@ export default function BundleItemCard({
     </div>
   );
 }
-
