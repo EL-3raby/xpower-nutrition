@@ -423,7 +423,7 @@ export default function CheckoutClientPage() {
     if (subtotal === 0) return 0;
 
     const rateObj = shippingRates.find(r => r.cityName === selectedGovernorate);
-    const baseCost = rateObj ? rateObj.rate : 80; // default 80 EGP
+    const baseCost = rateObj ? rateObj.rate : 100; // default 100 EGP
 
     // 1. Check if any product in the cart has Free Shipping enabled and NOT expired
     const hasFreeShippingItem = cart.some(item => {

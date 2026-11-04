@@ -232,7 +232,7 @@ export default function ShippingPolicyClientPage() {
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-product-title font-bold text-white text-sm sm:text-base">القاهرة، الدلتا، القناة والبحر الأحمر</span>
                   <span className="font-mono font-black text-accent-red text-base bg-accent-red/10 px-2.5 py-0.5 rounded-lg border border-accent-red/20">
-                    80 ج.م
+                    100 ج.م
                   </span>
                 </div>
                 <p className="text-text-muted text-xs leading-relaxed font-body">

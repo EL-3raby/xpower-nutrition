@@ -231,22 +231,22 @@ export const FRONTIER_GOVERNORATES = [
 ];
 
 export const DEFAULT_SHIPPING_RATES: ShippingRate[] = [
-  // 1. الدلتا، القناة، القاهرة الكبرى، والبحر الأحمر (80 ج.م)
-  { id: 'rate1', cityName: 'القاهرة', rate: 80, isActive: true },
-  { id: 'rate2', cityName: 'الجيزة', rate: 80, isActive: true },
-  { id: 'rate3', cityName: 'القليوبية', rate: 80, isActive: true },
-  { id: 'rate4', cityName: 'الإسكندرية', rate: 80, isActive: true },
-  { id: 'rate5', cityName: 'الدقهلية', rate: 80, isActive: true },
-  { id: 'rate6', cityName: 'البحيرة', rate: 80, isActive: true },
-  { id: 'rate7', cityName: 'الغربية', rate: 80, isActive: true },
-  { id: 'rate8', cityName: 'المنوفية', rate: 80, isActive: true },
-  { id: 'rate9', cityName: 'الشرقية', rate: 80, isActive: true },
-  { id: 'rate10', cityName: 'كفر الشيخ', rate: 80, isActive: true },
-  { id: 'rate11', cityName: 'دمياط', rate: 80, isActive: true },
-  { id: 'rate12', cityName: 'بورسعيد', rate: 80, isActive: true },
-  { id: 'rate13', cityName: 'الإسماعيلية', rate: 80, isActive: true },
-  { id: 'rate14', cityName: 'السويس', rate: 80, isActive: true },
-  { id: 'rate15', cityName: 'البحر الأحمر', rate: 80, isActive: true },
+  // 1. الدلتا، القناة، القاهرة الكبرى، والبحر الأحمر (100 ج.م)
+  { id: 'rate1', cityName: 'القاهرة', rate: 100, isActive: true },
+  { id: 'rate2', cityName: 'الجيزة', rate: 100, isActive: true },
+  { id: 'rate3', cityName: 'القليوبية', rate: 100, isActive: true },
+  { id: 'rate4', cityName: 'الإسكندرية', rate: 100, isActive: true },
+  { id: 'rate5', cityName: 'الدقهلية', rate: 100, isActive: true },
+  { id: 'rate6', cityName: 'البحيرة', rate: 100, isActive: true },
+  { id: 'rate7', cityName: 'الغربية', rate: 100, isActive: true },
+  { id: 'rate8', cityName: 'المنوفية', rate: 100, isActive: true },
+  { id: 'rate9', cityName: 'الشرقية', rate: 100, isActive: true },
+  { id: 'rate10', cityName: 'كفر الشيخ', rate: 100, isActive: true },
+  { id: 'rate11', cityName: 'دمياط', rate: 100, isActive: true },
+  { id: 'rate12', cityName: 'بورسعيد', rate: 100, isActive: true },
+  { id: 'rate13', cityName: 'الإسماعيلية', rate: 100, isActive: true },
+  { id: 'rate14', cityName: 'السويس', rate: 100, isActive: true },
+  { id: 'rate15', cityName: 'البحر الأحمر', rate: 100, isActive: true },
 
   // 2. خط الصعيد (100 ج.م)
   { id: 'rate16', cityName: 'الفيوم', rate: 100, isActive: true },
@@ -692,7 +692,7 @@ export async function syncStandardShippingRates(): Promise<{ count: number }> {
 
     await batch.commit();
     invalidateCache('shippingRates');
-    await logAdminActivity('تحديث أسعار الشحن للأسعار الرسمية المعتمدة (80 / 100 / 120)', 'shipping');
+    await logAdminActivity('تحديث أسعار الشحن للأسعار الرسمية المعتمدة (100 / 120)', 'shipping');
     return { count: DEFAULT_SHIPPING_RATES.length };
   } catch (error) {
     console.error('Error syncing standard shipping rates:', error);

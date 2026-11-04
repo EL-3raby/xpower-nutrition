@@ -169,7 +169,7 @@ export default function AdminSeedPage() {
         }
       });
 
-      // 5. Seed Shipping Rates (27 governorates: 80 / 100 / 120 EGP)
+      // 5. Seed Shipping Rates (27 governorates: 100 / 120 EGP)
       DEFAULT_SHIPPING_RATES.forEach(rate => {
         const rateId = rate.id || `rate_${rate.cityName}`;
         const docRef = doc(db, 'shippingRates', rateId);

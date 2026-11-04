@@ -209,12 +209,10 @@ export default function AdminShippingPage() {
   };
 
   const FRONTIER_LIST = ['مطروح', 'شمال سيناء', 'جنوب سيناء', 'الوادي الجديد'];
-  const UPPER_EGYPT_LIST = ['الفيوم', 'بني سويف', 'المنيا', 'أسيوط', 'سوهاج', 'قنا', 'الأقصر', 'أسوان'];
 
   const getStandardRateForGov = (gov: string) => {
     if (FRONTIER_LIST.includes(gov)) return 120;
-    if (UPPER_EGYPT_LIST.includes(gov)) return 100;
-    return 80; // كل المحافظات الأخرى ب 80
+    return 100; // كل المحافظات بـ 100 ج.م
   };
 
   const handleApplyStandardRates = async () => {
@@ -225,7 +223,7 @@ export default function AdminShippingPage() {
     try {
       await syncStandardShippingRates();
       await loadData();
-      setSuccessMsg('تم تحديث أسعار جميع المحافظات للأسعار الرسمية بنجاح! (كل المحافظات: 80 ج | خط الصعيد: 100 ج | مطروح وسيناء والوادي الجديد: 120 ج)');
+      setSuccessMsg('تم تحديث أسعار جميع المحافظات للأسعار الرسمية بنجاح! (جميع المحافظات: 100 ج | مطروح وسيناء والوادي الجديد: 120 ج)');
     } catch (err: any) {
       console.error('Error applying standard rates:', err);
       setErrorMsg('حدث خطأ أثناء تطبيق أسعار الشحن القياسية.');
@@ -524,10 +522,10 @@ export default function AdminShippingPage() {
                 disabled={submittingRate}
                 type="button"
                 className="bg-accent-red/10 hover:bg-accent-red/20 border border-accent-red/40 text-accent-red hover:text-white font-product-title font-bold text-xs py-2.5 px-4 transition-colors flex items-center gap-2 whitespace-nowrap disabled:opacity-50"
-                title="تطبيق 80ج لكل المحافظات، 100ج لخط الصعيد، 120ج لمطروح وسيناء والوادي الجديد"
+                title="تطبيق 100ج لجميع المحافظات، و 120ج لمطروح وسيناء والوادي الجديد"
               >
                 <span className="material-symbols-outlined text-[16px]">bolt</span>
-                تطبيق الأسعار الرسمية (80 / 100 / 120 ج.م)
+                تطبيق الأسعار الرسمية (100 / 120 ج.م)
               </button>
 
               {rates.length < 27 && (
