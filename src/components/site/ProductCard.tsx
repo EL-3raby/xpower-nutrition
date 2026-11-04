@@ -184,7 +184,7 @@ export default function ProductCard({ product, hideAddToCart = false, viewMode =
                   ) : product.isBundle ? (
                     <>
                       <span className="material-symbols-outlined text-[16px]">tune</span>
-                      <span>تخصيص الباقة</span>
+                      <span>تخصيص البندل</span>
                     </>
                   ) : (
                     <>
@@ -357,7 +357,7 @@ export default function ProductCard({ product, hideAddToCart = false, viewMode =
                 ) : product.isBundle ? (
                   <>
                     <span className="material-symbols-outlined text-[17px] sm:text-[18px]">tune</span>
-                    <span>تخصيص الباقة</span>
+                    <span>تخصيص البندل</span>
                   </>
                 ) : (
                   <>
