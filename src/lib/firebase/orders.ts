@@ -16,6 +16,7 @@ import {
 import { Order, Product } from '../types';
 import { logAdminActivity } from './admin-actions';
 import { invalidateCache } from '../cache';
+import { syncBundlesStockForProduct } from './products';
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   if (typeof value !== 'object' || value === null) return false;
@@ -429,6 +430,7 @@ export async function updateOrderStatus(id: string, newStatus: Order['status']) 
   if (newStatus === 'cancelled') {
     const restoredItems: { name: string; quantity: number }[] = [];
     const failedItems: { name: string }[] = [];
+    const affectedProductIds = new Set<string>();
     
     await runTransaction(db, async (transaction) => {
       const orderSnap = await transaction.get(orderRef);
@@ -442,10 +444,18 @@ export async function updateOrderStatus(id: string, newStatus: Order['status']) 
         return;
       }
 
-      // 1. Gather all items to restore (accounting for bundles)
+      // 1. Gather all items to restore (accounting for bundles and their individual components)
       const itemsToRestore: { productId: string; name: string; quantity: number }[] = [];
-      for (const item of orderData.items) {
+      const bundleSalesToDecrement = new Map<string, number>();
+
+      for (const item of (orderData.items || [])) {
         if (item.isBundle && item.bundleItems && item.bundleItems.length > 0) {
+          // Track bundle itself to decrement its overall salesCount
+          bundleSalesToDecrement.set(
+            item.productId,
+            (bundleSalesToDecrement.get(item.productId) || 0) + item.quantity
+          );
+
           for (const bItem of item.bundleItems) {
             itemsToRestore.push({
               productId: bItem.productId,
@@ -462,7 +472,7 @@ export async function updateOrderStatus(id: string, newStatus: Order['status']) 
         }
       }
 
-      // Group by productId to prevent duplicate reads/writes
+      // Group by productId to prevent duplicate reads/writes in Firestore transaction
       const restoreMap = new Map<string, { name: string; quantity: number }>();
       for (const it of itemsToRestore) {
         const existing = restoreMap.get(it.productId);
@@ -473,6 +483,7 @@ export async function updateOrderStatus(id: string, newStatus: Order['status']) 
         }
       }
 
+      // Read and update product stocks and salesCount
       const stockUpdates: { productRef: any; newStock: number; newSalesCount: number }[] = [];
       for (const [prodId, req] of restoreMap.entries()) {
         const productRef = doc(db, 'products', prodId);
@@ -485,12 +496,25 @@ export async function updateOrderStatus(id: string, newStatus: Order['status']) 
             newSalesCount: Math.max(0, (productData.salesCount || 0) - req.quantity)
           });
           restoredItems.push({ name: req.name, quantity: req.quantity });
+          affectedProductIds.add(prodId);
         } else {
           failedItems.push({ name: req.name });
         }
       }
 
-      // 2. Apply updates
+      // Decrement sales count for bundles
+      for (const [bundleId, qty] of bundleSalesToDecrement.entries()) {
+        const bundleRef = doc(db, 'products', bundleId);
+        const bundleSnap = await transaction.get(bundleRef);
+        if (bundleSnap.exists()) {
+          const bData = bundleSnap.data() as Product;
+          transaction.update(bundleRef, {
+            salesCount: Math.max(0, (bData.salesCount || 0) - qty)
+          });
+        }
+      }
+
+      // 2. Apply component stock updates
       for (const update of stockUpdates) {
         transaction.update(update.productRef, {
           stock: update.newStock,
@@ -505,6 +529,15 @@ export async function updateOrderStatus(id: string, newStatus: Order['status']) 
       });
     });
 
+    // Re-synchronize stock for all bundles containing the restored products
+    for (const prodId of affectedProductIds) {
+      try {
+        await syncBundlesStockForProduct(prodId);
+      } catch (err) {
+        console.warn('Failed to sync bundle stock after order cancellation:', prodId, err);
+      }
+    }
+
     // Log the restoration activity outside the transaction
     for (const item of restoredItems) {
       await logAdminActivity(`تم إرجاع ${item.quantity} قطعة من [${item.name}] بسبب إلغاء الطلب #${id}`, id);
@@ -514,6 +547,15 @@ export async function updateOrderStatus(id: string, newStatus: Order['status']) 
     }
     invalidateCache('product');
   } else {
+    // If order was already cancelled, prevent reactivation without proper handling
+    const orderSnap = await getDoc(orderRef);
+    if (orderSnap.exists()) {
+      const orderData = orderSnap.data() as Order;
+      if (orderData.status === 'cancelled') {
+        throw new Error('لا يمكن إعادة تنشيط طلب تم إلغاؤه وإرجاع مخزونه بالفعل. يرجى إنشاء طلب جديد للعميل.');
+      }
+    }
+
     const updatePayload: Record<string, unknown> = { status: newStatus };
     if (newStatus === 'delivered') {
       updatePayload.deliveredAt = serverTimestamp();
@@ -553,6 +595,15 @@ export async function updateOrderPaymentStatus(
     return;
   }
   const docRef = doc(db, 'orders', id);
+
+  // If order is being cancelled (e.g. Rejecting payment), trigger the full atomic stock restoration flow
+  if (orderStatus === 'cancelled') {
+    await updateOrderStatus(id, 'cancelled');
+    await updateDoc(docRef, { paymentStatus });
+    await logAdminActivity(`rejected payment and cancelled order #${id} with stock restoration`, id);
+    return;
+  }
+
   const updatePayload: Record<string, any> = { paymentStatus };
   if (orderStatus) {
     updatePayload.status = orderStatus;
@@ -569,7 +620,7 @@ export async function updateOrderPaymentStatus(
   );
 }
 
-// Delete an order
+// Delete an order safely (restores stock if not previously restored)
 export async function deleteOrder(id: string) {
   if (isDummyFirebase) {
     console.log(`Mock Mode: Deleted order #${id}`);
@@ -577,6 +628,14 @@ export async function deleteOrder(id: string) {
   }
 
   const docRef = doc(db, 'orders', id);
+  const snap = await getDoc(docRef);
+  if (snap.exists()) {
+    const data = snap.data() as Order;
+    if (data.status !== 'cancelled' && !data.stockRestored) {
+      await updateOrderStatus(id, 'cancelled');
+    }
+  }
+
   await deleteDoc(docRef);
   await logAdminActivity('deleted order', id);
 }

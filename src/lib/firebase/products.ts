@@ -300,83 +300,100 @@ export async function updateProduct(id: string, product: Partial<Product>) {
 
   // If a regular product's stock was updated, propagate changes to any bundles that include it
   if (typeof updateData.stock === 'number') {
-    try {
-      const bundlesSnap = await getDocs(query(collection(db, 'products'), where('isBundle', '==', true)));
-      for (const bDoc of bundlesSnap.docs) {
-        const bData = bDoc.data();
-        if (!bData.bundleItems || !Array.isArray(bData.bundleItems)) continue;
-
-        const isReferenced = bData.bundleItems.some((item: any) => 
-          item.productId === id || 
-          (item.flavorOptions && item.flavorOptions.some((opt: any) => opt.productId === id))
-        );
-
-        if (isReferenced) {
-          const refIds = new Set<string>();
-          bData.bundleItems.forEach((item: any) => {
-            if (item.productId) refIds.add(item.productId);
-            if (item.flavorOptions) {
-              item.flavorOptions.forEach((opt: any) => {
-                if (opt.productId) refIds.add(opt.productId);
-              });
-            }
-          });
-
-          const liveMap = new Map<string, number>();
-          liveMap.set(id, updateData.stock);
-
-          await Promise.all(
-            Array.from(refIds).filter(rId => rId !== id).map(async (rId) => {
-              try {
-                const s = await getDoc(doc(db, 'products', rId));
-                if (s.exists()) {
-                  liveMap.set(rId, typeof s.data().stock === 'number' ? s.data().stock : 0);
-                }
-              } catch (e) {
-                console.warn('Failed to fetch component stock during bundle sync:', rId, e);
-              }
-            })
-          );
-
-          const updatedBundleItems = bData.bundleItems.map((item: any) => {
-            let updatedOpts = item.flavorOptions;
-            if (updatedOpts && Array.isArray(updatedOpts)) {
-              updatedOpts = updatedOpts.map((opt: any) => ({
-                ...opt,
-                stock: liveMap.get(opt.productId) ?? (opt.stock || 0)
-              }));
-            }
-            return {
-              ...item,
-              stock: liveMap.get(item.productId) ?? (item.stock || 0),
-              flavorOptions: updatedOpts
-            };
-          });
-
-          const compMax = updatedBundleItems.map((item: any) => {
-            const qty = item.quantity || 1;
-            if (item.flavorOptions && item.flavorOptions.length > 0) {
-              const maxOpt = Math.max(...item.flavorOptions.map((opt: any) => liveMap.get(opt.productId) ?? (opt.stock || 0)), 0);
-              return Math.floor(maxOpt / qty);
-            }
-            const s = liveMap.get(item.productId) ?? (item.stock || 0);
-            return Math.floor(s / qty);
-          });
-
-          const newBundleStock = Math.max(0, Math.min(...compMax));
-          await updateDoc(doc(db, 'products', bDoc.id), {
-            stock: newBundleStock,
-            bundleItems: updatedBundleItems
-          });
-        }
-      }
-    } catch (e) {
-      console.warn('Failed to auto-sync bundle stocks:', e);
-    }
+    await syncBundlesStockForProduct(id, updateData.stock);
   }
 
   invalidateCache('product');
   await logAdminActivity('updated product', id);
+}
+
+// Automatically synchronize all bundles that include a given product
+export async function syncBundlesStockForProduct(id: string, explicitStock?: number) {
+  if (isDummyFirebase) return;
+  try {
+    let stockVal = explicitStock;
+    if (typeof stockVal !== 'number') {
+      const snap = await getDoc(doc(db, 'products', id));
+      if (snap.exists()) {
+        const d = snap.data();
+        stockVal = typeof d.stock === 'number' ? d.stock : 0;
+      } else {
+        return;
+      }
+    }
+
+    const bundlesSnap = await getDocs(query(collection(db, 'products'), where('isBundle', '==', true)));
+    for (const bDoc of bundlesSnap.docs) {
+      const bData = bDoc.data();
+      if (!bData.bundleItems || !Array.isArray(bData.bundleItems)) continue;
+
+      const isReferenced = bData.bundleItems.some((item: any) => 
+        item.productId === id || 
+        (item.flavorOptions && item.flavorOptions.some((opt: any) => opt.productId === id))
+      );
+
+      if (isReferenced) {
+        const refIds = new Set<string>();
+        bData.bundleItems.forEach((item: any) => {
+          if (item.productId) refIds.add(item.productId);
+          if (item.flavorOptions) {
+            item.flavorOptions.forEach((opt: any) => {
+              if (opt.productId) refIds.add(opt.productId);
+            });
+          }
+        });
+
+        const liveMap = new Map<string, number>();
+        liveMap.set(id, stockVal);
+
+        await Promise.all(
+          Array.from(refIds).filter(rId => rId !== id).map(async (rId) => {
+            try {
+              const s = await getDoc(doc(db, 'products', rId));
+              if (s.exists()) {
+                liveMap.set(rId, typeof s.data().stock === 'number' ? s.data().stock : 0);
+              }
+            } catch (e) {
+              console.warn('Failed to fetch component stock during bundle sync:', rId, e);
+            }
+          })
+        );
+
+        const updatedBundleItems = bData.bundleItems.map((item: any) => {
+          let updatedOpts = item.flavorOptions;
+          if (updatedOpts && Array.isArray(updatedOpts)) {
+            updatedOpts = updatedOpts.map((opt: any) => ({
+              ...opt,
+              stock: liveMap.get(opt.productId) ?? (opt.stock || 0)
+            }));
+          }
+          return {
+            ...item,
+            stock: liveMap.get(item.productId) ?? (item.stock || 0),
+            flavorOptions: updatedOpts
+          };
+        });
+
+        const compMax = updatedBundleItems.map((item: any) => {
+          const qty = item.quantity || 1;
+          if (item.flavorOptions && item.flavorOptions.length > 0) {
+            const maxOpt = Math.max(...item.flavorOptions.map((opt: any) => liveMap.get(opt.productId) ?? (opt.stock || 0)), 0);
+            return Math.floor(maxOpt / qty);
+          }
+          const s = liveMap.get(item.productId) ?? (item.stock || 0);
+          return Math.floor(s / qty);
+        });
+
+        const newBundleStock = Math.max(0, Math.min(...compMax));
+        await updateDoc(doc(db, 'products', bDoc.id), {
+          stock: newBundleStock,
+          bundleItems: updatedBundleItems
+        });
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to auto-sync bundle stocks:', e);
+  }
 }
 
 // Delete product

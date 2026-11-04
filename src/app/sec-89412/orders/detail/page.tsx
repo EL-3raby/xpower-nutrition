@@ -664,7 +664,7 @@ function OrderDetailContent() {
               <select 
                 value={statusVal}
                 onChange={(e) => handleStatusChange(e.target.value as Order['status'])}
-                disabled={updating || o.paymentStatus === 'pending_review'}
+                disabled={updating || o.paymentStatus === 'pending_review' || o.status === 'cancelled'}
                 className="bg-black/60 text-white border border-white/10 rounded-xl px-4 py-3 font-body text-xs sm:text-sm focus:border-accent-red focus:outline-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 <option value="pending">قيد الانتظار (Pending)</option>
@@ -673,7 +673,13 @@ function OrderDetailContent() {
                 <option value="delivered">تم التوصيل (Delivered)</option>
                 <option value="cancelled">إلغاء الطلب (Cancelled)</option>
               </select>
-              {o.paymentStatus === 'pending_review' && (
+              {o.status === 'cancelled' && (
+                <p className="text-red-400 text-xs mt-1 font-body flex items-center gap-1.5 bg-red-500/10 border border-red-500/20 p-2.5 rounded-lg">
+                  <span className="material-symbols-outlined text-sm">lock</span>
+                  <span>تم إلغاء هذا الطلب وإرجاع مخزونه للمتجر بنجاح (حالة نهائية لمنع تكرار المخزون).</span>
+                </p>
+              )}
+              {o.paymentStatus === 'pending_review' && o.status !== 'cancelled' && (
                 <p className="text-amber-400 text-xs mt-1 font-body">يرجى تأكيد إثبات الدفع أولاً لتفعيل تغيير حالة الشحن.</p>
               )}
             </div>
