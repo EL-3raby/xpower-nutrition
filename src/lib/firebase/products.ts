@@ -552,6 +552,7 @@ export interface BulkDiscountOptions {
   theme?: 'white' | 'gold' | 'cyan' | 'purple' | 'crimson';
   endDate?: string | null; // ISO string e.g. "2026-11-05T23:59"
   excludeDiscounted?: boolean;
+  marqueeMessages?: string[];
 }
 
 export async function applyBulkDiscount(options: BulkDiscountOptions): Promise<{ updatedCount: number }> {
@@ -588,7 +589,10 @@ export async function applyBulkDiscount(options: BulkDiscountOptions): Promise<{
       theme: options.theme || 'white',
       endDate: options.endDate || null,
       appliedAt: new Date().toISOString(),
-      itemsCount: targetProducts.length
+      itemsCount: targetProducts.length,
+      marqueeMessages: options.marqueeMessages && options.marqueeMessages.length > 0
+        ? options.marqueeMessages.map(m => m.trim()).filter(Boolean)
+        : undefined
     }
   };
 
@@ -636,6 +640,28 @@ export async function applyBulkDiscount(options: BulkDiscountOptions): Promise<{
   );
 
   return { updatedCount: targetProducts.length };
+}
+
+// Quick update for marquee messages and theme without altering product prices
+export async function updateBulkDiscountMarquee(
+  messages: string[], 
+  theme?: 'white' | 'gold' | 'cyan' | 'purple' | 'crimson'
+): Promise<void> {
+  if (isDummyFirebase) {
+    console.log('Mock Mode: updateBulkDiscountMarquee', messages, theme);
+    return;
+  }
+  const cleanMessages = messages.map(m => m.trim()).filter(Boolean);
+  const siteConfigRef = doc(db, 'settings', 'siteConfig');
+  const payload: any = {
+    'bulkDiscount.marqueeMessages': cleanMessages
+  };
+  if (theme) {
+    payload['bulkDiscount.theme'] = theme;
+  }
+  await updateDoc(siteConfigRef, payload);
+  invalidateCache('siteConfig');
+  await logAdminActivity('تحديث نصوص ورسائل شريط العروض بالأعلى', 'settings');
 }
 
 export async function revertBulkDiscount(): Promise<{ revertedCount: number }> {

@@ -255,10 +255,6 @@ export default function DiscountTopBar({ initialConfig }: DiscountTopBarProps) {
         badge: `خصم ${discountFormatted}`,
         highlight: `على ${scopeLabel}`,
       },
-      {
-        title: 'عروض إكس باور الكبرى مستمرة',
-        cta: 'تسوق الآن ←',
-      },
     ];
 
     if (timeLeft && !timeLeft.isExpired) {
@@ -270,16 +266,35 @@ export default function DiscountTopBar({ initialConfig }: DiscountTopBarProps) {
       });
     }
 
-    items.push(
-      {
-        title: 'ضمان أصالة 100% لجميع المكملات',
-        highlight: 'معاينة الطرد قبل الدفع',
-      },
-      {
-        title: `خصم ${discountFormatted} يطبق تلقائياً عند الشيك أوت`,
-        cta: 'استفد من العرض',
-      }
-    );
+    // Check if custom messages are saved in bulkDiscount
+    const customMsgs = bulkDiscount.marqueeMessages && Array.isArray(bulkDiscount.marqueeMessages)
+      ? bulkDiscount.marqueeMessages.filter((m: string) => typeof m === 'string' && m.trim().length > 0)
+      : [];
+
+    if (customMsgs.length > 0) {
+      customMsgs.forEach((msg: string, idx: number) => {
+        items.push({
+          title: msg.trim(),
+          ...(idx === 0 ? { cta: 'تسوق الآن ←' } : {}),
+        });
+      });
+    } else {
+      // Default fallback athletic phrases
+      items.push(
+        {
+          title: 'عروض إكس باور الكبرى مستمرة',
+          cta: 'تسوق الآن ←',
+        },
+        {
+          title: 'ضمان أصالة 100% لجميع المكملات',
+          highlight: 'معاينة الطرد قبل الدفع',
+        },
+        {
+          title: `خصم ${discountFormatted} يطبق تلقائياً عند الشيك أوت`,
+          cta: 'استفد من العرض',
+        }
+      );
+    }
 
     return items;
   }, [bulkDiscount, scopeLabel, timeLeft]);

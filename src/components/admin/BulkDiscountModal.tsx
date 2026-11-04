@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import { Product } from '@/lib/types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Product, SiteConfig } from '@/lib/types';
 import { applyBulkDiscount, BulkDiscountOptions } from '@/lib/firebase/products';
 
 interface BulkDiscountModalProps {
@@ -10,6 +10,7 @@ interface BulkDiscountModalProps {
   onSuccess: () => void;
   products: Product[];
   categories: { id?: string; name: string; slug: string }[];
+  currentConfig?: SiteConfig | null;
 }
 
 export default function BulkDiscountModal({
@@ -18,6 +19,7 @@ export default function BulkDiscountModal({
   onSuccess,
   products,
   categories,
+  currentConfig,
 }: BulkDiscountModalProps) {
   const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>('percentage');
   const [discountValue, setDiscountValue] = useState<number>(10);
@@ -25,8 +27,55 @@ export default function BulkDiscountModal({
   const [theme, setTheme] = useState<'white' | 'gold' | 'cyan' | 'purple' | 'crimson'>('white');
   const [endDate, setEndDate] = useState<string>('');
   const [excludeDiscounted, setExcludeDiscounted] = useState<boolean>(false);
+  const [messages, setMessages] = useState<string[]>([
+    'عروض إكس باور الكبرى مستمرة',
+    'ضمان أصالة 100% لجميع المكملات',
+    'معاينة الطرد قبل الدفع'
+  ]);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Prepopulate from current active bulk discount if available
+  useEffect(() => {
+    if (isOpen && currentConfig?.bulkDiscount) {
+      const b = currentConfig.bulkDiscount;
+      if (b.type) setDiscountType(b.type);
+      if (typeof b.value === 'number') setDiscountValue(b.value);
+      if (b.scope) setScope(b.scope);
+      if (b.theme) setTheme(b.theme);
+      if (b.endDate) {
+        try {
+          const d = new Date(b.endDate);
+          const pad = (n: number) => n.toString().padStart(2, '0');
+          const formatted = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+          setEndDate(formatted);
+        } catch {}
+      }
+      if (b.marqueeMessages && Array.isArray(b.marqueeMessages) && b.marqueeMessages.length > 0) {
+        setMessages(b.marqueeMessages);
+      }
+    }
+  }, [isOpen, currentConfig]);
+
+  // Message array management handlers
+  const handleAddMessage = () => {
+    setMessages((prev) => [...prev, '']);
+  };
+
+  const handleUpdateMessage = (idx: number, val: string) => {
+    setMessages((prev) => prev.map((m, i) => (i === idx ? val : m)));
+  };
+
+  const handleRemoveMessage = (idx: number) => {
+    setMessages((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleAddPresetMessage = (preset: string) => {
+    setMessages((prev) => {
+      if (prev.some((m) => m.trim() === preset)) return prev;
+      return [...prev, preset];
+    });
+  };
 
   // Quick date presets
   const handleSetQuickDate = (hours: number) => {
@@ -91,6 +140,7 @@ export default function BulkDiscountModal({
 
     setIsSubmitting(true);
     try {
+      const cleanMessages = messages.map((m) => m.trim()).filter(Boolean);
       const options: BulkDiscountOptions = {
         type: discountType,
         value: numVal,
@@ -98,6 +148,7 @@ export default function BulkDiscountModal({
         theme,
         endDate: endDate ? new Date(endDate).toISOString() : null,
         excludeDiscounted,
+        marqueeMessages: cleanMessages.length > 0 ? cleanMessages : undefined,
       };
 
       await applyBulkDiscount(options);
@@ -347,7 +398,120 @@ export default function BulkDiscountModal({
             </div>
           </div>
 
-          {/* 5. Toggles / Checkboxes */}
+          {/* 5. Custom Marquee Messages (كلام ورسائل الشريط بالأعلى) */}
+          <div className="bg-[#121212] border border-white/[0.08] p-4 rounded-xl space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-white flex items-center gap-1.5 font-product-title">
+                <span className="material-symbols-outlined text-accent-red text-[18px]">campaign</span>
+                <span>كلام ورسائل الشريط بالأعلى (نصوص العرض المتحركة):</span>
+              </label>
+              <span className="text-[11px] text-text-muted font-body">
+                ({messages.filter((m) => m.trim().length > 0).length} جمل نشطة)
+              </span>
+            </div>
+
+            <p className="text-[11px] text-text-muted font-body leading-relaxed">
+              اكتب الجمل اللي عايزها تظهر وتتحرك في الشريط أعلى الموقع، تقدر تعدل الجمل الحالية أو تضيف أكتر من جملة:
+            </p>
+
+            {/* List of custom sentences */}
+            <div className="space-y-2 pt-1">
+              {messages.map((msg, idx) => (
+                <div key={idx} className="flex items-center gap-2 group animate-in fade-in slide-in-from-right-2 duration-150">
+                  <span className="w-6 h-6 rounded-md bg-white/5 border border-white/10 text-text-muted text-[11px] font-product-title font-bold flex items-center justify-center shrink-0">
+                    {idx + 1}
+                  </span>
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      value={msg}
+                      onChange={(e) => handleUpdateMessage(idx, e.target.value)}
+                      placeholder="اكتب جملة العرض هنا... (مثال: ضمان أصالة 100% لجميع المكملات)"
+                      maxLength={120}
+                      className="w-full bg-[#0a0a0a] border border-white/10 rounded-xl px-3.5 py-2 text-white font-product-title text-xs sm:text-sm focus:border-accent-red focus:outline-none transition-colors"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveMessage(idx)}
+                    disabled={messages.length <= 1}
+                    title="حذف هذه الجملة"
+                    className="w-8 h-8 rounded-lg bg-white/5 hover:bg-accent-red/20 text-text-muted hover:text-accent-red border border-white/5 hover:border-accent-red/30 flex items-center justify-center transition-colors disabled:opacity-20 shrink-0"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">close</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Action to add sentence & quick presets */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 pt-2 border-t border-white/5">
+              <button
+                type="button"
+                onClick={handleAddMessage}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white border border-white/10 text-xs font-product-title font-bold transition-all active:scale-95"
+              >
+                <span className="material-symbols-outlined text-[16px] text-accent-red">add_circle</span>
+                <span>+ ضيف جملة تانية للشريط</span>
+              </button>
+
+              {/* Quick Preset Ideas Chips */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[10px] text-text-muted font-body">اقتراحات سريعة:</span>
+                {[
+                  'شحن سريع لجميع المحافظات',
+                  'شيكر مجاناً مع الطلبات الكبيرة',
+                  'معاينة الطرد قبل الدفع',
+                  'ضمان أصالة 100%'
+                ].map((preset, pIdx) => {
+                  const alreadyExists = messages.some((m) => m.trim() === preset);
+                  if (alreadyExists) return null;
+                  return (
+                    <button
+                      key={pIdx}
+                      type="button"
+                      onClick={() => handleAddPresetMessage(preset)}
+                      className="px-2 py-0.5 rounded-md bg-white/[0.03] hover:bg-white/10 text-text-muted hover:text-white border border-white/5 text-[10px] font-product-title transition-colors"
+                    >
+                      + {preset}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Live Ticker Mini-Preview Strip */}
+            <div className="mt-2 pt-2 border-t border-white/5">
+              <div className="flex items-center justify-between text-[10px] text-text-muted font-body mb-1.5">
+                <span>معاينة حية لشكل الشريط بالستايل المختار:</span>
+                <span className="text-white/60">يتكرر بشكل متواصل على شاشات الزوار</span>
+              </div>
+              <div className={`p-2.5 rounded-xl overflow-hidden border border-white/10 ${
+                theme === 'white' 
+                  ? 'bg-white text-black' 
+                  : theme === 'gold' 
+                  ? 'bg-[#0A0C10] text-amber-300 border-amber-500/30' 
+                  : theme === 'cyan' 
+                  ? 'bg-[#050C16] text-cyan-300 border-cyan-500/30' 
+                  : 'bg-[#0D0404] text-red-400 border-red-500/30'
+              }`}>
+                <div className="flex items-center gap-4 text-xs font-product-title font-bold overflow-x-auto no-scrollbar whitespace-nowrap">
+                  <span className="inline-flex items-center gap-1 text-accent-red font-black">
+                    <span className="material-symbols-outlined text-[15px]" style={{ fontVariationSettings: "'FILL' 1" }}>local_fire_department</span>
+                    عرض حصري: خصم {discountType === 'percentage' ? `${discountValue}%` : `${discountValue} ج.م`}
+                  </span>
+                  {messages.filter((m) => m.trim().length > 0).map((msg, mIdx) => (
+                    <span key={mIdx} className="inline-flex items-center gap-1.5 opacity-90">
+                      <span className="material-symbols-outlined text-accent-red text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>local_fire_department</span>
+                      <span>{msg}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 6. Toggles / Checkboxes */}
           <div className="space-y-2.5 pt-1">
             <label className="flex items-center gap-3 cursor-pointer select-none">
               <input

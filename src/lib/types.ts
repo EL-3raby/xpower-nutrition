@@ -209,6 +209,7 @@ export interface SiteConfig {
     endDate?: string | null;
     appliedAt?: string;
     itemsCount?: number;
+    marqueeMessages?: string[];
   };
 }
 

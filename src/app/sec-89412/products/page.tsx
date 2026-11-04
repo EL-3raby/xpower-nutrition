@@ -863,6 +863,7 @@ function AdminProductsContent() {
         onSuccess={handleBulkSuccess}
         products={products}
         categories={categories}
+        currentConfig={siteConfig}
       />
 
       {/* Free Shipping Modal */}
