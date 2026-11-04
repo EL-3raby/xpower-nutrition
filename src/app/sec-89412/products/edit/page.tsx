@@ -77,14 +77,27 @@ function EditProductContent() {
 
   const [discountPercentInput, setDiscountPercentInput] = useState<string>('');
 
-  // Calculate live discount percentage whenever price or oldPrice changes
-  const currentDiscountPct = (oldPriceVal && priceVal && oldPriceVal > priceVal)
-    ? Math.round(((oldPriceVal - priceVal) / oldPriceVal) * 100)
-    : 0;
+  // Check if at least one positive base price exists
+  const hasBasePrice = (typeof priceVal === 'number' && priceVal > 0) || (typeof oldPriceVal === 'number' && oldPriceVal > 0);
 
-  const savingsAmount = (oldPriceVal && priceVal && oldPriceVal > priceVal)
-    ? oldPriceVal - priceVal
-    : 0;
+  // Calculate live discount percentage whenever price or oldPrice changes
+  const currentDiscountPct = (
+    typeof oldPriceVal === 'number' &&
+    typeof priceVal === 'number' &&
+    !isNaN(oldPriceVal) &&
+    !isNaN(priceVal) &&
+    oldPriceVal > 0 &&
+    oldPriceVal > priceVal
+  ) ? Math.round(((oldPriceVal - priceVal) / oldPriceVal) * 100) : 0;
+
+  const savingsAmount = (
+    typeof oldPriceVal === 'number' &&
+    typeof priceVal === 'number' &&
+    !isNaN(oldPriceVal) &&
+    !isNaN(priceVal) &&
+    oldPriceVal > 0 &&
+    oldPriceVal > priceVal
+  ) ? oldPriceVal - priceVal : 0;
 
   // Sync the percent input whenever the calculated percentage changes externally
   useEffect(() => {
@@ -97,6 +110,7 @@ function EditProductContent() {
 
   // Handler for custom percentage input
   const handleDiscountPercentChange = (valStr: string) => {
+    if (!hasBasePrice) return;
     setDiscountPercentInput(valStr);
     const pct = parseFloat(valStr);
     if (isNaN(pct) || pct <= 0) {
@@ -107,10 +121,10 @@ function EditProductContent() {
     const currentOld = getValues('oldPrice');
     const currentPrice = getValues('price');
 
-    if (currentOld && currentOld > 0) {
+    if (typeof currentOld === 'number' && currentOld > 0) {
       const newPrice = Math.round(currentOld * (1 - clampedPct / 100));
       setValue('price', Math.max(0, newPrice), { shouldValidate: true });
-    } else if (currentPrice && currentPrice > 0) {
+    } else if (typeof currentPrice === 'number' && currentPrice > 0) {
       const newOld = Math.round(currentPrice / (1 - clampedPct / 100));
       setValue('oldPrice', newOld, { shouldValidate: true });
     }
@@ -118,14 +132,15 @@ function EditProductContent() {
 
   // Handler for quick preset discount chips (10%, 15%, 20%, etc.)
   const applyQuickDiscount = (pct: number) => {
+    if (!hasBasePrice) return;
     setDiscountPercentInput(String(pct));
     const currentOld = getValues('oldPrice');
     const currentPrice = getValues('price');
 
-    if (currentOld && currentOld > 0) {
+    if (typeof currentOld === 'number' && currentOld > 0) {
       const newPrice = Math.round(currentOld * (1 - pct / 100));
       setValue('price', Math.max(0, newPrice), { shouldValidate: true });
-    } else if (currentPrice && currentPrice > 0) {
+    } else if (typeof currentPrice === 'number' && currentPrice > 0) {
       const newOld = Math.round(currentPrice / (1 - pct / 100));
       setValue('oldPrice', newOld, { shouldValidate: true });
     }
@@ -133,7 +148,13 @@ function EditProductContent() {
 
   // Handler to clear discount
   const handleRemoveDiscount = () => {
-    setValue('oldPrice', undefined, { shouldValidate: true });
+    if (isBundle && bundleItems.length > 0) {
+      const totalOriginal = bundleItems.reduce((acc, it) => acc + (it.price * it.quantity), 0);
+      setValue('price', totalOriginal, { shouldValidate: true });
+      setValue('oldPrice', totalOriginal, { shouldValidate: true });
+    } else {
+      setValue('oldPrice', undefined, { shouldValidate: true });
+    }
     setDiscountPercentInput('');
   };
 
@@ -778,7 +799,7 @@ function EditProductContent() {
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <label className="font-product-title text-white font-bold text-xs uppercase tracking-wide">السعر القديم (قبل الخصم)</label>
-                  {oldPriceVal && oldPriceVal > 0 ? (
+                  {typeof oldPriceVal === 'number' && typeof priceVal === 'number' && oldPriceVal > priceVal ? (
                     <button
                       type="button"
                       onClick={handleRemoveDiscount}
@@ -821,10 +842,13 @@ function EditProductContent() {
                     type="number"
                     min="1"
                     max="99"
-                    placeholder="أدخل نسبة الخصم (مثال: 20)"
+                    placeholder={hasBasePrice ? "أدخل نسبة الخصم (مثال: 20)" : "أدخل سعر البيع أو السعر القديم أولاً"}
+                    disabled={!hasBasePrice}
                     value={discountPercentInput}
                     onChange={(e) => handleDiscountPercentChange(e.target.value)}
-                    className="w-full bg-bg-primary text-white border border-text-muted/20 px-4 py-2.5 font-body text-sm focus:border-accent-red focus:outline-none focus:ring-1 focus:ring-accent-red transition-all pl-10 text-left font-mono"
+                    className={`w-full bg-bg-primary text-white border border-text-muted/20 px-4 py-2.5 font-body text-sm focus:border-accent-red focus:outline-none focus:ring-1 focus:ring-accent-red transition-all pl-10 text-left font-mono ${
+                      !hasBasePrice ? 'opacity-50 cursor-not-allowed bg-black/60' : ''
+                    }`}
                     dir="ltr"
                   />
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted text-sm font-bold pointer-events-none">%</span>
@@ -838,11 +862,14 @@ function EditProductContent() {
                       <button
                         key={pct}
                         type="button"
+                        disabled={!hasBasePrice}
                         onClick={() => applyQuickDiscount(pct)}
-                        className={`px-2.5 py-1 text-[11px] font-mono font-bold rounded-lg border transition-all active:scale-95 cursor-pointer ${
-                          currentDiscountPct === pct
-                            ? 'bg-accent-red text-white border-accent-red shadow-[0_0_10px_rgba(227,30,36,0.3)]'
-                            : 'bg-white/5 hover:bg-white/10 text-text-muted hover:text-white border-white/10'
+                        className={`px-2.5 py-1 text-[11px] font-mono font-bold rounded-lg border transition-all ${
+                          !hasBasePrice
+                            ? 'opacity-40 cursor-not-allowed bg-white/5 border-white/5 text-text-muted'
+                            : currentDiscountPct === pct
+                            ? 'bg-accent-red text-white border-accent-red shadow-[0_0_10px_rgba(227,30,36,0.3)] active:scale-95 cursor-pointer'
+                            : 'bg-white/5 hover:bg-white/10 text-text-muted hover:text-white border-white/10 active:scale-95 cursor-pointer'
                         }`}
                       >
                         {pct}%
