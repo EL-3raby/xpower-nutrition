@@ -141,8 +141,9 @@ export default function NewProductPage() {
       const existingIdx = prev.findIndex(item => item.productId === targetProduct.id);
       let updated: BundleItem[];
       if (existingIdx > -1) {
-        updated = [...prev];
-        updated[existingIdx].quantity += qty;
+        updated = prev.map((item, idx) =>
+          idx === existingIdx ? { ...item, quantity: item.quantity + qty } : item
+        );
       } else {
         let flavorLabel = targetProduct.name;
         if (targetProduct.name.includes('_')) {

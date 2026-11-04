@@ -192,12 +192,21 @@ export async function createOrder(orderData: Omit<Order, 'id' | 'createdAt' | 's
       });
     }
 
-    // 2b. Update bundle sales counts
+    // 2b. Update bundle sales counts (aggregated by product ID to handle duplicate bundles in cart)
+    const bundleSalesAgg = new Map<string, { ref: any; inc: number }>();
     for (const bSale of bundleSalesUpdates) {
-      const bData = itemProductSnaps.get(bSale.productRef.id)?.data;
+      const existing = bundleSalesAgg.get(bSale.productRef.id);
+      if (existing) {
+        existing.inc += bSale.salesIncrement;
+      } else {
+        bundleSalesAgg.set(bSale.productRef.id, { ref: bSale.productRef, inc: bSale.salesIncrement });
+      }
+    }
+    for (const [bid, { ref, inc }] of bundleSalesAgg) {
+      const bData = itemProductSnaps.get(bid)?.data;
       if (bData) {
-        transaction.update(bSale.productRef, {
-          salesCount: (bData.salesCount || 0) + bSale.salesIncrement
+        transaction.update(ref, {
+          salesCount: (bData.salesCount || 0) + inc
         });
       }
     }

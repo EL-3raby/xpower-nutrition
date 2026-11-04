@@ -120,8 +120,8 @@ export default function AdminShippingPage() {
         freeShipping: {
           isEnabled: freeShippingEnabled,
           thresholdAmount: Number(freeShippingThreshold),
-          depositAmountWhenFree: Number(freeShippingDepositAmount) || 100,
-          codDepositAmount: Number(freeShippingDepositAmount) || 100
+          depositAmountWhenFree: Number.isFinite(Number(freeShippingDepositAmount)) ? Math.max(0, Number(freeShippingDepositAmount)) : 100,
+          codDepositAmount: Number.isFinite(Number(freeShippingDepositAmount)) ? Math.max(0, Number(freeShippingDepositAmount)) : 100
         },
         promoBanner: {
           isActive: shippingBannerActive,

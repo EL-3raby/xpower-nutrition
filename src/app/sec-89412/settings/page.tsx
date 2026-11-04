@@ -270,8 +270,8 @@ export default function AdminSettingsPage() {
         freeShipping: {
           isEnabled: freeShippingEnabled,
           thresholdAmount: Number(freeShippingThreshold) || 1000,
-          depositAmountWhenFree: Number(freeShippingDepositAmount) || 100,
-          codDepositAmount: Number(freeShippingDepositAmount) || 100,
+          depositAmountWhenFree: Number.isFinite(Number(freeShippingDepositAmount)) ? Math.max(0, Number(freeShippingDepositAmount)) : 100,
+          codDepositAmount: Number.isFinite(Number(freeShippingDepositAmount)) ? Math.max(0, Number(freeShippingDepositAmount)) : 100,
         },
         maintenanceMode: {
           isActive: maintenanceActive,
