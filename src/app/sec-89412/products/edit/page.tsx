@@ -76,6 +76,7 @@ function EditProductContent() {
   const oldPriceVal = watch('oldPrice');
 
   const [discountPercentInput, setDiscountPercentInput] = useState<string>('');
+  const [discountBase, setDiscountBase] = useState<'oldPrice' | 'price'>('oldPrice');
 
   // Check if at least one positive base price exists
   const hasBasePrice = (typeof priceVal === 'number' && priceVal > 0) || (typeof oldPriceVal === 'number' && oldPriceVal > 0);
@@ -116,44 +117,76 @@ function EditProductContent() {
       setDiscountPercentInput(valStr);
       return;
     }
-    // Clamp to 1-99 to stay strictly within form constraint and prevent HTML5 max=99 validation errors
-    if (pct > 99) {
-      pct = 99;
-      valStr = '99';
+    // Clamp to 1-100 to stay within form constraints
+    if (pct > 100) {
+      pct = 100;
+      valStr = '100';
     }
     setDiscountPercentInput(valStr);
 
     const currentOld = getValues('oldPrice');
     const currentPrice = getValues('price');
 
-    if (typeof currentOld === 'number' && currentOld > 0) {
-      // Ensure partial discount never rounds down to 0 EGP for positive oldPrice
-      const rawPrice = Math.round(currentOld * (1 - pct / 100));
-      const newPrice = currentOld > 1 ? Math.min(currentOld - 1, Math.max(1, rawPrice)) : 1;
-      setValue('price', Math.max(1, newPrice), { shouldValidate: true });
+    // Keep calculation direction stable based on which price field the user originated from
+    if (discountBase === 'price' && typeof currentPrice === 'number' && currentPrice > 0) {
+      if (pct >= 100) {
+        setValue('oldPrice', currentPrice * 2, { shouldValidate: true });
+      } else {
+        const rawOld = Math.round(currentPrice / (1 - pct / 100));
+        const newOld = Math.max(currentPrice + 1, rawOld);
+        setValue('oldPrice', newOld, { shouldValidate: true });
+      }
+    } else if (typeof currentOld === 'number' && currentOld > 0) {
+      if (pct >= 100) {
+        setValue('price', 0, { shouldValidate: true });
+      } else {
+        const rawPrice = Math.round(currentOld * (1 - pct / 100));
+        const newPrice = currentOld > 1 ? Math.min(currentOld - 1, Math.max(1, rawPrice)) : 1;
+        setValue('price', Math.max(0, newPrice), { shouldValidate: true });
+      }
     } else if (typeof currentPrice === 'number' && currentPrice > 0) {
-      const rawOld = Math.round(currentPrice / (1 - pct / 100));
-      const newOld = Math.max(currentPrice + 1, rawOld);
-      setValue('oldPrice', newOld, { shouldValidate: true });
+      if (pct >= 100) {
+        setValue('oldPrice', currentPrice * 2, { shouldValidate: true });
+      } else {
+        const rawOld = Math.round(currentPrice / (1 - pct / 100));
+        const newOld = Math.max(currentPrice + 1, rawOld);
+        setValue('oldPrice', newOld, { shouldValidate: true });
+      }
     }
   };
 
   // Handler for quick preset discount chips (10%, 15%, 20%, etc.)
   const applyQuickDiscount = (pct: number) => {
     if (!hasBasePrice) return;
-    const clampedPct = Math.min(Math.max(pct, 1), 99);
+    const clampedPct = Math.min(Math.max(pct, 1), 100);
     setDiscountPercentInput(String(clampedPct));
     const currentOld = getValues('oldPrice');
     const currentPrice = getValues('price');
 
-    if (typeof currentOld === 'number' && currentOld > 0) {
-      const rawPrice = Math.round(currentOld * (1 - clampedPct / 100));
-      const newPrice = currentOld > 1 ? Math.min(currentOld - 1, Math.max(1, rawPrice)) : 1;
-      setValue('price', Math.max(1, newPrice), { shouldValidate: true });
+    if (discountBase === 'price' && typeof currentPrice === 'number' && currentPrice > 0) {
+      if (clampedPct >= 100) {
+        setValue('oldPrice', currentPrice * 2, { shouldValidate: true });
+      } else {
+        const rawOld = Math.round(currentPrice / (1 - clampedPct / 100));
+        const newOld = Math.max(currentPrice + 1, rawOld);
+        setValue('oldPrice', newOld, { shouldValidate: true });
+      }
+    } else if (typeof currentOld === 'number' && currentOld > 0) {
+      if (clampedPct >= 100) {
+        setValue('price', 0, { shouldValidate: true });
+      } else {
+        const rawPrice = Math.round(currentOld * (1 - clampedPct / 100));
+        const newPrice = currentOld > 1 ? Math.min(currentOld - 1, Math.max(1, rawPrice)) : 1;
+        setValue('price', Math.max(0, newPrice), { shouldValidate: true });
+      }
     } else if (typeof currentPrice === 'number' && currentPrice > 0) {
-      const rawOld = Math.round(currentPrice / (1 - clampedPct / 100));
-      const newOld = Math.max(currentPrice + 1, rawOld);
-      setValue('oldPrice', newOld, { shouldValidate: true });
+      if (clampedPct >= 100) {
+        setValue('oldPrice', currentPrice * 2, { shouldValidate: true });
+      } else {
+        const rawOld = Math.round(currentPrice / (1 - clampedPct / 100));
+        const newOld = Math.max(currentPrice + 1, rawOld);
+        setValue('oldPrice', newOld, { shouldValidate: true });
+      }
     }
   };
 
@@ -798,7 +831,11 @@ function EditProductContent() {
                 <div className="relative">
                   <input 
                     type="number" 
-                    {...register('price', { valueAsNumber: true })}
+                    placeholder="0"
+                    {...register('price', { 
+                      valueAsNumber: true,
+                      onChange: () => setDiscountBase('price')
+                    })}
                     className="w-full bg-bg-primary text-white border border-text-muted/20 px-4 py-3 font-body text-sm focus:border-accent-red focus:outline-none focus:ring-1 focus:ring-accent-red transition-all pl-12 text-left"
                     dir="ltr"
                   />
@@ -824,7 +861,11 @@ function EditProductContent() {
                 <div className="relative">
                   <input 
                     type="number" 
-                    {...register('oldPrice', { valueAsNumber: true })}
+                    placeholder="0"
+                    {...register('oldPrice', { 
+                      valueAsNumber: true,
+                      onChange: () => setDiscountBase('oldPrice')
+                    })}
                     className="w-full bg-bg-primary text-white border border-text-muted/20 px-4 py-3 font-body text-sm focus:border-accent-red focus:outline-none focus:ring-1 focus:ring-accent-red transition-all pl-12 text-left"
                     dir="ltr"
                   />
@@ -852,7 +893,7 @@ function EditProductContent() {
                   <input 
                     type="number"
                     min="1"
-                    max="99"
+                    max="100"
                     placeholder={hasBasePrice ? "أدخل نسبة الخصم (مثال: 20)" : "أدخل سعر البيع أو السعر القديم أولاً"}
                     disabled={!hasBasePrice}
                     value={discountPercentInput}
