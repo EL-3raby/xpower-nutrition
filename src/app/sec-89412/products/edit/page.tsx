@@ -72,6 +72,70 @@ function EditProductContent() {
   });
 
   const productName = watch('name');
+  const priceVal = watch('price');
+  const oldPriceVal = watch('oldPrice');
+
+  const [discountPercentInput, setDiscountPercentInput] = useState<string>('');
+
+  // Calculate live discount percentage whenever price or oldPrice changes
+  const currentDiscountPct = (oldPriceVal && priceVal && oldPriceVal > priceVal)
+    ? Math.round(((oldPriceVal - priceVal) / oldPriceVal) * 100)
+    : 0;
+
+  const savingsAmount = (oldPriceVal && priceVal && oldPriceVal > priceVal)
+    ? oldPriceVal - priceVal
+    : 0;
+
+  // Sync the percent input whenever the calculated percentage changes externally
+  useEffect(() => {
+    if (currentDiscountPct > 0) {
+      setDiscountPercentInput(String(currentDiscountPct));
+    } else {
+      setDiscountPercentInput('');
+    }
+  }, [currentDiscountPct]);
+
+  // Handler for custom percentage input
+  const handleDiscountPercentChange = (valStr: string) => {
+    setDiscountPercentInput(valStr);
+    const pct = parseFloat(valStr);
+    if (isNaN(pct) || pct <= 0) {
+      return;
+    }
+    const clampedPct = Math.min(Math.max(pct, 1), 99);
+
+    const currentOld = getValues('oldPrice');
+    const currentPrice = getValues('price');
+
+    if (currentOld && currentOld > 0) {
+      const newPrice = Math.round(currentOld * (1 - clampedPct / 100));
+      setValue('price', Math.max(0, newPrice), { shouldValidate: true });
+    } else if (currentPrice && currentPrice > 0) {
+      const newOld = Math.round(currentPrice / (1 - clampedPct / 100));
+      setValue('oldPrice', newOld, { shouldValidate: true });
+    }
+  };
+
+  // Handler for quick preset discount chips (10%, 15%, 20%, etc.)
+  const applyQuickDiscount = (pct: number) => {
+    setDiscountPercentInput(String(pct));
+    const currentOld = getValues('oldPrice');
+    const currentPrice = getValues('price');
+
+    if (currentOld && currentOld > 0) {
+      const newPrice = Math.round(currentOld * (1 - pct / 100));
+      setValue('price', Math.max(0, newPrice), { shouldValidate: true });
+    } else if (currentPrice && currentPrice > 0) {
+      const newOld = Math.round(currentPrice / (1 - pct / 100));
+      setValue('oldPrice', newOld, { shouldValidate: true });
+    }
+  };
+
+  // Handler to clear discount
+  const handleRemoveDiscount = () => {
+    setValue('oldPrice', undefined, { shouldValidate: true });
+    setDiscountPercentInput('');
+  };
 
   // Load data
   useEffect(() => {
@@ -712,7 +776,19 @@ function EditProductContent() {
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="font-product-title text-white font-bold text-xs uppercase tracking-wide">السعر القديم (قبل الخصم)</label>
+                <div className="flex items-center justify-between">
+                  <label className="font-product-title text-white font-bold text-xs uppercase tracking-wide">السعر القديم (قبل الخصم)</label>
+                  {oldPriceVal && oldPriceVal > 0 ? (
+                    <button
+                      type="button"
+                      onClick={handleRemoveDiscount}
+                      className="text-[11px] text-accent-red hover:underline font-bold flex items-center gap-0.5 cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-xs">close</span>
+                      إلغاء الخصم
+                    </button>
+                  ) : null}
+                </div>
                 <div className="relative">
                   <input 
                     type="number" 
@@ -724,6 +800,67 @@ function EditProductContent() {
                 </div>
                 <p className="text-text-muted text-[11px] mt-0.5">اتركه فارغاً إذا لم يكن هناك خصم.</p>
                 {errors.oldPrice && <p className="text-accent-red text-xs mt-1">{(errors.oldPrice as any).message}</p>}
+              </div>
+
+              {/* Discount Percentage Option (حساب الخصم بالمائة) */}
+              <div className="bg-black/40 border border-white/10 p-4 rounded-xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="font-product-title text-white font-bold text-xs flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-accent-red text-sm">percent</span>
+                    <span>نسبة الخصم (%)</span>
+                  </label>
+                  {currentDiscountPct > 0 && (
+                    <span className="bg-accent-red/20 text-accent-red border border-accent-red/30 px-2 py-0.5 rounded text-[11px] font-bold font-mono">
+                      -{currentDiscountPct}%
+                    </span>
+                  )}
+                </div>
+
+                <div className="relative">
+                  <input 
+                    type="number"
+                    min="1"
+                    max="99"
+                    placeholder="أدخل نسبة الخصم (مثال: 20)"
+                    value={discountPercentInput}
+                    onChange={(e) => handleDiscountPercentChange(e.target.value)}
+                    className="w-full bg-bg-primary text-white border border-text-muted/20 px-4 py-2.5 font-body text-sm focus:border-accent-red focus:outline-none focus:ring-1 focus:ring-accent-red transition-all pl-10 text-left font-mono"
+                    dir="ltr"
+                  />
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted text-sm font-bold pointer-events-none">%</span>
+                </div>
+
+                {/* Quick preset discount chips */}
+                <div className="space-y-1.5 pt-1">
+                  <span className="text-[10px] text-text-muted font-bold block">خصومات سريعة جاهزة:</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[10, 15, 20, 25, 30, 40, 50].map((pct) => (
+                      <button
+                        key={pct}
+                        type="button"
+                        onClick={() => applyQuickDiscount(pct)}
+                        className={`px-2.5 py-1 text-[11px] font-mono font-bold rounded-lg border transition-all active:scale-95 cursor-pointer ${
+                          currentDiscountPct === pct
+                            ? 'bg-accent-red text-white border-accent-red shadow-[0_0_10px_rgba(227,30,36,0.3)]'
+                            : 'bg-white/5 hover:bg-white/10 text-text-muted hover:text-white border-white/10'
+                        }`}
+                      >
+                        {pct}%
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Savings Feedback */}
+                {savingsAmount > 0 && (
+                  <div className="bg-emerald-950/20 border border-emerald-500/20 text-emerald-400 p-2.5 rounded-lg text-xs flex items-center justify-between font-body">
+                    <span className="flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-sm">savings</span>
+                      <span>وفرت للعميل:</span>
+                    </span>
+                    <span className="font-bold font-mono" dir="ltr">{savingsAmount.toLocaleString()} EGP</span>
+                  </div>
+                )}
               </div>
 
               <div className="flex flex-col gap-2 pt-4 border-t border-text-muted/10">
