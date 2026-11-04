@@ -113,21 +113,29 @@ export default function NewProductPage() {
   // Handler for custom percentage input
   const handleDiscountPercentChange = (valStr: string) => {
     if (!hasBasePrice) return;
-    setDiscountPercentInput(valStr);
-    const pct = parseFloat(valStr);
+    let pct = parseFloat(valStr);
     if (isNaN(pct) || pct <= 0) {
+      setDiscountPercentInput(valStr);
       return;
     }
-    const clampedPct = Math.min(Math.max(pct, 1), 99);
+    // Clamp to 1-99 to stay strictly within form constraint and prevent HTML5 max=99 validation errors
+    if (pct > 99) {
+      pct = 99;
+      valStr = '99';
+    }
+    setDiscountPercentInput(valStr);
 
     const currentOld = getValues('oldPrice');
     const currentPrice = getValues('price');
 
     if (typeof currentOld === 'number' && currentOld > 0) {
-      const newPrice = Math.round(currentOld * (1 - clampedPct / 100));
-      setValue('price', Math.max(0, newPrice), { shouldValidate: true });
+      // Ensure partial discount never rounds down to 0 EGP for positive oldPrice
+      const rawPrice = Math.round(currentOld * (1 - pct / 100));
+      const newPrice = currentOld > 1 ? Math.min(currentOld - 1, Math.max(1, rawPrice)) : 1;
+      setValue('price', Math.max(1, newPrice), { shouldValidate: true });
     } else if (typeof currentPrice === 'number' && currentPrice > 0) {
-      const newOld = Math.round(currentPrice / (1 - clampedPct / 100));
+      const rawOld = Math.round(currentPrice / (1 - pct / 100));
+      const newOld = Math.max(currentPrice + 1, rawOld);
       setValue('oldPrice', newOld, { shouldValidate: true });
     }
   };
@@ -135,15 +143,18 @@ export default function NewProductPage() {
   // Handler for quick preset discount chips (10%, 15%, 20%, etc.)
   const applyQuickDiscount = (pct: number) => {
     if (!hasBasePrice) return;
-    setDiscountPercentInput(String(pct));
+    const clampedPct = Math.min(Math.max(pct, 1), 99);
+    setDiscountPercentInput(String(clampedPct));
     const currentOld = getValues('oldPrice');
     const currentPrice = getValues('price');
 
     if (typeof currentOld === 'number' && currentOld > 0) {
-      const newPrice = Math.round(currentOld * (1 - pct / 100));
-      setValue('price', Math.max(0, newPrice), { shouldValidate: true });
+      const rawPrice = Math.round(currentOld * (1 - clampedPct / 100));
+      const newPrice = currentOld > 1 ? Math.min(currentOld - 1, Math.max(1, rawPrice)) : 1;
+      setValue('price', Math.max(1, newPrice), { shouldValidate: true });
     } else if (typeof currentPrice === 'number' && currentPrice > 0) {
-      const newOld = Math.round(currentPrice / (1 - pct / 100));
+      const rawOld = Math.round(currentPrice / (1 - clampedPct / 100));
+      const newOld = Math.max(currentPrice + 1, rawOld);
       setValue('oldPrice', newOld, { shouldValidate: true });
     }
   };
