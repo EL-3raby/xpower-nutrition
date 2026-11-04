@@ -106,8 +106,10 @@ export async function createOrder(orderData: Omit<Order, 'id' | 'createdAt' | 's
     // Calculate required stock deductions for every individual component/product
     const requiredQuantities = new Map<string, { ref: any; name: string; requiredQty: number }>();
     const bundleSalesUpdates: { productRef: any; salesIncrement: number }[] = [];
+    const resolvedItemBundles = new Map<number, { isBundle: boolean; bundleItems?: any[] }>();
 
-    for (const item of orderData.items) {
+    for (let idx = 0; idx < orderData.items.length; idx++) {
+      const item = orderData.items[idx];
       const itemInfo = itemProductSnaps.get(item.productId)!;
       const productData = itemInfo.data;
 
@@ -115,6 +117,16 @@ export async function createOrder(orderData: Omit<Order, 'id' | 'createdAt' | 's
       const bundleItems = (item.bundleItems && item.bundleItems.length > 0) ? item.bundleItems : productData.bundleItems;
 
       if (isBundle && bundleItems && bundleItems.length > 0) {
+        resolvedItemBundles.set(idx, {
+          isBundle: true,
+          bundleItems: bundleItems.map((b: any) => ({
+            productId: b.productId,
+            name: b.name,
+            quantity: b.quantity,
+            ...(b.selectedFlavor ? { selectedFlavor: b.selectedFlavor } : {})
+          }))
+        });
+
         // Record sales count increment for the bundle itself
         bundleSalesUpdates.push({ productRef: itemInfo.ref, salesIncrement: item.quantity });
 
@@ -218,8 +230,8 @@ export async function createOrder(orderData: Omit<Order, 'id' | 'createdAt' | 's
       phone: orderData.phone,
       address: orderData.address,
       city: orderData.city,
-      // Clean items — remove undefined fields like flavor
-      items: orderData.items.map(item => {
+      // Clean items — remove undefined fields like flavor and preserve resolved bundle data
+      items: orderData.items.map((item, idx) => {
         const cleanItem: any = {
           productId: item.productId,
           name: item.name,
@@ -229,11 +241,16 @@ export async function createOrder(orderData: Omit<Order, 'id' | 'createdAt' | 's
         if (item.flavor !== undefined && item.flavor !== null) {
           cleanItem.flavor = item.flavor;
         }
-        if (item.isBundle) {
+
+        const resolved = resolvedItemBundles.get(idx);
+        const finalIsBundle = resolved?.isBundle ?? Boolean(item.isBundle);
+        const finalBundleItems = resolved?.bundleItems ?? item.bundleItems;
+
+        if (finalIsBundle) {
           cleanItem.isBundle = true;
         }
-        if (item.bundleItems && Array.isArray(item.bundleItems)) {
-          cleanItem.bundleItems = item.bundleItems.map((b: any) => {
+        if (finalBundleItems && Array.isArray(finalBundleItems)) {
+          cleanItem.bundleItems = finalBundleItems.map((b: any) => {
             const cleanB: any = {
               productId: b.productId,
               name: b.name,
@@ -502,19 +519,26 @@ export async function updateOrderStatus(id: string, newStatus: Order['status']) 
         }
       }
 
-      // Decrement sales count for bundles
+      // Decrement sales count for bundles (READS must run before any WRITES in Firestore Transactions)
+      const bundleSalesWrites: { ref: any; newSalesCount: number }[] = [];
       for (const [bundleId, qty] of bundleSalesToDecrement.entries()) {
         const bundleRef = doc(db, 'products', bundleId);
         const bundleSnap = await transaction.get(bundleRef);
         if (bundleSnap.exists()) {
           const bData = bundleSnap.data() as Product;
-          transaction.update(bundleRef, {
-            salesCount: Math.max(0, (bData.salesCount || 0) - qty)
+          bundleSalesWrites.push({
+            ref: bundleRef,
+            newSalesCount: Math.max(0, (bData.salesCount || 0) - qty)
           });
         }
       }
 
-      // 2. Apply component stock updates
+      // === PHASE 2: ALL WRITES (All reads completed) ===
+      for (const w of bundleSalesWrites) {
+        transaction.update(w.ref, { salesCount: w.newSalesCount });
+      }
+
+      // Apply component stock updates
       for (const update of stockUpdates) {
         transaction.update(update.productRef, {
           stock: update.newStock,
@@ -602,6 +626,14 @@ export async function updateOrderPaymentStatus(
     await updateDoc(docRef, { paymentStatus });
     await logAdminActivity(`rejected payment and cancelled order #${id} with stock restoration`, id);
     return;
+  }
+
+  // If order was already cancelled, block reactivation without re-ordering
+  if (orderStatus) {
+    const current = await getDoc(docRef);
+    if (current.exists() && (current.data() as Order).status === 'cancelled') {
+      throw new Error('لا يمكن إعادة تنشيط طلب تم إلغاؤه وإرجاع مخزونه بالفعل. يرجى إنشاء طلب جديد للعميل.');
+    }
   }
 
   const updatePayload: Record<string, any> = { paymentStatus };

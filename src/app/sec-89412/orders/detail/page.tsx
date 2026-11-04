@@ -538,16 +538,16 @@ function OrderDetailContent() {
                       <div className="flex gap-2.5 justify-end pt-2">
                         <button 
                           onClick={handleConfirmPayment}
-                          disabled={updatingPayment}
-                          className="bg-emerald-600 hover:bg-emerald-500 text-white font-product-title font-bold py-2.5 px-4 text-xs flex items-center gap-1.5 transition-all hover:scale-[1.02] rounded-xl shadow-lg shadow-emerald-600/20 cursor-pointer"
+                          disabled={updatingPayment || o.status === 'cancelled'}
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white font-product-title font-bold py-2.5 px-4 text-xs flex items-center gap-1.5 transition-all hover:scale-[1.02] rounded-xl shadow-lg shadow-emerald-600/20 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
                         >
                           <span className="material-symbols-outlined text-sm">check_circle</span>
                           <span>تأكيد الدفع</span>
                         </button>
                         <button 
                           onClick={handleRejectPayment}
-                          disabled={updatingPayment}
-                          className="bg-rose-600 hover:bg-rose-500 text-white font-product-title font-bold py-2.5 px-4 text-xs flex items-center gap-1.5 transition-all hover:scale-[1.02] rounded-xl shadow-lg shadow-rose-600/20 cursor-pointer"
+                          disabled={updatingPayment || o.status === 'cancelled'}
+                          className="bg-rose-600 hover:bg-rose-500 text-white font-product-title font-bold py-2.5 px-4 text-xs flex items-center gap-1.5 transition-all hover:scale-[1.02] rounded-xl shadow-lg shadow-rose-600/20 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
                         >
                           <span className="material-symbols-outlined text-sm">cancel</span>
                           <span>رفض الدفع</span>

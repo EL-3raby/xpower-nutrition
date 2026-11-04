@@ -370,7 +370,7 @@ export async function syncBundlesStockForProduct(id: string, explicitStock?: num
           return {
             ...item,
             stock: liveMap.get(item.productId) ?? (item.stock || 0),
-            flavorOptions: updatedOpts
+            ...(updatedOpts !== undefined ? { flavorOptions: updatedOpts } : {})
           };
         });
 
