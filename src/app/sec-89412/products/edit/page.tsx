@@ -56,7 +56,7 @@ function EditProductContent() {
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
   const [uploading, setUploading] = useState(false);
 
-  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<ProductFormValues>({
+  const { register, handleSubmit, setValue, getValues, watch, formState: { errors } } = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
     defaultValues: {
       isActive: true,
@@ -121,6 +121,9 @@ function EditProductContent() {
             const bItems = fetchedProduct.bundleItems || [];
             setBundleItems(bItems);
             recalculateBundleValues(bItems, fetchedProducts);
+          } else {
+            setIsBundle(false);
+            setBundleItems([]);
           }
         } else {
           setErrorMsg('المنتج المطلوب غير موجود.');
@@ -164,6 +167,12 @@ function EditProductContent() {
     if (enabled) {
       setValue('category', 'bundles');
       recalculateBundleValues(bundleItems);
+    } else {
+      if (getValues('category') === 'bundles') {
+        const firstNonBundleCat = categories.find(c => c.slug !== 'bundles')?.slug || '';
+        setValue('category', firstNonBundleCat);
+      }
+      setBundleItems([]);
     }
   };
 

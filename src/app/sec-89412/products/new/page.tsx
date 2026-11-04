@@ -58,7 +58,7 @@ export default function NewProductPage() {
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
   const [uploading, setUploading] = useState(false);
 
-  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<ProductFormValues>({
+  const { register, handleSubmit, setValue, getValues, watch, formState: { errors } } = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
     defaultValues: {
       isActive: true,
@@ -133,6 +133,12 @@ export default function NewProductPage() {
     if (enabled) {
       setValue('category', 'bundles');
       recalculateBundleValues(bundleItems);
+    } else {
+      if (getValues('category') === 'bundles') {
+        const firstNonBundleCat = categories.find(c => c.slug !== 'bundles')?.slug || '';
+        setValue('category', firstNonBundleCat);
+      }
+      setBundleItems([]);
     }
   };
 
