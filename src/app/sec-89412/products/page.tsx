@@ -3,7 +3,14 @@
 import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { getProducts, deleteProduct, revertBulkDiscount, toggleProductFreeShipping } from '@/lib/firebase/products';
+import { 
+  getProducts, 
+  deleteProduct, 
+  revertBulkDiscount, 
+  toggleProductFreeShipping,
+  updateProductStock,
+  toggleProductActive
+} from '@/lib/firebase/products';
 import { getCategories, getSiteConfig } from '@/lib/firebase/admin-actions';
 import { Product, SiteConfig, Category } from '@/lib/types';
 import ConfirmationModal from '@/components/admin/ConfirmationModal';
@@ -33,6 +40,12 @@ function AdminProductsContent() {
   // Free Shipping modal & state
   const [isFreeShippingModalOpen, setIsFreeShippingModalOpen] = useState(false);
   const [togglingShippingId, setTogglingShippingId] = useState<string | null>(null);
+
+  // Quick Stock & Active status states
+  const [updatingStockId, setUpdatingStockId] = useState<string | null>(null);
+  const [editingStockId, setEditingStockId] = useState<string | null>(null);
+  const [editingStockVal, setEditingStockVal] = useState<string>('');
+  const [togglingActiveId, setTogglingActiveId] = useState<string | null>(null);
 
   const loadData = async () => {
     try {
@@ -138,6 +151,74 @@ function AdminProductsContent() {
     await loadData();
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 5000);
+  };
+
+  const handleStockChange = async (productId: string, newStock: number, isBundle?: boolean) => {
+    if (isBundle) {
+      setToastMessage('مخزون باقات التوفير يُحسب تلقائياً حسب أقل مخزون متوفر من منتجاتها المكونة.');
+      setTimeout(() => setToastMessage(null), 4500);
+      return;
+    }
+
+    const clampedStock = Math.max(0, Math.floor(newStock));
+    const previousProducts = [...products];
+
+    // Optimistic UI update
+    setProducts((prev) =>
+      prev.map((p) => (p.id === productId ? { ...p, stock: clampedStock } : p))
+    );
+    setUpdatingStockId(productId);
+
+    try {
+      await updateProductStock(productId, clampedStock);
+      setToastMessage(`تم تعديل مخزون المنتج إلى (${clampedStock}) بنجاح!`);
+    } catch (err) {
+      console.error('Error updating stock:', err);
+      setProducts(previousProducts);
+      setToastMessage('حدث خطأ أثناء تعديل المخزون.');
+    } finally {
+      setUpdatingStockId(null);
+      setTimeout(() => setToastMessage(null), 4000);
+    }
+  };
+
+  const handleStartEditStock = (productId: string, currentStock: number, isBundle?: boolean) => {
+    if (isBundle) {
+      setToastMessage('مخزون باقات التوفير يُحسب تلقائياً حسب أقل مخزون متوفر من منتجاتها المكونة.');
+      setTimeout(() => setToastMessage(null), 4500);
+      return;
+    }
+    setEditingStockId(productId);
+    setEditingStockVal(String(currentStock));
+  };
+
+  const handleSaveInlineStock = async (productId: string) => {
+    const parsed = parseInt(editingStockVal, 10);
+    setEditingStockId(null);
+    if (isNaN(parsed)) return;
+    await handleStockChange(productId, Math.max(0, parsed));
+  };
+
+  const handleToggleProductActive = async (productId: string, currentVal: boolean) => {
+    setTogglingActiveId(productId);
+    const previousProducts = [...products];
+
+    // Optimistic UI update
+    setProducts((prev) =>
+      prev.map((p) => (p.id === productId ? { ...p, isActive: !currentVal } : p))
+    );
+
+    try {
+      await toggleProductActive(productId, !currentVal);
+      setToastMessage(!currentVal ? 'تم تفعيل المنتج بنجاح!' : 'تم تعطيل المنتج بنجاح!');
+    } catch (err) {
+      console.error('Error toggling active status:', err);
+      setProducts(previousProducts);
+      setToastMessage('حدث خطأ أثناء تعديل حالة المنتج.');
+    } finally {
+      setTogglingActiveId(null);
+      setTimeout(() => setToastMessage(null), 4000);
+    }
   };
 
   if (loading) {
@@ -289,14 +370,14 @@ function AdminProductsContent() {
           <>
             {/* Desktop Table */}
             <div className="overflow-x-auto hidden md:block">
-              <table className="w-full text-right border-collapse min-w-[800px]">
+              <table className="w-full text-right border-collapse min-w-[850px]">
                 <thead>
                   <tr className="border-b border-text-muted/10 text-xs text-text-muted font-bold uppercase tracking-wider">
                     <th className="pb-3 pr-4 text-right">المنتج</th>
                     <th className="pb-3 text-right">القسم</th>
-                    <th className="pb-3 text-center">في المخزن</th>
                     <th className="pb-3 text-center">السعر</th>
                     <th className="pb-3 text-center">الشحن</th>
+                    <th className="pb-3 text-center">الكمية بالمخزن</th>
                     <th className="pb-3 text-center">الحالة</th>
                     <th className="pb-3 pl-4 text-left">إجراءات</th>
                   </tr>
@@ -339,17 +420,6 @@ function AdminProductsContent() {
                             : p.category === 'mass-gainer'
                             ? 'ضخامة عضلية'
                             : p.category}
-                        </td>
-
-                        {/* Stock */}
-                        <td className="py-4 text-center font-product-title font-semibold">
-                          {p.stock === 0 ? (
-                            <span className="text-accent-red">نفذت (0)</span>
-                          ) : p.stock <= 3 ? (
-                            <span className="text-warning">محدود ({p.stock})</span>
-                          ) : (
-                            <span className="text-success">{p.stock}</span>
-                          )}
                         </td>
 
                         {/* Price with Discount Indication */}
@@ -404,17 +474,132 @@ function AdminProductsContent() {
                           </div>
                         </td>
 
-                        {/* Active status toggle */}
+                        {/* Quick Stock Controller */}
                         <td className="py-4 text-center">
-                          <span
-                            className={`inline-block border px-2 py-0.5 text-xs font-semibold rounded-md ${
+                          {p.isBundle ? (
+                            <div className="flex items-center justify-center">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setToastMessage('مخزون باقات التوفير يُحسب تلقائياً حسب أقل مخزون متوفر من منتجاتها المكونة.');
+                                  setTimeout(() => setToastMessage(null), 4500);
+                                }}
+                                title="مخزون الباقة محسوب تلقائياً من المكونات (اضغط للتفاصيل)"
+                                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-300 hover:bg-purple-500/20 text-xs font-product-title font-bold transition-all active:scale-95 shadow-[0_0_10px_rgba(168,85,247,0.1)]"
+                              >
+                                <span className="material-symbols-outlined text-[15px]">inventory_2</span>
+                                <span>باقة ({p.stock})</span>
+                              </button>
+                            </div>
+                          ) : editingStockId === p.id ? (
+                            <div className="flex items-center justify-center">
+                              <div className="inline-flex items-center gap-1.5 bg-[#141414] border border-accent-red rounded-xl px-2 py-1 shadow-[0_0_15px_rgba(227,30,36,0.3)]">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  autoFocus
+                                  value={editingStockVal}
+                                  onChange={(e) => setEditingStockVal(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleSaveInlineStock(p.id!);
+                                    if (e.key === 'Escape') setEditingStockId(null);
+                                  }}
+                                  onBlur={() => handleSaveInlineStock(p.id!)}
+                                  className="w-14 bg-transparent text-white font-product-title font-black text-center text-xs outline-none"
+                                  dir="ltr"
+                                />
+                                <button
+                                  type="button"
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    handleSaveInlineStock(p.id!);
+                                  }}
+                                  title="حفظ الكمية"
+                                  className="w-5 h-5 rounded-lg bg-accent-red hover:bg-[#ff1a22] text-white flex items-center justify-center transition-colors shadow-sm"
+                                >
+                                  <span className="material-symbols-outlined text-[13px]">check</span>
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-center">
+                              <div className="inline-flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl p-1 shadow-sm hover:border-white/20 transition-all">
+                                {/* Decrement Button */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleStockChange(p.id!, Math.max(0, p.stock - 1), p.isBundle)}
+                                  disabled={p.stock <= 0 || updatingStockId === p.id}
+                                  title="إنقاص المخزون (-1)"
+                                  className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/15 disabled:opacity-25 disabled:hover:bg-white/5 text-text-muted hover:text-white flex items-center justify-center transition-all active:scale-90"
+                                >
+                                  <span className="material-symbols-outlined text-[14px]">remove</span>
+                                </button>
+
+                                {/* Stock Click-to-Edit Display */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleStartEditStock(p.id!, p.stock, p.isBundle)}
+                                  disabled={updatingStockId === p.id}
+                                  title="اضغط لتعديل الرقم مباشرة"
+                                  className="min-w-[48px] px-2 py-1 rounded-lg hover:bg-white/10 transition-colors font-product-title font-black text-xs flex items-center justify-center gap-1 cursor-pointer group"
+                                >
+                                  {updatingStockId === p.id ? (
+                                    <span className="w-3.5 h-3.5 border-2 border-accent-red border-t-transparent rounded-full animate-spin inline-block" />
+                                  ) : (
+                                    <>
+                                      <span
+                                        className={
+                                          p.stock === 0
+                                            ? 'text-accent-red font-bold'
+                                            : p.stock <= 3
+                                            ? 'text-amber-400 font-bold'
+                                            : 'text-emerald-400 font-bold'
+                                        }
+                                      >
+                                        {p.stock === 0 ? '0 (نفذ)' : p.stock}
+                                      </span>
+                                      <span className="material-symbols-outlined text-[11px] text-text-muted/30 group-hover:text-accent-red transition-colors">
+                                        edit
+                                      </span>
+                                    </>
+                                  )}
+                                </button>
+
+                                {/* Increment Button */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleStockChange(p.id!, p.stock + 1, p.isBundle)}
+                                  disabled={updatingStockId === p.id}
+                                  title="زيادة المخزون (+1)"
+                                  className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/15 disabled:opacity-25 disabled:hover:bg-white/5 text-text-muted hover:text-white flex items-center justify-center transition-all active:scale-90"
+                                >
+                                  <span className="material-symbols-outlined text-[14px]">add</span>
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </td>
+
+                        {/* Active status interactive toggle */}
+                        <td className="py-4 text-center">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleProductActive(p.id!, p.isActive)}
+                            disabled={togglingActiveId === p.id}
+                            title={p.isActive ? 'المنتج مفعّل ونشط بالمتجر (اضغط للتعطيل)' : 'المنتج معطل ومخفي عن العملاء (اضغط للتفعيل)'}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-product-title font-bold border transition-all active:scale-95 ${
                               p.isActive
-                                ? 'bg-success/15 text-success border-success/30'
-                                : 'bg-text-muted/10 text-text-muted border-text-muted/20'
+                                ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/25 shadow-[0_0_10px_rgba(16,185,129,0.1)]'
+                                : 'bg-white/5 text-text-muted border-white/10 hover:text-white hover:border-white/20'
                             }`}
                           >
-                            {p.isActive ? 'نشط' : 'معطل'}
-                          </span>
+                            {togglingActiveId === p.id ? (
+                              <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <span className={`w-1.5 h-1.5 rounded-full ${p.isActive ? 'bg-emerald-400' : 'bg-text-muted/60'}`} />
+                            )}
+                            <span>{p.isActive ? 'نشط' : 'معطل'}</span>
+                          </button>
                         </td>
 
                         {/* Actions */}
@@ -489,29 +674,103 @@ function AdminProductsContent() {
                           </span>
                         )}
                       </div>
-                      <span
-                        className={`inline-block border px-2 py-0.5 text-[10px] font-bold rounded-md shrink-0 ${
+                      <button
+                        type="button"
+                        onClick={() => handleToggleProductActive(p.id!, p.isActive)}
+                        disabled={togglingActiveId === p.id}
+                        title={p.isActive ? 'المنتج مفعّل ونشط بالمتجر (اضغط للتعطيل)' : 'المنتج معطل ومخفي عن العملاء (اضغط للتفعيل)'}
+                        className={`inline-flex items-center gap-1.5 border px-2.5 py-1 text-[10px] font-bold rounded-lg shrink-0 transition-all active:scale-95 ${
                           p.isActive
-                            ? 'bg-success/15 text-success border-success/30'
-                            : 'bg-text-muted/10 text-text-muted border-text-muted/20'
+                            ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                            : 'bg-white/5 text-text-muted border-white/10'
                         }`}
                       >
-                        {p.isActive ? 'نشط' : 'معطل'}
-                      </span>
+                        {togglingActiveId === p.id ? (
+                          <span className="w-2.5 h-2.5 border border-current border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <span className={`w-1.5 h-1.5 rounded-full ${p.isActive ? 'bg-emerald-400' : 'bg-text-muted/60'}`} />
+                        )}
+                        <span>{p.isActive ? 'نشط' : 'معطل'}</span>
+                      </button>
                     </div>
 
                     <div className="flex justify-between items-center bg-white/5 p-2.5 rounded-xl mt-1">
-                      <div className="flex flex-col text-center flex-1 border-l border-white/10 last:border-0">
-                        <span className="text-[10px] text-text-muted mb-0.5">المخزون</span>
-                        <span className="font-product-title text-sm font-bold">
-                          {p.stock === 0 ? (
-                            <span className="text-accent-red">نفذت (0)</span>
-                          ) : p.stock <= 3 ? (
-                            <span className="text-warning">محدود ({p.stock})</span>
-                          ) : (
-                            <span className="text-success">{p.stock}</span>
-                          )}
-                        </span>
+                      <div className="flex flex-col text-center flex-1 border-l border-white/10 last:border-0 items-center justify-center">
+                        <span className="text-[10px] text-text-muted mb-1">المخزون</span>
+                        {p.isBundle ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setToastMessage('مخزون باقات التوفير يُحسب تلقائياً حسب أقل مخزون متوفر من منتجاتها المكونة.');
+                              setTimeout(() => setToastMessage(null), 4500);
+                            }}
+                            className="px-2 py-0.5 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-300 font-product-title text-xs font-bold flex items-center gap-1 active:scale-95"
+                          >
+                            <span className="material-symbols-outlined text-[13px]">inventory_2</span>
+                            <span>باقة ({p.stock})</span>
+                          </button>
+                        ) : editingStockId === p.id ? (
+                          <div className="inline-flex items-center gap-1 bg-[#141414] border border-accent-red rounded-lg px-2 py-0.5 shadow-sm">
+                            <input
+                              type="number"
+                              min="0"
+                              autoFocus
+                              value={editingStockVal}
+                              onChange={(e) => setEditingStockVal(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleSaveInlineStock(p.id!);
+                                if (e.key === 'Escape') setEditingStockId(null);
+                              }}
+                              onBlur={() => handleSaveInlineStock(p.id!)}
+                              className="w-12 bg-transparent text-white font-product-title font-black text-center text-xs outline-none"
+                              dir="ltr"
+                            />
+                            <button
+                              type="button"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                handleSaveInlineStock(p.id!);
+                              }}
+                              className="w-4 h-4 rounded bg-accent-red text-white flex items-center justify-center shadow-sm"
+                            >
+                              <span className="material-symbols-outlined text-[10px]">check</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="inline-flex items-center gap-1 bg-white/5 border border-white/10 rounded-lg p-0.5">
+                            <button
+                              type="button"
+                              onClick={() => handleStockChange(p.id!, Math.max(0, p.stock - 1), p.isBundle)}
+                              disabled={p.stock <= 0 || updatingStockId === p.id}
+                              className="w-6 h-6 rounded bg-white/5 text-text-muted hover:text-white flex items-center justify-center disabled:opacity-25 active:scale-90"
+                            >
+                              <span className="material-symbols-outlined text-[13px]">remove</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleStartEditStock(p.id!, p.stock, p.isBundle)}
+                              disabled={updatingStockId === p.id}
+                              title="اضغط لتعديل الرقم"
+                              className="px-2 py-0.5 font-product-title font-bold text-xs"
+                            >
+                              {updatingStockId === p.id ? (
+                                <span className="w-3 h-3 border-2 border-accent-red border-t-transparent rounded-full animate-spin inline-block" />
+                              ) : (
+                                <span className={p.stock === 0 ? 'text-accent-red' : p.stock <= 3 ? 'text-amber-400' : 'text-emerald-400'}>
+                                  {p.stock === 0 ? '0 (نفذ)' : p.stock}
+                                </span>
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleStockChange(p.id!, p.stock + 1, p.isBundle)}
+                              disabled={updatingStockId === p.id}
+                              className="w-6 h-6 rounded bg-white/5 text-text-muted hover:text-white flex items-center justify-center disabled:opacity-25 active:scale-90"
+                            >
+                              <span className="material-symbols-outlined text-[13px]">add</span>
+                            </button>
+                          </div>
+                        )}
                       </div>
                       <div className="flex flex-col text-center flex-1">
                         <span className="text-[10px] text-text-muted mb-0.5">السعر</span>

@@ -305,17 +305,17 @@ export async function updateProduct(id: string, product: Partial<Product>) {
   const updateData = { ...product } as any;
   delete updateData.id;
   
-  // Explicitly delete optional fields from Firestore when cleared/empty
-  if (updateData.oldPrice === undefined || updateData.oldPrice === null || updateData.oldPrice === 0 || isNaN(updateData.oldPrice)) {
+  // Explicitly delete optional fields from Firestore when cleared/empty only if they were part of the update payload
+  if ('oldPrice' in product && (updateData.oldPrice === undefined || updateData.oldPrice === null || updateData.oldPrice === 0 || isNaN(updateData.oldPrice))) {
     updateData.oldPrice = deleteField();
   }
-  if (updateData.weight === undefined || updateData.weight === null || updateData.weight === '') {
+  if ('weight' in product && (updateData.weight === undefined || updateData.weight === null || updateData.weight === '')) {
     updateData.weight = deleteField();
   }
-  if (updateData.servings === undefined || updateData.servings === null || updateData.servings === 0 || isNaN(updateData.servings)) {
+  if ('servings' in product && (updateData.servings === undefined || updateData.servings === null || updateData.servings === 0 || isNaN(updateData.servings))) {
     updateData.servings = deleteField();
   }
-  if (updateData.isBundle === false) {
+  if ('isBundle' in product && updateData.isBundle === false) {
     updateData.bundleItems = deleteField();
   }
 
@@ -335,6 +335,39 @@ export async function updateProduct(id: string, product: Partial<Product>) {
 
   invalidateCache('product');
   await logAdminActivity('updated product', id);
+}
+
+// Quick update for product stock with validation and automatic bundle synchronization
+export async function updateProductStock(id: string, newStock: number): Promise<void> {
+  const clampedStock = Math.max(0, Math.floor(newStock));
+
+  if (isDummyFirebase) {
+    console.log(`Mock Mode: Updated product #${id} stock to ${clampedStock}`);
+    return;
+  }
+
+  const docRef = doc(db, 'products', id);
+  await updateDoc(docRef, { stock: clampedStock });
+
+  // Propagate changes to any bundles containing this product
+  await syncBundlesStockForProduct(id, clampedStock);
+
+  invalidateCache('product');
+  await logAdminActivity(`تعديل مخزون المنتج (${id}) إلى ${clampedStock}`, 'products');
+}
+
+// Quick toggle for product active status
+export async function toggleProductActive(id: string, isActive: boolean): Promise<void> {
+  if (isDummyFirebase) {
+    console.log(`Mock Mode: toggleProductActive #${id} to ${isActive}`);
+    return;
+  }
+
+  const docRef = doc(db, 'products', id);
+  await updateDoc(docRef, { isActive });
+
+  invalidateCache('product');
+  await logAdminActivity(`${isActive ? 'تفعيل' : 'تعطيل'} المنتج (${id})`, 'products');
 }
 
 // Automatically synchronize all bundles that include a given product
