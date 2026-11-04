@@ -224,47 +224,79 @@ export async function createOrder(orderData: Omit<Order, 'id' | 'createdAt' | 's
       }
     }
 
-    // 2b. Create the order
+    // 2b. Clean items & enforce authentic database prices to prevent client-side price tampering
+    let verifiedItemsSubtotal = 0;
+    const cleanItems = orderData.items.map((item, idx) => {
+      const itemInfo = itemProductSnaps.get(item.productId);
+      const productData = itemInfo?.data;
+
+      // Enforce true server price from authenticated Firestore product document
+      const verifiedUnitPrice = (productData && typeof productData.price === 'number' && productData.price >= 0)
+        ? productData.price
+        : (typeof item.price === 'number' ? Math.max(0, item.price) : 0);
+
+      verifiedItemsSubtotal += verifiedUnitPrice * item.quantity;
+
+      const cleanItem: any = {
+        productId: item.productId,
+        name: item.name,
+        price: verifiedUnitPrice,
+        quantity: item.quantity,
+      };
+      if (item.flavor !== undefined && item.flavor !== null) {
+        cleanItem.flavor = item.flavor;
+      }
+
+      const resolved = resolvedItemBundles.get(idx);
+      const finalIsBundle = resolved?.isBundle ?? Boolean(item.isBundle);
+      const finalBundleItems = resolved?.bundleItems ?? item.bundleItems;
+
+      if (finalIsBundle) {
+        cleanItem.isBundle = true;
+      }
+      if (finalBundleItems && Array.isArray(finalBundleItems)) {
+        cleanItem.bundleItems = finalBundleItems.map((b: any) => {
+          const cleanB: any = {
+            productId: b.productId,
+            name: b.name,
+            quantity: b.quantity
+          };
+          if (b.selectedFlavor) {
+            cleanB.selectedFlavor = b.selectedFlavor;
+          }
+          return cleanB;
+        });
+      }
+      return cleanItem;
+    });
+
+    // Guard against client-side totalPrice tampering
+    const submittedDiscount = typeof orderData.discountAmount === 'number' && orderData.discountAmount > 0
+      ? Math.min(orderData.discountAmount, verifiedItemsSubtotal)
+      : 0;
+
+    const minLegitimateSubtotal = Math.max(0, verifiedItemsSubtotal - submittedDiscount);
+
+    // Calculate implied shipping from the client's submitted total vs client's submitted items subtotal
+    const submittedItemsSubtotal = orderData.items.reduce((sum, it) => sum + ((it.price || 0) * (it.quantity || 1)), 0);
+    const impliedShipping = Math.max(0, (orderData.totalPrice || 0) - (submittedItemsSubtotal - submittedDiscount));
+
+    let finalVerifiedTotalPrice = orderData.totalPrice;
+    // If the client submitted a total that is less than the verified products total (minus discount),
+    // it's an exploit attempt! We correct it to the true verified price to protect the store.
+    if (typeof finalVerifiedTotalPrice !== 'number' || isNaN(finalVerifiedTotalPrice) || finalVerifiedTotalPrice < minLegitimateSubtotal) {
+      console.warn(`[Security Alert] Price tampering blocked on order! Submitted: ${orderData.totalPrice}, Corrected to: ${minLegitimateSubtotal + impliedShipping}`);
+      finalVerifiedTotalPrice = minLegitimateSubtotal + impliedShipping;
+    }
+
+    // 2c. Create the order document payload
     const orderPayload: any = {
       customerName: orderData.customerName,
       phone: orderData.phone,
       address: orderData.address,
       city: orderData.city,
-      // Clean items — remove undefined fields like flavor and preserve resolved bundle data
-      items: orderData.items.map((item, idx) => {
-        const cleanItem: any = {
-          productId: item.productId,
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity,
-        };
-        if (item.flavor !== undefined && item.flavor !== null) {
-          cleanItem.flavor = item.flavor;
-        }
-
-        const resolved = resolvedItemBundles.get(idx);
-        const finalIsBundle = resolved?.isBundle ?? Boolean(item.isBundle);
-        const finalBundleItems = resolved?.bundleItems ?? item.bundleItems;
-
-        if (finalIsBundle) {
-          cleanItem.isBundle = true;
-        }
-        if (finalBundleItems && Array.isArray(finalBundleItems)) {
-          cleanItem.bundleItems = finalBundleItems.map((b: any) => {
-            const cleanB: any = {
-              productId: b.productId,
-              name: b.name,
-              quantity: b.quantity
-            };
-            if (b.selectedFlavor) {
-              cleanB.selectedFlavor = b.selectedFlavor;
-            }
-            return cleanB;
-          });
-        }
-        return cleanItem;
-      }),
-      totalPrice: orderData.totalPrice,
+      items: cleanItems,
+      totalPrice: finalVerifiedTotalPrice,
       paymentMethod: orderData.paymentMethod,
       status: 'pending',
       isReadByAdmin: false,

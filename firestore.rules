@@ -48,7 +48,8 @@ service cloud.firestore {
                     && request.resource.data.totalPrice is number
                     && request.resource.data.totalPrice >= 0
                     && request.resource.data.status == 'pending'
-                    && request.resource.data.isReadByAdmin == false;
+                    && request.resource.data.isReadByAdmin == false
+                    && (!('paymentStatus' in request.resource.data) || request.resource.data.paymentStatus == 'pending_review');
       allow get: if true;
       allow list, update, delete: if isAdmin();
     }
