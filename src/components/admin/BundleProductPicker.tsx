@@ -217,7 +217,15 @@ export default function BundleProductPicker({ allProducts, onAddProduct }: Bundl
                             {p.name}
                           </h4>
                           <div className="flex flex-wrap items-center gap-2 mt-0.5 text-[11px] text-text-muted">
-                            <span className="font-mono text-white font-bold">{p.price} EGP</span>
+                            {typeof p.oldPrice === 'number' && p.oldPrice > p.price ? (
+                              <span className="flex items-center gap-1.5">
+                                <span className="font-mono text-emerald-400 font-bold">{p.oldPrice} EGP</span>
+                                <span className="text-[10px] text-emerald-500/80 font-bold">(السعر الأصلي)</span>
+                                <span className="font-mono text-text-muted/50 line-through text-[10px]">{p.price} EGP</span>
+                              </span>
+                            ) : (
+                              <span className="font-mono text-white font-bold">{p.price} EGP</span>
+                            )}
                             <span>•</span>
                             <span className={hasStock ? 'text-emerald-400 font-mono font-bold' : 'text-accent-red font-mono font-bold'}>
                               {hasStock ? `المخزون: ${p.stock} قطعة` : 'نفد من المخزون (0)'}
@@ -263,7 +271,15 @@ export default function BundleProductPicker({ allProducts, onAddProduct }: Bundl
                 <h4 className="text-white font-bold text-sm sm:text-base truncate">{selectedProduct.name}</h4>
               </div>
               <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-text-muted">
-                <span className="font-mono text-white font-bold">{selectedProduct.price} EGP</span>
+                {typeof selectedProduct.oldPrice === 'number' && selectedProduct.oldPrice > selectedProduct.price ? (
+                  <span className="flex items-center gap-1.5">
+                    <span className="font-mono text-emerald-400 font-bold">{selectedProduct.oldPrice} EGP</span>
+                    <span className="text-[10px] text-emerald-500/80 font-bold">(السعر الأصلي للباقة)</span>
+                    <span className="font-mono text-text-muted/50 line-through text-[10px]">{selectedProduct.price} EGP سعر الخصم الفردي</span>
+                  </span>
+                ) : (
+                  <span className="font-mono text-white font-bold">{selectedProduct.price} EGP</span>
+                )}
                 <span>•</span>
                 <span>
                   المخزون الحالي بالمخزن: <strong className={selectedProduct.stock > 0 ? 'text-emerald-400 font-mono' : 'text-accent-red font-mono'}>{selectedProduct.stock} قطعة</strong>

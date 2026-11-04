@@ -195,7 +195,13 @@ export default function NewProductPage() {
   // Handler to clear discount
   const handleRemoveDiscount = () => {
     if (isBundle && bundleItems.length > 0) {
-      const totalOriginal = bundleItems.reduce((acc, it) => acc + (it.price * it.quantity), 0);
+      const totalOriginal = bundleItems.reduce((acc, it) => {
+        const p = allProducts.find(prod => prod.id === it.productId);
+        const itemOrigPrice = p 
+          ? ((typeof p.oldPrice === 'number' && p.oldPrice > p.price) ? p.oldPrice : p.price)
+          : it.price;
+        return acc + (itemOrigPrice * (it.quantity || 1));
+      }, 0);
       setValue('price', totalOriginal, { shouldValidate: true });
       setValue('oldPrice', totalOriginal, { shouldValidate: true });
     } else {
@@ -235,7 +241,14 @@ export default function NewProductPage() {
 
   const recalculateBundleValues = (items: BundleItem[]) => {
     if (items.length > 0) {
-      const totalOriginal = items.reduce((acc, it) => acc + (it.price * it.quantity), 0);
+      // Calculate bundle original price based on each component's TRUE original price (oldPrice if discounted, otherwise regular price)
+      const totalOriginal = items.reduce((acc, it) => {
+        const p = allProducts.find(prod => prod.id === it.productId);
+        const itemOrigPrice = p 
+          ? ((typeof p.oldPrice === 'number' && p.oldPrice > p.price) ? p.oldPrice : p.price)
+          : it.price;
+        return acc + (itemOrigPrice * (it.quantity || 1));
+      }, 0);
       const virtualStock = Math.min(...items.map(it => {
         const qty = it.quantity || 1;
         if (it.flavorOptions && it.flavorOptions.length > 0) {
@@ -287,13 +300,19 @@ export default function NewProductPage() {
           flavorLabel = targetProduct.name.split(' - ').slice(1).join(' ').trim();
         }
 
+        // Use the product's original full price (before discount) for bundle calculation
+        const originalPrice = (typeof targetProduct.oldPrice === 'number' && targetProduct.oldPrice > targetProduct.price)
+          ? targetProduct.oldPrice
+          : targetProduct.price;
+
         updated = [
           ...prev,
           {
             productId: targetProduct.id!,
             name: targetProduct.name,
             image: targetProduct.images?.[0] || '',
-            price: targetProduct.price,
+            price: originalPrice,
+            oldPrice: targetProduct.oldPrice,
             quantity: qty,
             availableFlavors: targetProduct.flavors || [],
             flavorOptions: [
@@ -302,7 +321,7 @@ export default function NewProductPage() {
                 name: targetProduct.name,
                 flavorLabel: flavorLabel || targetProduct.name,
                 image: targetProduct.images?.[0] || '',
-                price: targetProduct.price,
+                price: originalPrice,
                 stock: targetProduct.stock
               }
             ]

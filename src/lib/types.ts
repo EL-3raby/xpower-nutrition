@@ -14,6 +14,7 @@ export interface BundleItem {
   name: string;
   image?: string;
   price: number;
+  oldPrice?: number;
   quantity: number;
   availableFlavors?: string[];
   selectedFlavor?: string;

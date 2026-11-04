@@ -72,6 +72,10 @@ export default function BundleItemCard({
     if (item.flavorOptions && item.flavorOptions.length > 0) {
       return item.flavorOptions;
     }
+    const origPrice = (originalProd?.oldPrice && originalProd.oldPrice > originalProd.price)
+      ? originalProd.oldPrice
+      : (item.price || originalProd?.price || 0);
+
     // Default initial option is the base product itself
     return [
       {
@@ -79,7 +83,7 @@ export default function BundleItemCard({
         name: item.name,
         flavorLabel: extractFlavorLabel(item.name),
         image: item.image,
-        price: item.price,
+        price: origPrice,
         stock: originalProd?.stock ?? 0
       }
     ];
@@ -169,7 +173,7 @@ export default function BundleItemCard({
       name: prod.name,
       flavorLabel: extractFlavorLabel(prod.name),
       image: prod.images?.[0] || '',
-      price: prod.price,
+      price: (typeof prod.oldPrice === 'number' && prod.oldPrice > prod.price) ? prod.oldPrice : prod.price,
       stock: prod.stock
     }));
 
@@ -190,7 +194,7 @@ export default function BundleItemCard({
       name: prod.name,
       flavorLabel: extractFlavorLabel(prod.name),
       image: prod.images?.[0] || '',
-      price: prod.price,
+      price: (typeof prod.oldPrice === 'number' && prod.oldPrice > prod.price) ? prod.oldPrice : prod.price,
       stock: prod.stock
     };
 
@@ -239,7 +243,15 @@ export default function BundleItemCard({
           <div className="min-w-0">
             <h4 className="text-white font-bold text-xs sm:text-sm truncate">{item.name}</h4>
             <div className="flex flex-wrap items-center gap-2 mt-1 text-[11px] text-text-muted">
-              <span className="font-mono text-white font-bold">{item.price} EGP</span>
+              {originalProd?.oldPrice && originalProd.oldPrice > originalProd.price ? (
+                <span className="flex items-center gap-1.5">
+                  <span className="font-mono text-emerald-400 font-bold">{originalProd.oldPrice} EGP</span>
+                  <span className="text-[10px] text-emerald-500/80 font-bold">(السعر الأصلي)</span>
+                  <span className="font-mono text-text-muted/50 line-through text-[10px]">{originalProd.price} EGP</span>
+                </span>
+              ) : (
+                <span className="font-mono text-white font-bold">{item.price} EGP</span>
+              )}
               <span>•</span>
               <span>
                 إجمالي المخزون المتاح: <strong className={totalItemStock > 0 ? 'text-emerald-400 font-mono font-bold' : 'text-accent-red font-mono font-bold'}>{totalItemStock} قطعة</strong>

@@ -57,12 +57,17 @@ export async function getProducts(categorySlug?: string, activeOnly = false, opt
         } as Product;
       });
 
-      // Synchronize live real-time stock for all bundles in the product list
+      // Synchronize live real-time stock and true original prices for all bundles in the product list
       const bundleProducts = list.filter(p => p.isBundle && p.bundleItems && p.bundleItems.length > 0);
       if (bundleProducts.length > 0) {
         const liveStockMap = new Map<string, number>();
+        const liveOriginalPriceMap = new Map<string, number>();
         list.forEach(p => {
-          if (p.id) liveStockMap.set(p.id, typeof p.stock === 'number' ? p.stock : 0);
+          if (p.id) {
+            liveStockMap.set(p.id, typeof p.stock === 'number' ? p.stock : 0);
+            const origPrice = (typeof p.oldPrice === 'number' && p.oldPrice > p.price) ? p.oldPrice : p.price;
+            if (typeof origPrice === 'number') liveOriginalPriceMap.set(p.id, origPrice);
+          }
         });
 
         const missingIds = new Set<string>();
@@ -85,6 +90,8 @@ export async function getProducts(categorySlug?: string, activeOnly = false, opt
                 if (pSnap.exists()) {
                   const pData = pSnap.data();
                   liveStockMap.set(prodId, typeof pData.stock === 'number' ? pData.stock : 0);
+                  const origPrice = (typeof pData.oldPrice === 'number' && pData.oldPrice > pData.price) ? pData.oldPrice : pData.price;
+                  if (typeof origPrice === 'number') liveOriginalPriceMap.set(prodId, origPrice);
                 }
               } catch (e) {
                 console.warn('Failed to fetch missing bundle component stock:', prodId, e);
@@ -93,7 +100,7 @@ export async function getProducts(categorySlug?: string, activeOnly = false, opt
           );
         }
 
-        // Dynamically compute real stock for each bundle
+        // Dynamically compute real stock and original component total for each bundle
         bundleProducts.forEach(b => {
           if (!b.bundleItems) return;
           const componentMaxBundles = b.bundleItems.map(item => {
@@ -110,6 +117,15 @@ export async function getProducts(categorySlug?: string, activeOnly = false, opt
           });
 
           b.stock = Math.max(0, Math.min(...componentMaxBundles));
+
+          // Ensure bundle original price reflects the sum of components' TRUE original prices (before discount)
+          const realOldPrice = b.bundleItems.reduce((acc, it) => {
+            const orig = liveOriginalPriceMap.get(it.productId) ?? it.price ?? 0;
+            return acc + (orig * (it.quantity || 1));
+          }, 0);
+          if (realOldPrice > b.price) {
+            b.oldPrice = realOldPrice;
+          }
         });
       }
 
@@ -149,6 +165,7 @@ export async function getProductBySlug(slug: string, options?: CacheOptions): Pr
 
         if (refIds.size > 0) {
           const liveStockMap = new Map<string, number>();
+          const liveOriginalPriceMap = new Map<string, number>();
           await Promise.all(
             Array.from(refIds).map(async (prodId) => {
               try {
@@ -156,6 +173,8 @@ export async function getProductBySlug(slug: string, options?: CacheOptions): Pr
                 if (pSnap.exists()) {
                   const pData = pSnap.data();
                   liveStockMap.set(prodId, typeof pData.stock === 'number' ? pData.stock : 0);
+                  const origPrice = (typeof pData.oldPrice === 'number' && pData.oldPrice > pData.price) ? pData.oldPrice : pData.price;
+                  if (typeof origPrice === 'number') liveOriginalPriceMap.set(prodId, origPrice);
                 }
               } catch (e) {
                 console.warn('Failed to fetch live component stock:', prodId, e);
@@ -168,11 +187,13 @@ export async function getProductBySlug(slug: string, options?: CacheOptions): Pr
             if (updatedOptions && Array.isArray(updatedOptions)) {
               updatedOptions = updatedOptions.map((opt: any) => ({
                 ...opt,
+                price: liveOriginalPriceMap.get(opt.productId) ?? opt.price,
                 stock: liveStockMap.has(opt.productId) ? liveStockMap.get(opt.productId)! : (opt.stock ?? 0)
               }));
             }
             return {
               ...it,
+              price: liveOriginalPriceMap.get(it.productId) ?? it.price,
               flavorOptions: updatedOptions
             };
           });
@@ -191,6 +212,15 @@ export async function getProductBySlug(slug: string, options?: CacheOptions): Pr
             return Math.floor(compStock / qtyPerBundle);
           });
           data.stock = Math.max(0, Math.min(...bundleMaxStock));
+
+          // Ensure bundle original price reflects the sum of components' TRUE original prices (before discount)
+          const liveTotalOriginal = data.bundleItems.reduce((acc: number, it: any) => {
+            const p = liveOriginalPriceMap.get(it.productId) ?? it.price ?? 0;
+            return acc + (p * (it.quantity || 1));
+          }, 0);
+          if (liveTotalOriginal > data.price) {
+            data.oldPrice = liveTotalOriginal;
+          }
         }
       }
 
@@ -344,14 +374,20 @@ export async function syncBundlesStockForProduct(id: string, explicitStock?: num
         });
 
         const liveMap = new Map<string, number>();
+        const liveOriginalPriceMap = new Map<string, number>();
         liveMap.set(id, stockVal);
 
         await Promise.all(
-          Array.from(refIds).filter(rId => rId !== id).map(async (rId) => {
+          Array.from(refIds).map(async (rId) => {
             try {
               const s = await getDoc(doc(db, 'products', rId));
               if (s.exists()) {
-                liveMap.set(rId, typeof s.data().stock === 'number' ? s.data().stock : 0);
+                const sData = s.data();
+                if (rId !== id) {
+                  liveMap.set(rId, typeof sData.stock === 'number' ? sData.stock : 0);
+                }
+                const orig = (typeof sData.oldPrice === 'number' && sData.oldPrice > sData.price) ? sData.oldPrice : sData.price;
+                if (typeof orig === 'number') liveOriginalPriceMap.set(rId, orig);
               }
             } catch (e) {
               console.warn('Failed to fetch component stock during bundle sync:', rId, e);
@@ -364,11 +400,13 @@ export async function syncBundlesStockForProduct(id: string, explicitStock?: num
           if (updatedOpts && Array.isArray(updatedOpts)) {
             updatedOpts = updatedOpts.map((opt: any) => ({
               ...opt,
+              price: liveOriginalPriceMap.get(opt.productId) ?? opt.price,
               stock: liveMap.get(opt.productId) ?? (opt.stock || 0)
             }));
           }
           return {
             ...item,
+            price: liveOriginalPriceMap.get(item.productId) ?? item.price,
             stock: liveMap.get(item.productId) ?? (item.stock || 0),
             ...(updatedOpts !== undefined ? { flavorOptions: updatedOpts } : {})
           };
@@ -385,10 +423,20 @@ export async function syncBundlesStockForProduct(id: string, explicitStock?: num
         });
 
         const newBundleStock = Math.max(0, Math.min(...compMax));
-        await updateDoc(doc(db, 'products', bDoc.id), {
+        const realOldPrice = updatedBundleItems.reduce((acc: number, it: any) => {
+          const p = liveOriginalPriceMap.get(it.productId) ?? it.price ?? 0;
+          return acc + (p * (it.quantity || 1));
+        }, 0);
+
+        const updatePayload: any = {
           stock: newBundleStock,
           bundleItems: updatedBundleItems
-        });
+        };
+        if (realOldPrice > bData.price) {
+          updatePayload.oldPrice = realOldPrice;
+        }
+
+        await updateDoc(doc(db, 'products', bDoc.id), updatePayload);
       }
     }
   } catch (e) {
