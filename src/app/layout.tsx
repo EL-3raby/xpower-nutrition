@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Cairo, Tajawal, Oswald } from 'next/font/google';
+import localFont from 'next/font/local';
 import './globals.css';
 import { CartProvider } from '@/context/CartContext';
 import Analytics from '@/components/Analytics';
@@ -16,23 +16,65 @@ export const viewport: Viewport = {
   themeColor: '#050505',
 };
 
-const cairo = Cairo({
-  subsets: ['arabic'],
-  weight: ['400', '600', '700', '800', '900'],
+const cairo = localFont({
+  src: [
+    {
+      path: '../fonts/cairo-arabic.woff2',
+      style: 'normal',
+    },
+    {
+      path: '../fonts/cairo-latin.woff2',
+      style: 'normal',
+    },
+  ],
   variable: '--font-cairo',
   display: 'swap',
 });
 
-const tajawal = Tajawal({
-  subsets: ['arabic'],
-  weight: ['400', '500', '700'],
+const tajawal = localFont({
+  src: [
+    {
+      path: '../fonts/tajawal-400-arabic.woff2',
+      weight: '400',
+      style: 'normal',
+    },
+    {
+      path: '../fonts/tajawal-400-latin.woff2',
+      weight: '400',
+      style: 'normal',
+    },
+    {
+      path: '../fonts/tajawal-500-arabic.woff2',
+      weight: '500',
+      style: 'normal',
+    },
+    {
+      path: '../fonts/tajawal-500-latin.woff2',
+      weight: '500',
+      style: 'normal',
+    },
+    {
+      path: '../fonts/tajawal-700-arabic.woff2',
+      weight: '700',
+      style: 'normal',
+    },
+    {
+      path: '../fonts/tajawal-700-latin.woff2',
+      weight: '700',
+      style: 'normal',
+    },
+  ],
   variable: '--font-tajawal',
   display: 'swap',
 });
 
-const oswald = Oswald({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
+const oswald = localFont({
+  src: [
+    {
+      path: '../fonts/oswald-latin.woff2',
+      style: 'normal',
+    },
+  ],
   variable: '--font-oswald',
   display: 'swap',
 });
