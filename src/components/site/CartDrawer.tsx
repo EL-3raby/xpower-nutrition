@@ -20,6 +20,29 @@ export default function CartDrawer() {
     setIsDrawerOpen(false);
   };
 
+  // Check if any product in the cart has active unexpired Free Shipping
+  const hasProductFreeShipping = React.useMemo(() => {
+    return cart.some(item => {
+      if (!Boolean(item.isFreeShipping)) return false;
+      const end = item.freeShippingEndDate;
+      if (end) {
+        const endDateObj = new Date(end);
+        if (!isNaN(endDateObj.getTime()) && endDateObj < new Date()) {
+          return false; // Expired!
+        }
+      }
+      return true;
+    });
+  }, [cart]);
+
+  const hasThresholdFreeShipping = Boolean(
+    siteConfig?.freeShipping?.isEnabled &&
+    siteConfig.freeShipping.thresholdAmount > 0 &&
+    getCartTotal() >= siteConfig.freeShipping.thresholdAmount
+  );
+
+  const isFreeShippingAchieved = hasProductFreeShipping || hasThresholdFreeShipping;
+
   return (
     <div 
       className={`fixed inset-0 z-[9999] overflow-hidden transition-all duration-300 ${isDrawerOpen ? 'visible' : 'invisible pointer-events-none'}`}
@@ -49,27 +72,41 @@ export default function CartDrawer() {
           </div>
 
           {/* Free Shipping Progress Bar */}
-          {cart.length > 0 && siteConfig?.freeShipping?.isEnabled && siteConfig.freeShipping.thresholdAmount > 0 && (
+          {cart.length > 0 && (siteConfig?.freeShipping?.isEnabled || hasProductFreeShipping) && (
             <div className="px-6 py-4 bg-[#0a0a0a] border-b border-white/5 relative overflow-hidden shadow-[inset_0_-10px_20px_rgba(0,0,0,0.2)]">
               <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(227,30,36,0.08)_0%,_transparent_70%)] pointer-events-none"></div>
               
               <div className="relative z-10">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-bold text-white flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-[18px] text-accent-red">local_shipping</span>
+                    <span className={`material-symbols-outlined text-[18px] ${isFreeShippingAchieved ? 'text-emerald-400' : 'text-accent-red'}`}>
+                      local_shipping
+                    </span>
                     الشحن المجاني
                   </span>
-                  <span className="text-[13px] font-black text-accent-red">
-                    {getCartTotal() >= siteConfig.freeShipping.thresholdAmount 
-                      ? 'مبروك! شحن مجاني 🎉' 
-                      : `باقي ${(siteConfig.freeShipping.thresholdAmount - getCartTotal()).toLocaleString()} ج`}
+                  <span className={`text-[13px] font-black ${isFreeShippingAchieved ? 'text-emerald-400' : 'text-accent-red'}`}>
+                    {hasProductFreeShipping
+                      ? 'مبروك! شحن مجاني (عرض المنتج) 🎉'
+                      : isFreeShippingAchieved 
+                        ? 'مبروك! شحن مجاني 🎉' 
+                        : siteConfig?.freeShipping?.thresholdAmount 
+                          ? `باقي ${(siteConfig.freeShipping.thresholdAmount - getCartTotal()).toLocaleString()} ج`
+                          : 'شحن عادي'}
                   </span>
                 </div>
                 
                 <div className="w-full h-2.5 bg-black rounded-full overflow-hidden border border-white/10 p-[1px]">
                   <div 
-                    className="h-full bg-gradient-to-l from-accent-red to-[#5c0000] rounded-full transition-all duration-1000 ease-out relative overflow-hidden shadow-[0_0_10px_rgba(227,30,36,0.8)]"
-                    style={{ width: `${Math.min(100, (getCartTotal() / siteConfig.freeShipping.thresholdAmount) * 100)}%` }}
+                    className={`h-full rounded-full transition-all duration-1000 ease-out relative overflow-hidden ${
+                      isFreeShippingAchieved 
+                        ? 'bg-gradient-to-l from-emerald-400 to-emerald-600 shadow-[0_0_12px_rgba(16,185,129,0.8)]' 
+                        : 'bg-gradient-to-l from-accent-red to-[#5c0000] shadow-[0_0_10px_rgba(227,30,36,0.8)]'
+                    }`}
+                    style={{ 
+                      width: isFreeShippingAchieved 
+                        ? '100%' 
+                        : `${Math.min(100, (getCartTotal() / (siteConfig?.freeShipping?.thresholdAmount || 1000)) * 100)}%` 
+                    }}
                   >
                     {/* Glossy overlay */}
                     <div className="absolute inset-0 bg-gradient-to-b from-white/30 to-transparent rounded-full"></div>
@@ -79,9 +116,11 @@ export default function CartDrawer() {
                 </div>
                 
                 <p className="text-[11px] text-text-muted mt-2 text-center font-body opacity-80">
-                  {getCartTotal() >= siteConfig.freeShipping.thresholdAmount 
-                    ? 'طلبك مؤهل للحصول على شحن مجاني بالكامل' 
-                    : 'أضف المزيد من المنتجات للحصول على شحن مجاني للطلب'}
+                  {hasProductFreeShipping 
+                    ? 'طلبك يشمل منتجاً بعرض الشحن المجاني التلقائي لجميع المحافظات!'
+                    : isFreeShippingAchieved 
+                      ? 'طلبك مؤهل للحصول على شحن مجاني بالكامل' 
+                      : 'أضف المزيد من المنتجات للحصول على شحن مجاني للطلب'}
                 </p>
               </div>
             </div>
@@ -126,11 +165,17 @@ export default function CartDrawer() {
                   
                   {/* Product details */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <h3 className="font-product-title text-white text-base truncate font-black uppercase tracking-wide group-hover:text-accent-red transition-colors">{item.name}</h3>
                       {item.isBundle && (
                         <span className="text-[10px] font-product-title font-bold text-accent-red bg-accent-red/10 border border-accent-red/20 px-2 py-0.5 rounded-full shrink-0">
                           باقة
+                        </span>
+                      )}
+                      {item.isFreeShipping && (
+                        <span className="text-[10px] font-product-title font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full shrink-0 flex items-center gap-0.5">
+                          <span className="material-symbols-outlined text-[12px]">local_shipping</span>
+                          شحن مجاني
                         </span>
                       )}
                     </div>

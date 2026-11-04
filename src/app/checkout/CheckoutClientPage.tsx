@@ -11,7 +11,7 @@ import { saveAbandonedCheckout } from '@/lib/firebase/abandoned-checkouts';
 import { getSiteConfig, getShippingRates } from '@/lib/firebase/admin-actions';
 import { sendNewOrderEmail } from '@/lib/emailjs';
 import Link from 'next/link';
-import { Coupon, SiteConfig, ShippingRate } from '@/lib/types';
+import { Coupon, SiteConfig, ShippingRate, Product } from '@/lib/types';
 import { db } from '@/lib/firebase/client';
 import { getEgyptTime, toEgyptTime } from '@/lib/date-utils';
 import { collection, doc, query, where, getDocs, Timestamp } from 'firebase/firestore';
@@ -19,6 +19,7 @@ import Spinner from '@/components/ui/Spinner';
 import { getOptimizedImageUrl } from '@/lib/utils/image';
 import { trackBeginCheckout, trackPurchase } from '@/lib/analytics';
 import { checkOrderSpamLimit, recordOrderSubmission, sanitizeText } from '@/lib/utils/security';
+import { getProducts } from '@/lib/firebase/products';
 
 // Regex for Egyptian Phone Numbers
 const phoneRegex = /^(010|011|012|015)[0-9]{8}$/;
@@ -84,6 +85,7 @@ export default function CheckoutClientPage() {
 
   const [siteConfig, setSiteConfig] = useState<SiteConfig | null>(null);
   const [shippingRates, setShippingRates] = useState<ShippingRate[]>([]);
+  const [liveProductsMap, setLiveProductsMap] = useState<Map<string, Product>>(new Map());
   const [loadingConfig, setLoadingConfig] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderError, setOrderError] = useState('');
@@ -403,12 +405,16 @@ export default function CheckoutClientPage() {
   useEffect(() => {
     async function loadInitialData() {
       try {
-        const [config, rates] = await Promise.all([
+        const [config, rates, allProducts] = await Promise.all([
           getSiteConfig(),
-          getShippingRates()
+          getShippingRates(),
+          getProducts(undefined, false)
         ]);
         setSiteConfig(config);
         setShippingRates(rates.filter(r => r.isActive));
+        if (allProducts && allProducts.length > 0) {
+          setLiveProductsMap(new Map(allProducts.map(p => [p.id!, p])));
+        }
       } catch (err) {
         console.error('Error loading checkout settings:', err);
       } finally {
@@ -427,10 +433,16 @@ export default function CheckoutClientPage() {
 
     // 1. Check if any product in the cart has Free Shipping enabled and NOT expired
     const hasFreeShippingItem = cart.some(item => {
-      if (!Boolean((item as any).isFreeShipping)) return false;
-      const end = (item as any).freeShippingEndDate;
+      const live = liveProductsMap.get(item.productId);
+      const isFree = Boolean(item.isFreeShipping || live?.isFreeShipping);
+      if (!isFree) return false;
+      const end = item.freeShippingEndDate || live?.freeShippingEndDate;
       if (end) {
-        const endDateObj = new Date(end);
+        const endDateObj = end instanceof Date
+          ? end
+          : typeof (end as any)?.toDate === 'function'
+            ? (end as any).toDate()
+            : new Date(String(end));
         if (!isNaN(endDateObj.getTime()) && endDateObj < new Date()) {
           return false; // Expired!
         }
@@ -449,7 +461,7 @@ export default function CheckoutClientPage() {
     }
 
     return baseCost;
-  }, [subtotal, selectedGovernorate, shippingRates, siteConfig, cart]);
+  }, [subtotal, selectedGovernorate, shippingRates, siteConfig, cart, liveProductsMap]);
 
   // Unified fixed deposit amount for COD (regardless of whether shipping is free or paid):
   // Drawn from siteConfig (default 100 EGP) and deducted from the total order amount.
@@ -928,11 +940,17 @@ export default function CheckoutClientPage() {
                         />
                       </div>
                       <div className="flex-grow min-w-0">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <div className="font-bold text-white text-xs truncate">{item.name}</div>
                           {item.isBundle && (
                             <span className="text-[9px] font-product-title font-bold text-accent-red bg-accent-red/10 border border-accent-red/20 px-1.5 py-0.5 rounded-full shrink-0">
                               باقة
+                            </span>
+                          )}
+                          {(item.isFreeShipping || liveProductsMap.get(item.productId)?.isFreeShipping) && (
+                            <span className="text-[9px] font-product-title font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-full shrink-0 flex items-center gap-0.5">
+                              <span className="material-symbols-outlined text-[10px]">local_shipping</span>
+                              شحن مجاني
                             </span>
                           )}
                         </div>
@@ -2134,11 +2152,17 @@ export default function CheckoutClientPage() {
                       className="w-12 h-12 object-contain bg-white/5 border border-white/10 p-1 rounded-xl shrink-0"
                     />
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <div className="font-bold text-white text-xs truncate">{item.name}</div>
                         {item.isBundle && (
                           <span className="text-[9px] font-product-title font-bold text-accent-red bg-accent-red/10 border border-accent-red/20 px-1.5 py-0.5 rounded-full shrink-0">
                             باقة
+                          </span>
+                        )}
+                        {(item.isFreeShipping || liveProductsMap.get(item.productId)?.isFreeShipping) && (
+                          <span className="text-[9px] font-product-title font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-full shrink-0 flex items-center gap-0.5">
+                            <span className="material-symbols-outlined text-[10px]">local_shipping</span>
+                            شحن مجاني
                           </span>
                         )}
                       </div>

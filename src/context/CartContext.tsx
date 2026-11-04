@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Product } from '@/lib/types';
 import { trackAddToCart } from '@/lib/analytics';
+import { getProducts } from '@/lib/firebase/products';
 
 export interface CartItem {
   productId: string;
@@ -89,6 +90,64 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }, [cart, isInitialized]);
 
+  // Auto-sync cart items with live Firestore products (isFreeShipping, stock, price, etc.)
+  useEffect(() => {
+    if (!isInitialized || cart.length === 0) return;
+    let isSubscribed = true;
+
+    async function syncCartItems() {
+      try {
+        const liveProducts = await getProducts(undefined, false);
+        if (!isSubscribed || !liveProducts || liveProducts.length === 0) return;
+
+        const prodMap = new Map(liveProducts.map(p => [p.id, p]));
+        setCart(prevCart => {
+          let hasChanges = false;
+          const updated = prevCart.map(item => {
+            const live = prodMap.get(item.productId);
+            if (!live) return item;
+
+            const liveFreeShipping = Boolean(live.isFreeShipping);
+            const liveEndDate = live.freeShippingEndDate
+              ? (live.freeShippingEndDate instanceof Date
+                  ? live.freeShippingEndDate.toISOString()
+                  : typeof (live.freeShippingEndDate as any).toDate === 'function'
+                    ? (live.freeShippingEndDate as any).toDate().toISOString()
+                    : String(live.freeShippingEndDate))
+              : undefined;
+
+            if (
+              item.isFreeShipping !== liveFreeShipping ||
+              item.freeShippingEndDate !== liveEndDate ||
+              item.price !== live.price ||
+              item.stock !== live.stock
+            ) {
+              hasChanges = true;
+              return {
+                ...item,
+                price: live.price,
+                stock: live.stock,
+                isFreeShipping: liveFreeShipping,
+                freeShippingEndDate: liveEndDate,
+              };
+            }
+            return item;
+          });
+
+          return hasChanges ? updated : prevCart;
+        });
+      } catch (err) {
+        console.error('Error syncing cart with live products:', err);
+      }
+    }
+
+    syncCartItems();
+
+    return () => {
+      isSubscribed = false;
+    };
+  }, [cart.length, isInitialized]);
+
   const addToCart = (
     product: Product,
     quantity: number,
@@ -158,6 +217,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         const limitStock = typeof product.stock === 'number' && product.stock > 0 ? product.stock : 999;
         newCart[existingIndex].quantity = Math.min(newQuantity, limitStock);
         newCart[existingIndex].stock = product.stock;
+        newCart[existingIndex].price = product.price;
+        newCart[existingIndex].isFreeShipping = Boolean(product.isFreeShipping);
+        newCart[existingIndex].freeShippingEndDate = product.freeShippingEndDate 
+          ? (product.freeShippingEndDate instanceof Date 
+              ? product.freeShippingEndDate.toISOString() 
+              : typeof (product.freeShippingEndDate as any).toDate === 'function' 
+                ? (product.freeShippingEndDate as any).toDate().toISOString() 
+                : String(product.freeShippingEndDate))
+          : undefined;
         return newCart;
       }
 

@@ -6,7 +6,8 @@ import { useCart } from '@/hooks/useCart';
 import { db } from '@/lib/firebase/client';
 import { getEgyptTime, toEgyptTime } from '@/lib/date-utils';
 import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
-import { Coupon } from '@/lib/types';
+import { Coupon, SiteConfig } from '@/lib/types';
+import { getSiteConfig } from '@/lib/firebase/admin-actions';
 import { getOptimizedImageUrl } from '@/lib/utils/image';
 
 export default function CartClientPage() {
@@ -16,9 +17,38 @@ export default function CartClientPage() {
   const [couponError, setCouponError] = useState('');
   const [couponSuccess, setCouponSuccess] = useState('');
   const [checkingCoupon, setCheckingCoupon] = useState(false);
+  const [siteConfig, setSiteConfig] = useState<SiteConfig | null>(null);
+
+  React.useEffect(() => {
+    getSiteConfig().then(cfg => setSiteConfig(cfg)).catch(console.error);
+  }, []);
 
   const subtotal = getCartTotal();
-  const shippingCost = subtotal >= 1000 || subtotal === 0 ? 0 : 100; // default shipping cost 100 EGP
+
+  // Check if any product in the cart has active unexpired Free Shipping
+  const hasProductFreeShipping = React.useMemo(() => {
+    return cart.some(item => {
+      if (!Boolean(item.isFreeShipping)) return false;
+      const end = item.freeShippingEndDate;
+      if (end) {
+        const endDateObj = new Date(end);
+        if (!isNaN(endDateObj.getTime()) && endDateObj < new Date()) {
+          return false; // Expired!
+        }
+      }
+      return true;
+    });
+  }, [cart]);
+
+  const freeShippingThreshold = siteConfig?.freeShipping?.thresholdAmount ?? 1000;
+  const isThresholdFree = Boolean(
+    siteConfig?.freeShipping?.isEnabled &&
+    freeShippingThreshold > 0 &&
+    subtotal >= freeShippingThreshold
+  );
+
+  const isFreeShipping = hasProductFreeShipping || isThresholdFree || subtotal === 0;
+  const shippingCost = isFreeShipping ? 0 : 100; // default shipping cost 100 EGP
 
   // Calculate discount
   const discountAmount = React.useMemo(() => {
@@ -176,13 +206,19 @@ export default function CartClientPage() {
                   </div>
 
                   <div className="text-right flex-grow">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <div className="font-product-title font-bold text-white text-base md:text-lg">
                         {item.name}
                       </div>
                       {item.isBundle && (
                         <span className="text-[10px] font-product-title font-bold text-accent-red bg-accent-red/10 border border-accent-red/20 px-2 py-0.5 rounded-full shrink-0">
                           باقة توفير
+                        </span>
+                      )}
+                      {item.isFreeShipping && (
+                        <span className="text-[10px] font-product-title font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full shrink-0 flex items-center gap-0.5">
+                          <span className="material-symbols-outlined text-[12px]">local_shipping</span>
+                          شحن مجاني
                         </span>
                       )}
                     </div>
@@ -374,15 +410,18 @@ export default function CartClientPage() {
                 <div className="flex justify-between text-text-muted">
                   <span>مصاريف الشحن:</span>
                   {shippingCost === 0 ? (
-                    <span className="text-emerald-400 font-bold bg-emerald-400/10 px-2 py-0.5 rounded">شحن مجاني</span>
+                    <span className="text-emerald-400 font-bold bg-emerald-400/10 px-2 py-0.5 rounded flex items-center gap-1">
+                      <span className="material-symbols-outlined text-xs">local_shipping</span>
+                      {hasProductFreeShipping ? 'شحن مجاني (عرض خاص)' : 'شحن مجاني'}
+                    </span>
                   ) : (
                     <span className="text-white font-mono" dir="ltr">{shippingCost} EGP</span>
                   )}
                 </div>
 
-                {subtotal < 1000 && subtotal > 0 && (
+                {!isFreeShipping && freeShippingThreshold > 0 && subtotal > 0 && subtotal < freeShippingThreshold && (
                   <div className="text-[11px] text-text-muted bg-accent-red/5 p-3 rounded-xl border border-accent-red/10 mt-3 leading-relaxed">
-                    💡 أضف منتجات بقيمة <span className="text-accent-red font-bold font-mono">{(1000 - subtotal).toFixed(2)} EGP</span> إضافية للحصول على <span className="text-white font-bold">شحن مجاني</span>!
+                    💡 أضف منتجات بقيمة <span className="text-accent-red font-bold font-mono">{(freeShippingThreshold - subtotal).toFixed(2)} EGP</span> إضافية للحصول على <span className="text-white font-bold">شحن مجاني</span>!
                   </div>
                 )}
               </div>
