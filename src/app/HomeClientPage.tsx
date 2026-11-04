@@ -6,14 +6,15 @@ import { motion } from 'framer-motion';
 import ScrollReveal from '@/components/site/ScrollReveal';
 import BestSellersSlider from '@/components/site/BestSellersSlider';
 import AllProductsMarquee from '@/components/site/AllProductsMarquee';
-import { getProducts } from '@/lib/firebase/products';
-import { getSiteConfig, getCategories } from '@/lib/firebase/admin-actions';
+import { getProducts, subscribeToLiveProducts } from '@/lib/firebase/products';
+import { getSiteConfig, getCategories, subscribeToLiveSiteConfig } from '@/lib/firebase/admin-actions';
 import { Product, Category, SiteConfig } from '@/lib/types';
 import { getOptimizedImageUrl } from '@/lib/utils/image';
 import AuthenticitySection from '@/components/site/AuthenticitySection';
 import HomePreloader from '@/components/site/HomePreloader';
 import FlashSaleBigCard from '@/components/site/FlashSaleBigCard';
 import { isOfferExpired } from '@/lib/date-utils';
+import { onStoreUpdate } from '@/lib/sync/store-events';
 
 function HeroBanner({ settings, titleMain, titleAccent }: { settings: SiteConfig; titleMain: string; titleAccent: string }) {
   const heroMobileImg = settings.heroBanner?.mobileImageUrl || settings.heroBanner?.imageUrl;
@@ -301,6 +302,42 @@ export default function HomeClientPage({
     }
 
     refreshData();
+
+    // 1. Cross-tab & local admin update listener (instant 0ms sync)
+    const unsubStore = onStoreUpdate(() => {
+      refreshData();
+    });
+
+    // 2. Real-time multi-device Firestore products listener
+    const unsubProducts = subscribeToLiveProducts((liveProds) => {
+      const isAccessory = (val?: string) => {
+        if (!val) return false;
+        const lower = val.toLowerCase().trim();
+        return lower === 'اكسسوارات' || lower.includes('access') || lower === 'accessories';
+      };
+
+      const sortedProducts = [...liveProds].sort((a, b) => {
+        const aAcc = isAccessory(a.category);
+        const bAcc = isAccessory(b.category);
+        if (aAcc && !bAcc) return 1;
+        if (!aAcc && bAcc) return -1;
+        return 0;
+      });
+
+      setAllProducts(liveProds);
+      setDisplayProducts(sortedProducts);
+    }, true);
+
+    // 3. Real-time multi-device Firestore siteConfig listener (Hero banner, flash sale, etc.)
+    const unsubConfig = subscribeToLiveSiteConfig((liveCfg) => {
+      setSettings(liveCfg);
+    });
+
+    return () => {
+      unsubStore();
+      unsubProducts();
+      unsubConfig();
+    };
   }, []);
 
   const fullTitle = settings.heroBanner?.title || 'أقوى المكملات لأعلى أداء';

@@ -4,10 +4,11 @@ import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import ProductCard from '@/components/site/ProductCard';
 import { Product, Category } from '@/lib/types';
-import { getProducts } from '@/lib/firebase/products';
+import { getProducts, subscribeToLiveProducts } from '@/lib/firebase/products';
 import { getCategories, getSiteConfig } from '@/lib/firebase/admin-actions';
 import Spinner from '@/components/ui/Spinner';
 import { searchProductsScored } from '@/lib/search/search-engine';
+import { onStoreUpdate } from '@/lib/sync/store-events';
 
 function ProductsContent() {
   const searchParams = useSearchParams();
@@ -96,6 +97,21 @@ function ProductsContent() {
       }
     }
     loadData();
+
+    // 1. Cross-tab & local store update listener
+    const unsubStore = onStoreUpdate(() => {
+      loadData();
+    });
+
+    // 2. Real-time multi-device Firestore products listener
+    const unsubProducts = subscribeToLiveProducts((liveProds) => {
+      setProducts(liveProds);
+    }, true);
+
+    return () => {
+      unsubStore();
+      unsubProducts();
+    };
   }, []);
 
   // Fast Category Map for Search Engine

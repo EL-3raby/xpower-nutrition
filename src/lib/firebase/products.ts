@@ -14,12 +14,14 @@ import {
   serverTimestamp,
   Timestamp,
   deleteField,
-  writeBatch
+  writeBatch,
+  onSnapshot
 } from 'firebase/firestore';
 
 import { Product } from '../types';
 import { logAdminActivity } from './admin-actions';
 import { cachedFetch, invalidateCache, CacheOptions } from '../cache';
+import { notifyAdminUpdate } from '../sync/store-events';
 
 // Retrieve all products
 export async function getProducts(categorySlug?: string, activeOnly = false, options?: CacheOptions): Promise<Product[]> {
@@ -135,6 +137,94 @@ export async function getProducts(categorySlug?: string, activeOnly = false, opt
       return [];
     }
   }, options);
+}
+
+/**
+ * Subscribe to real-time updates for products.
+ * Uses Firestore onSnapshot to receive live database updates automatically across clients.
+ */
+export function subscribeToLiveProducts(
+  callback: (products: Product[]) => void,
+  activeOnly = true
+): () => void {
+  if (isDummyFirebase || typeof window === 'undefined') {
+    return () => {};
+  }
+
+  try {
+    const colRef = collection(db, 'products');
+    const q = activeOnly
+      ? query(colRef, where('isActive', '==', true), orderBy('createdAt', 'desc'))
+      : query(colRef, orderBy('createdAt', 'desc'));
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const products: Product[] = snapshot.docs.map((docSnap) => {
+          const data = docSnap.data();
+          return {
+            id: docSnap.id,
+            ...data,
+            createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt,
+          } as Product;
+        });
+        invalidateCache('product');
+        callback(products);
+      },
+      (error) => {
+        console.error('Error in subscribeToLiveProducts listener:', error);
+      }
+    );
+
+    return unsubscribe;
+  } catch (err) {
+    console.error('Failed to create subscribeToLiveProducts listener:', err);
+    return () => {};
+  }
+}
+
+/**
+ * Subscribe to real-time updates for a single product by slug.
+ */
+export function subscribeToLiveProduct(
+  slug: string,
+  callback: (product: Product | null) => void
+): () => void {
+  if (isDummyFirebase || typeof window === 'undefined') {
+    return () => {};
+  }
+
+  try {
+    const colRef = collection(db, 'products');
+    const q = query(colRef, where('slug', '==', slug), where('isActive', '==', true));
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        if (snapshot.empty) {
+          callback(null);
+          return;
+        }
+        const docSnap = snapshot.docs[0];
+        const data = docSnap.data();
+        const prod = {
+          id: docSnap.id,
+          ...data,
+          createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt,
+        } as Product;
+        invalidateCache(`product:slug:${slug}`);
+        callback(prod);
+      },
+      (error) => {
+        console.error(`Error in live listener for product ${slug}:`, error);
+      }
+    );
+
+    return unsubscribe;
+  } catch (err) {
+    console.error(`Failed to create live listener for product ${slug}:`, err);
+    return () => {};
+  }
 }
 
 // Retrieve single product by slug
@@ -280,6 +370,8 @@ export async function addProduct(product: Omit<Product, 'id' | 'createdAt'>, cus
       ...cleanData,
       createdAt: serverTimestamp()
     });
+    invalidateCache('product');
+    notifyAdminUpdate('products');
     await logAdminActivity('created product', customId);
     return customId;
   } else {
@@ -289,6 +381,7 @@ export async function addProduct(product: Omit<Product, 'id' | 'createdAt'>, cus
       createdAt: serverTimestamp()
     });
     invalidateCache('product');
+    notifyAdminUpdate('products');
     await logAdminActivity('created product', docRef.id);
     return docRef.id;
   }
@@ -334,6 +427,7 @@ export async function updateProduct(id: string, product: Partial<Product>) {
   }
 
   invalidateCache('product');
+  notifyAdminUpdate('products');
   await logAdminActivity('updated product', id);
 }
 
@@ -353,6 +447,7 @@ export async function updateProductStock(id: string, newStock: number): Promise<
   await syncBundlesStockForProduct(id, clampedStock);
 
   invalidateCache('product');
+  notifyAdminUpdate('products');
   await logAdminActivity(`تعديل مخزون المنتج (${id}) إلى ${clampedStock}`, 'products');
 }
 
@@ -367,6 +462,7 @@ export async function toggleProductActive(id: string, isActive: boolean): Promis
   await updateDoc(docRef, { isActive });
 
   invalidateCache('product');
+  notifyAdminUpdate('products');
   await logAdminActivity(`${isActive ? 'تفعيل' : 'تعطيل'} المنتج (${id})`, 'products');
 }
 
@@ -489,6 +585,7 @@ export async function deleteProduct(id: string) {
   await deleteDoc(docRef);
   invalidateCache('product');
   invalidateCache('siteConfig');
+  notifyAdminUpdate('all');
 
   // 2. Clean up any siteConfig references (Flash Sale & Best Sellers)
   try {
@@ -632,6 +729,7 @@ export async function applyBulkDiscount(options: BulkDiscountOptions): Promise<{
 
   invalidateCache('product');
   invalidateCache('siteConfig');
+  notifyAdminUpdate('all');
 
   const discountText = options.type === 'percentage' ? `${options.value}%` : `${options.value} ج.م`;
   await logAdminActivity(
@@ -661,6 +759,7 @@ export async function updateBulkDiscountMarquee(
   }
   await updateDoc(siteConfigRef, payload);
   invalidateCache('siteConfig');
+  notifyAdminUpdate('siteConfig');
   await logAdminActivity('تحديث نصوص ورسائل شريط العروض بالأعلى', 'settings');
 }
 
@@ -682,6 +781,8 @@ export async function revertBulkDiscount(): Promise<{ revertedCount: number }> {
         revertedAt: new Date().toISOString()
       }
     }, { merge: true });
+    invalidateCache('siteConfig');
+    notifyAdminUpdate('siteConfig');
     return { revertedCount: 0 };
   }
 
@@ -715,6 +816,7 @@ export async function revertBulkDiscount(): Promise<{ revertedCount: number }> {
 
   invalidateCache('product');
   invalidateCache('siteConfig');
+  notifyAdminUpdate('all');
 
   await logAdminActivity(
     `استعاد الأسعار الأصلية وألغى الخصم لـ ${discountedProducts.length} منتج`,
@@ -784,6 +886,7 @@ export async function applyFreeShipping(options: FreeShippingScopeOptions): Prom
   }
 
   invalidateCache('product');
+  notifyAdminUpdate('products');
 
   const actionText = options.isFreeShipping ? 'تفعيل' : 'إلغاء';
   let scopeDesc = 'كل المنتجات';
@@ -836,6 +939,7 @@ export async function toggleProductFreeShipping(
   }
 
   invalidateCache('product');
+  notifyAdminUpdate('products');
 
   await logAdminActivity(
     `${isFreeShipping ? 'تفعيل' : 'إلغاء'} الشحن المجاني للمنتج (${productId})`,

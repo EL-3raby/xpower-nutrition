@@ -7,6 +7,7 @@ import { db, isDummyFirebase } from '@/lib/firebase/client';
 import { getSiteConfig, getCategories } from '@/lib/firebase/admin-actions';
 import { SiteConfig, Category } from '@/lib/types';
 import { getEgyptTime } from '@/lib/date-utils';
+import { onStoreUpdate } from '@/lib/sync/store-events';
 
 interface DiscountTopBarProps {
   initialConfig?: SiteConfig | null;
@@ -112,6 +113,19 @@ export default function DiscountTopBar({ initialConfig }: DiscountTopBarProps) {
       })
       .catch(console.error);
 
+    const unsubStore = onStoreUpdate((target) => {
+      if (target === 'siteConfig' || target === 'all') {
+        getSiteConfig().then((cfg) => {
+          if (isMounted) setConfig(cfg);
+        }).catch(console.error);
+      }
+      if (target === 'categories' || target === 'all') {
+        getCategories().then((cats) => {
+          if (isMounted) setCategories(cats);
+        }).catch(console.error);
+      }
+    });
+
     if (!isDummyFirebase) {
       try {
         const configDocRef = doc(db, 'settings', 'siteConfig');
@@ -129,6 +143,7 @@ export default function DiscountTopBar({ initialConfig }: DiscountTopBarProps) {
         return () => {
           isMounted = false;
           unsubscribe();
+          unsubStore();
         };
       } catch (err) {
         console.error('Failed to setup snapshot listener for DiscountTopBar:', err);
@@ -137,6 +152,7 @@ export default function DiscountTopBar({ initialConfig }: DiscountTopBarProps) {
 
     return () => {
       isMounted = false;
+      unsubStore();
     };
   }, [initialConfig]);
 

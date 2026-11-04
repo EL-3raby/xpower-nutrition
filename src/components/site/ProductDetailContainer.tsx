@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { getProductBySlug } from '@/lib/firebase/products';
+import { getProductBySlug, subscribeToLiveProduct } from '@/lib/firebase/products';
 import ProductDetailsClient from '@/components/site/ProductDetailsClient';
 import { Product } from '@/lib/types';
 import Spinner from '@/components/ui/Spinner';
 import Link from 'next/link';
+import { onStoreUpdate } from '@/lib/sync/store-events';
 
 interface ProductDetailContainerProps {
   initialProduct: Product | null;
@@ -47,8 +48,27 @@ export default function ProductDetailContainer({ initialProduct, slug }: Product
 
     refreshProduct();
 
+    // 1. Cross-tab & local store update listener
+    const unsubStore = onStoreUpdate((target) => {
+      if (target === 'products' || target === 'all') {
+        refreshProduct();
+      }
+    });
+
+    // 2. Real-time Firestore product listener for this slug
+    const unsubProduct = subscribeToLiveProduct(slug, (liveProd) => {
+      if (isSubscribed) {
+        if (liveProd) {
+          setProduct(liveProd);
+          setErrorMsg('');
+        }
+      }
+    });
+
     return () => {
       isSubscribed = false;
+      unsubStore();
+      unsubProduct();
     };
   }, [slug, initialProduct]);
 

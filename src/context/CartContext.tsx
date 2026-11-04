@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Product } from '@/lib/types';
 import { trackAddToCart } from '@/lib/analytics';
 import { getProducts } from '@/lib/firebase/products';
+import { onStoreUpdate } from '@/lib/sync/store-events';
 
 export interface CartItem {
   productId: string;
@@ -143,8 +144,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
     syncCartItems();
 
+    const unsubStore = onStoreUpdate((target) => {
+      if (target === 'products' || target === 'all') {
+        syncCartItems();
+      }
+    });
+
     return () => {
       isSubscribed = false;
+      unsubStore();
     };
   }, [cart.length, isInitialized]);
 

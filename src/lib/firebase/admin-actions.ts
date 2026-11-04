@@ -15,10 +15,12 @@ import {
   serverTimestamp,
   Timestamp,
   writeBatch,
-  getCountFromServer
+  getCountFromServer,
+  onSnapshot
 } from 'firebase/firestore';
 import { Category, Coupon, SiteConfig, ActivityLog, ShippingRate, PromoPopup, AuthenticityCode } from '../types';
 import { cachedFetch, invalidateCache, CacheOptions } from '../cache';
+import { notifyAdminUpdate } from '../sync/store-events';
 
 // Helper function to log activities automatically
 export async function logAdminActivity(action: string, targetId: string) {
@@ -80,6 +82,7 @@ export async function addCategory(category: Omit<Category, 'id'>) {
   const colRef = collection(db, 'categories');
   const docRef = await addDoc(colRef, category);
   invalidateCache('categories');
+  notifyAdminUpdate('categories');
   await logAdminActivity('created category', docRef.id);
   return docRef.id;
 }
@@ -88,6 +91,7 @@ export async function updateCategory(id: string, category: Partial<Category>) {
   const docRef = doc(db, 'categories', id);
   await updateDoc(docRef, category);
   invalidateCache('categories');
+  notifyAdminUpdate('categories');
   await logAdminActivity('updated category', id);
 }
 
@@ -95,6 +99,7 @@ export async function deleteCategory(id: string) {
   const docRef = doc(db, 'categories', id);
   await deleteDoc(docRef);
   invalidateCache('categories');
+  notifyAdminUpdate('categories');
   await logAdminActivity('deleted category', id);
 }
 
@@ -308,7 +313,59 @@ export async function updateSiteConfig(config: Partial<SiteConfig>) {
   const docRef = doc(db, 'settings', 'siteConfig');
   await setDoc(docRef, config, { merge: true });
   invalidateCache('siteConfig');
+  notifyAdminUpdate('siteConfig');
   await logAdminActivity('updated site config', 'siteConfig');
+}
+
+/**
+ * Subscribe to real-time updates for SiteConfig settings.
+ */
+export function subscribeToLiveSiteConfig(
+  callback: (config: SiteConfig) => void
+): () => void {
+  if (isDummyFirebase || typeof window === 'undefined') {
+    return () => {};
+  }
+  try {
+    const docRef = doc(db, 'settings', 'siteConfig');
+    const unsubscribe = onSnapshot(
+      docRef,
+      (docSnap) => {
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          const config = {
+            ...DEFAULT_CONFIG,
+            ...data,
+            freeShipping: {
+              ...DEFAULT_CONFIG.freeShipping,
+              ...(data.freeShipping || {})
+            },
+            paymentMethodsEnabled: {
+              ...DEFAULT_CONFIG.paymentMethodsEnabled,
+              ...(data.paymentMethodsEnabled || {})
+            },
+            maintenanceMode: {
+              ...DEFAULT_CONFIG.maintenanceMode,
+              ...(data.maintenanceMode || {})
+            },
+            bulkDiscount: {
+              ...DEFAULT_CONFIG.bulkDiscount,
+              ...(data.bulkDiscount || {})
+            }
+          } as SiteConfig;
+          invalidateCache('siteConfig');
+          callback(config);
+        }
+      },
+      (err) => {
+        console.error('Error in subscribeToLiveSiteConfig listener:', err);
+      }
+    );
+    return unsubscribe;
+  } catch (err) {
+    console.error('Failed to setup subscribeToLiveSiteConfig listener:', err);
+    return () => {};
+  }
 }
 
 // ==========================================
@@ -346,6 +403,7 @@ export async function addShippingRate(rate: Omit<ShippingRate, 'id'>) {
   const colRef = collection(db, 'shippingRates');
   const docRef = await addDoc(colRef, rate);
   invalidateCache('shippingRates');
+  notifyAdminUpdate('shipping');
   await logAdminActivity('created shipping rate', docRef.id);
   return docRef.id;
 }
@@ -358,6 +416,7 @@ export async function updateShippingRate(id: string, rate: Partial<ShippingRate>
   const docRef = doc(db, 'shippingRates', id);
   await updateDoc(docRef, rate);
   invalidateCache('shippingRates');
+  notifyAdminUpdate('shipping');
   await logAdminActivity('updated shipping rate', id);
 }
 
@@ -369,6 +428,7 @@ export async function deleteShippingRate(id: string) {
   const docRef = doc(db, 'shippingRates', id);
   await deleteDoc(docRef);
   invalidateCache('shippingRates');
+  notifyAdminUpdate('shipping');
   await logAdminActivity('deleted shipping rate', id);
 }
 
@@ -692,6 +752,7 @@ export async function syncStandardShippingRates(): Promise<{ count: number }> {
 
     await batch.commit();
     invalidateCache('shippingRates');
+    notifyAdminUpdate('shipping');
     await logAdminActivity('تحديث أسعار الشحن للأسعار الرسمية المعتمدة (100 / 120)', 'shipping');
     return { count: DEFAULT_SHIPPING_RATES.length };
   } catch (error) {
