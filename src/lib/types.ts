@@ -45,6 +45,7 @@ export interface Product {
   createdAt: Timestamp | Date;
   isBundle?: boolean;
   bundleItems?: BundleItem[];
+  usage?: string;
 }
 
 export interface Review {

@@ -32,7 +32,8 @@ const productSchema = z.object({
   images: z.array(z.string()).min(1, { message: 'يرجى رفع صورة واحدة على الأقل للمنتج.' }),
   stock: z.number({ message: 'الرجاء إدخال قيمة رقمية صحيحة.' }).min(0, { message: 'المخزون لا يمكن أن يكون سالباً.' }),
   isActive: z.boolean(),
-  isFreeShipping: z.boolean().optional()
+  isFreeShipping: z.boolean().optional(),
+  usage: z.string().optional()
 });
 
 type ProductFormValues = z.infer<typeof productSchema>;
@@ -517,6 +518,7 @@ export default function NewProductPage() {
         stock: values.stock,
         isActive: values.isActive,
         isFreeShipping: values.isFreeShipping ?? false,
+        usage: values.usage?.trim() || undefined,
         isBundle: isBundle || false,
         bundleItems: isBundle ? bundleItems : undefined
       };
@@ -619,6 +621,20 @@ export default function NewProductPage() {
                   className="bg-bg-primary text-white border border-text-muted/20 px-4 py-3 font-body text-sm focus:border-accent-red focus:outline-none focus:ring-1 focus:ring-accent-red transition-all resize-y"
                 />
                 {errors.description && <p className="text-accent-red text-xs mt-1">{errors.description.message}</p>}
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <label className="font-product-title text-white font-bold text-xs uppercase tracking-wide">
+                    طريقة الاستخدام الخاصة بالمنتج <span className="text-text-muted text-[11px] font-normal">(اختياري - في حال تركه فارغاً سيتم تطبيق الدليل الرياضي التلقائي المخصص)</span>
+                  </label>
+                </div>
+                <textarea 
+                  rows={3}
+                  placeholder="مثال: سكوب واحد (5 جم) يومياً بعد التمرين مباشرة مع 200 مل ماء بارد..."
+                  {...register('usage')}
+                  className="bg-bg-primary text-white border border-text-muted/20 px-4 py-3 font-body text-sm focus:border-accent-red focus:outline-none focus:ring-1 focus:ring-accent-red transition-all resize-y"
+                />
               </div>
             </div>
 

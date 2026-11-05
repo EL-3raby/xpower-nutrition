@@ -10,6 +10,7 @@ import { getProducts, getProductById } from '@/lib/firebase/products';
 
 import { getOptimizedImageUrl } from '@/lib/utils/image';
 import { trackViewItem } from '@/lib/analytics';
+import { getProductUsageGuide } from '@/lib/utils/product-usage';
 
 interface ProductDetailsClientProps {
   product: Product;
@@ -82,6 +83,7 @@ export default function ProductDetailsClient({ product }: ProductDetailsClientPr
   const [avgRating, setAvgRating] = useState(product.avgRating || 0);
   const [reviewCount, setReviewCount] = useState(product.reviewCount || 0);
   const [hasMounted, setHasMounted] = useState(false);
+  const usageGuide = useMemo(() => getProductUsageGuide(product), [product]);
 
   // Related products
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
@@ -837,32 +839,72 @@ export default function ProductDetailsClient({ product }: ProductDetailsClientPr
           <div className="text-text-muted font-body text-sm leading-relaxed max-w-3xl text-right">
             {activeTab === 'desc' && (
               <div className="space-y-4">
-                <div className="text-white text-base font-semibold whitespace-pre-wrap leading-relaxed">
+                <div className="text-zinc-200 text-sm sm:text-base font-normal whitespace-pre-wrap leading-relaxed">
                   {product.description?.trim() || `${product.name} من إكس باور نيوترشن، خامات عالية الجودة ومصممة بأعلى معايير النقاء لدعم أسلوب حياتك وأهدافك الرياضية.`}
                 </div>
-                <p>
-                  المنتج ده متصمم مخصوص للرياضيين اللي بيدوروا على الأفضل. مكمل غذائي نقي تم اختباره معمليًا عشان يضمن أداء عالي وسرعة استشفاء وبناء عضل صافي.
-                </p>
-                <ul className="list-disc list-inside space-y-2 text-text-muted/80 mt-4">
-                  <li>منتج جودته عالية وسريع الامتصاص في العضلات.</li>
-                  <li>بيمنع هدم العضلات وبيساعدك تزود قوة تحملك.</li>
-                  <li>مفهوش أي منشطات أو مواد معدلة وراثياً.</li>
-                </ul>
               </div>
             )}
 
             {activeTab === 'usage' && (
-              <div className="space-y-4">
-                <h4 className="text-white text-base font-semibold">الجرعة وطريقة الاستخدام المقترحة:</h4>
-                <p>
-                  اخلط سكوب واحد (أو الجرعة المكتوبة) مع 200 لـ 250 مللي مياه ساقعة أو لبن خالي الدسم في الشيكر.
-                </p>
-                <p>
-                  يُفضل تاخده بعد التمرين على طول عشان تعوض العضلات وتسرع الاستشفاء، أو الصبح بدري في أيام الراحة.
-                </p>
-                <div className="p-3.5 bg-accent-red/5 border-r-3 border-accent-red mt-4 text-xs text-accent-red">
-                  تحذير: متزودش عن الجرعة اليومية المكتوبة. ياريت تستشير دكتور لو عندك أي مشاكل صحية.
+              <div className="space-y-5">
+                <div>
+                  <h4 className="text-white text-base sm:text-lg font-bold flex items-center gap-2">
+                    <span className="material-symbols-outlined text-accent-red text-xl">
+                      {usageGuide.type === 'gear' ? 'fitness_center' : usageGuide.type === 'bundle' ? 'all_inclusive' : 'medication'}
+                    </span>
+                    <span>{usageGuide.title}</span>
+                  </h4>
+                  {usageGuide.subtitle && (
+                    <p className="text-xs sm:text-sm text-text-muted mt-1">{usageGuide.subtitle}</p>
+                  )}
                 </div>
+
+                {/* Steps / Points */}
+                <div className="space-y-3">
+                  {usageGuide.steps.map((step, idx) => (
+                    <div 
+                      key={idx}
+                      className="p-3.5 sm:p-4 rounded-xl bg-white/[0.03] border border-white/5 hover:border-white/10 transition-colors"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-accent-red/10 border border-accent-red/20 flex items-center justify-center shrink-0 mt-0.5">
+                          <span className="material-symbols-outlined text-accent-red text-base">
+                            {step.icon || 'check_circle'}
+                          </span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <span className="text-white font-bold text-sm">{step.title}</span>
+                            {step.badge && (
+                              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-accent-red/20 text-accent-red border border-accent-red/30">
+                                {step.badge}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-text-muted text-xs sm:text-sm leading-relaxed whitespace-pre-wrap">
+                            {step.description}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Pro Tip */}
+                {usageGuide.tip && (
+                  <div className="p-3.5 rounded-xl bg-amber-500/5 border border-amber-500/20 text-xs sm:text-sm text-amber-300/90 flex items-start gap-2.5">
+                    <span className="material-symbols-outlined text-amber-400 text-lg shrink-0 mt-0.5">tips_and_updates</span>
+                    <span><strong className="text-amber-300 font-bold">نصيحة كابتن إكس باور: </strong>{usageGuide.tip}</span>
+                  </div>
+                )}
+
+                {/* Warning / Caution */}
+                {usageGuide.warning && (
+                  <div className="p-3.5 rounded-xl bg-accent-red/5 border border-accent-red/20 text-xs sm:text-sm text-accent-red flex items-start gap-2.5">
+                    <span className="material-symbols-outlined text-accent-red text-lg shrink-0 mt-0.5">warning</span>
+                    <span><strong className="font-bold">خد بالك: </strong>{usageGuide.warning}</span>
+                  </div>
+                )}
               </div>
             )}
 
