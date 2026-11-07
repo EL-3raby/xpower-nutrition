@@ -255,3 +255,14 @@ export interface AuthenticityCode {
   usedAt?: Timestamp | Date;
   createdAt: Timestamp | Date;
 }
+
+export interface DailyStats {
+  id?: string;
+  date: string; // 'YYYY-MM-DD'
+  visitors: number;
+  pageViews: number;
+  mobileCount: number;
+  desktopCount: number;
+  topPages?: Record<string, number>;
+  updatedAt?: Timestamp | Date;
+}
