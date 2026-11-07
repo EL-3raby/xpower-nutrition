@@ -197,3 +197,4 @@ function generateMockDailyStats(days: number): DailyStats[] {
   }
   return list;
 }
+

@@ -147,3 +147,4 @@ export default function VisitorsChart({ stats, range }: VisitorsChartProps) {
     </div>
   );
 }
+
