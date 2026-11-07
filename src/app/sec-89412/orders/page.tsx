@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { getOrders } from '@/lib/firebase/orders';
 import { Order } from '@/lib/types';
+import TrafficSourceIcon from '@/components/admin/TrafficSourceIcon';
 import Spinner from '@/components/ui/Spinner';
 
 function AdminOrdersContent() {
@@ -84,6 +85,26 @@ function AdminOrdersContent() {
       case 'delivered': return 'وصل بالسلامة';
       case 'cancelled': return 'اتلغى';
       default: return status;
+    }
+  };
+
+  const getTrafficSourceInfo = (source?: string) => {
+    switch (source) {
+      case 'facebook':
+        return { label: 'فيسبوك', bg: 'bg-[#1877F2]/15 text-[#1877F2] border-[#1877F2]/30', icon: 'campaign' };
+      case 'tiktok':
+        return { label: 'تيك توك', bg: 'bg-cyan-400/15 text-cyan-400 border-cyan-400/30', icon: 'music_note' };
+      case 'instagram':
+        return { label: 'إنستجرام', bg: 'bg-pink-500/15 text-pink-400 border-pink-500/30', icon: 'photo_camera' };
+      case 'google':
+        return { label: 'جوجل', bg: 'bg-amber-400/15 text-amber-400 border-amber-400/30', icon: 'search' };
+      case 'whatsapp':
+        return { label: 'واتساب', bg: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30', icon: 'chat' };
+      case 'referral':
+        return { label: 'موقع خارجي', bg: 'bg-purple-500/15 text-purple-400 border-purple-500/30', icon: 'open_in_new' };
+      case 'direct':
+      default:
+        return { label: 'مباشر', bg: 'bg-white/5 text-text-muted border-white/10', icon: 'link' };
     }
   };
 
@@ -218,7 +239,17 @@ function AdminOrdersContent() {
                       </Link>
                     </td>
 
-                    <td className="py-4 text-right text-white font-semibold">{o.customerName}</td>
+                    <td className="py-4 text-right">
+                      <div className="flex flex-col gap-1 items-start">
+                        <span className="text-white font-semibold">{o.customerName}</span>
+                        {o.trafficSource && (
+                          <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold border ${getTrafficSourceInfo(o.trafficSource).bg}`}>
+                            <TrafficSourceIcon source={o.trafficSource} className="w-3.5 h-3.5 shrink-0" />
+                            <span>{getTrafficSourceInfo(o.trafficSource).label}</span>
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="py-4 text-right text-text-muted text-xs">{o.city}</td>
                     
                     <td className="py-4 text-right text-text-muted">
@@ -298,7 +329,15 @@ function AdminOrdersContent() {
                 <div className="flex justify-between items-start">
                   <div className="flex flex-col gap-1">
                     <span className="font-mono font-bold text-white text-base">#{o.id}</span>
-                    <span className="text-white/90 font-body text-sm font-bold">{o.customerName}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-white/90 font-body text-sm font-bold">{o.customerName}</span>
+                      {o.trafficSource && (
+                        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold border ${getTrafficSourceInfo(o.trafficSource).bg}`}>
+                          <TrafficSourceIcon source={o.trafficSource} className="w-3 h-3 shrink-0" />
+                          <span>{getTrafficSourceInfo(o.trafficSource).label}</span>
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <span className={`inline-flex items-center justify-center border px-2.5 py-1 rounded-xl text-[10px] font-bold ${getStatusBadge(o.status)}`}>
                     {getStatusText(o.status)}

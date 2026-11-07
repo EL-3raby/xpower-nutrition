@@ -7,6 +7,7 @@ import { getOrderById, updateOrderStatus, markOrderAsRead, updateOrderPaymentSta
 import { getProductById } from '@/lib/firebase/products';
 import { getSiteConfig } from '@/lib/firebase/admin-actions';
 import { Order, SiteConfig } from '@/lib/types';
+import TrafficSourceIcon from '@/components/admin/TrafficSourceIcon';
 import Spinner from '@/components/ui/Spinner';
 
 function OrderDetailContent() {
@@ -470,6 +471,21 @@ function OrderDetailContent() {
                     </span>
                   )}
                 </div>
+
+                {o.trafficSource && (
+                  <div className="mt-3 pt-3 border-t border-white/5 flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-text-muted font-bold">مصدر الطلب:</span>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-white/5 text-white border border-white/10">
+                      <TrafficSourceIcon source={o.trafficSource} className="w-3.5 h-3.5 shrink-0" />
+                      <span>{o.trafficSource}</span>
+                    </span>
+                    {o.utmCampaign && (
+                      <span className="text-xs text-text-muted/80 font-mono">
+                        (حملة: {o.utmCampaign})
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Sender details according to method */}

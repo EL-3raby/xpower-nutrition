@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useCart } from '@/hooks/useCart';
 import { createOrder } from '@/lib/firebase/orders';
+import { getAttributedTrafficSource } from '@/lib/firebase/analytics-stats';
 import { saveAbandonedCheckout } from '@/lib/firebase/abandoned-checkouts';
 import { getSiteConfig, getShippingRates } from '@/lib/firebase/admin-actions';
 import { sendNewOrderEmail } from '@/lib/emailjs';
@@ -725,6 +726,8 @@ export default function CheckoutClientPage() {
         paymentStatus: requiresProof ? ('pending_review' as const) : undefined,
         couponCode: appliedCoupon ? appliedCoupon.code : undefined,
         discountAmount: discountAmount > 0 ? discountAmount : undefined,
+        trafficSource: getAttributedTrafficSource().source,
+        utmCampaign: getAttributedTrafficSource().campaign,
         status: 'pending' as const,
         isReadByAdmin: false,
       };

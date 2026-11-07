@@ -74,6 +74,8 @@ export async function createOrder(orderData: Omit<Order, 'id' | 'createdAt' | 's
       depositAmount: orderData.depositAmount,
       paymentProofUrl: orderData.paymentProofUrl,
       paymentStatus: needsReview ? 'pending_review' : undefined,
+      trafficSource: orderData.trafficSource,
+      utmCampaign: orderData.utmCampaign,
       status: 'pending',
       isReadByAdmin: false,
       createdAt: new Date()
@@ -308,6 +310,12 @@ export async function createOrder(orderData: Omit<Order, 'id' | 'createdAt' | 's
     }
     if (orderData.discountAmount !== undefined) {
       orderPayload.discountAmount = orderData.discountAmount;
+    }
+    if (orderData.trafficSource) {
+      orderPayload.trafficSource = orderData.trafficSource;
+    }
+    if (orderData.utmCampaign) {
+      orderPayload.utmCampaign = orderData.utmCampaign;
     }
 
     if (orderData.paymentMethod === 'vodafone_cash') {

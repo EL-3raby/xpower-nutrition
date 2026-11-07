@@ -96,6 +96,8 @@ export interface Order {
   couponCode?: string;
   discountAmount?: number;
   stockRestored?: boolean;
+  trafficSource?: string;             // e.g. 'facebook' | 'tiktok' | 'instagram' | 'google' | 'direct'
+  utmCampaign?: string;               // e.g. 'summer_sale_2026'
 }
 
 export interface Admin {
@@ -263,6 +265,7 @@ export interface DailyStats {
   pageViews: number;
   mobileCount: number;
   desktopCount: number;
+  sources?: Record<string, number>;
   topPages?: Record<string, number>;
   updatedAt?: Timestamp | Date;
 }

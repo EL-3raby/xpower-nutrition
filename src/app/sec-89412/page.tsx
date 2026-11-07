@@ -170,32 +170,47 @@ export default function AdminDashboardPage() {
             نظرة شاملة على مبيعات المتجر، نشاط الأوردرات، والتحويلات بانتظار المراجعة.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
           {/* اختصار زوار اليوم اللحظي */}
           <Link
             href="/sec-89412/analytics?tab=visitors"
-            className="flex items-center gap-2.5 bg-[#0a0a0a] border border-cyan-500/30 hover:border-cyan-400 px-3.5 py-2 rounded-xl text-xs transition-all shadow-sm group hover:bg-cyan-500/10 cursor-pointer"
+            className="flex items-center gap-2 bg-[#0c0c0c] hover:bg-cyan-950/20 border border-cyan-500/30 hover:border-cyan-400/60 px-3 py-1.5 rounded-xl text-xs transition-all shadow-sm group cursor-pointer"
             title="اضغط لعرض تفاصيل حركة الزوار والصفحات"
           >
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
-            </span>
-            <span className="material-symbols-outlined text-cyan-400 text-base group-hover:scale-110 transition-transform">group</span>
+            <div className="w-6 h-6 rounded-lg bg-cyan-500/10 flex items-center justify-center text-cyan-400 group-hover:scale-110 transition-transform">
+              <span className="material-symbols-outlined text-[15px]">group</span>
+            </div>
             <div className="flex items-center gap-1.5 font-product-title">
-              <span className="text-text-muted group-hover:text-white transition-colors">زوار اليوم:</span>
+              <span className="text-text-muted text-[11px] group-hover:text-white transition-colors">زوار اليوم:</span>
               <span className="font-mono text-cyan-400 font-black text-sm">
                 {(todayStats?.visitors || 0).toLocaleString()}
               </span>
+              <span className="relative flex h-1.5 w-1.5 ml-0.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-cyan-500"></span>
+              </span>
             </div>
-            <span className="text-[10px] text-text-muted/60 font-body hidden md:inline">
-              ({(todayStats?.pageViews || 0).toLocaleString()} مشاهدة)
-            </span>
-            <span className="material-symbols-outlined text-text-muted/40 text-xs group-hover:text-cyan-400 group-hover:translate-x-[-2px] transition-all">arrow_back</span>
+          </Link>
+
+          {/* اختصار مشاهدات الصفحات اليوم */}
+          <Link
+            href="/sec-89412/analytics?tab=visitors"
+            className="flex items-center gap-2 bg-[#0c0c0c] hover:bg-amber-950/20 border border-amber-500/30 hover:border-amber-400/60 px-3 py-1.5 rounded-xl text-xs transition-all shadow-sm group cursor-pointer"
+            title="اضغط لعرض تفاصيل مشاهدات الصفحات"
+          >
+            <div className="w-6 h-6 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-400 group-hover:scale-110 transition-transform">
+              <span className="material-symbols-outlined text-[15px]">visibility</span>
+            </div>
+            <div className="flex items-center gap-1.5 font-product-title">
+              <span className="text-text-muted text-[11px] group-hover:text-white transition-colors">المشاهدات:</span>
+              <span className="font-mono text-amber-400 font-black text-sm">
+                {(todayStats?.pageViews || 0).toLocaleString()}
+              </span>
+            </div>
           </Link>
 
           {/* حالة الاتصال */}
-          <div className="hidden sm:flex items-center gap-2.5 bg-[#0a0a0a] border border-white/10 px-3.5 py-2 rounded-xl text-xs text-text-muted shadow-sm">
+          <div className="hidden sm:flex items-center gap-2 bg-[#0a0a0a] border border-white/10 px-3 py-1.5 rounded-xl text-xs text-text-muted shadow-sm">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
             <span>البيانات متصلة ومحدثة</span>
           </div>

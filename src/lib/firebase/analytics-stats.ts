@@ -31,6 +31,124 @@ export function getCairoDateString(date = new Date()): string {
 }
 
 /**
+ * Detects the incoming traffic source using URL parameters and HTTP Referrer.
+ * Persists attribution in sessionStorage and localStorage (30-day attribution window).
+ */
+export function detectTrafficSource(): { source: string; campaign?: string } {
+  if (typeof window === 'undefined') return { source: 'direct' };
+
+  try {
+    const url = new URL(window.location.href);
+    const params = url.searchParams;
+
+    const utmSource = params.get('utm_source')?.toLowerCase().trim();
+    const utmCampaign = params.get('utm_campaign')?.trim() || undefined;
+    const fbclid = params.get('fbclid');
+    const ttclid = params.get('ttclid');
+    const gclid = params.get('gclid');
+    const igshid = params.get('igshid');
+
+    let detectedSource = '';
+
+    // 1. Check explicit UTM Source
+    if (utmSource) {
+      if (utmSource.includes('face') || utmSource === 'fb') detectedSource = 'facebook';
+      else if (utmSource.includes('tik') || utmSource === 'tt') detectedSource = 'tiktok';
+      else if (utmSource.includes('insta') || utmSource === 'ig') detectedSource = 'instagram';
+      else if (utmSource.includes('goog') || utmSource === 'gads') detectedSource = 'google';
+      else if (utmSource.includes('snap')) detectedSource = 'snapchat';
+      else if (utmSource.includes('what') || utmSource === 'wa') detectedSource = 'whatsapp';
+      else detectedSource = utmSource.replace(/[^a-z0-9_-]/gi, '').slice(0, 30) || 'referral';
+    }
+    // 2. Check Click IDs from Paid Ads
+    else if (fbclid) {
+      detectedSource = 'facebook';
+    } else if (ttclid) {
+      detectedSource = 'tiktok';
+    } else if (gclid) {
+      detectedSource = 'google';
+    } else if (igshid) {
+      detectedSource = 'instagram';
+    }
+    // 3. Check Document Referrer
+    else if (document.referrer) {
+      const ref = document.referrer.toLowerCase();
+      const currentHost = window.location.hostname;
+      if (!ref.includes(currentHost)) {
+        if (ref.includes('facebook.com') || ref.includes('fb.me')) detectedSource = 'facebook';
+        else if (ref.includes('instagram.com')) detectedSource = 'instagram';
+        else if (ref.includes('tiktok.com')) detectedSource = 'tiktok';
+        else if (ref.includes('google.com')) detectedSource = 'google';
+        else if (ref.includes('youtube.com') || ref.includes('youtu.be')) detectedSource = 'youtube';
+        else if (ref.includes('snapchat.com')) detectedSource = 'snapchat';
+        else if (ref.includes('whatsapp') || ref.includes('wa.me')) detectedSource = 'whatsapp';
+        else detectedSource = 'referral';
+      }
+    }
+
+    // 4. If a new source was detected, persist it
+    if (detectedSource) {
+      try {
+        sessionStorage.setItem('xpower_traffic_source', detectedSource);
+        localStorage.setItem('xpower_traffic_source', detectedSource);
+        if (utmCampaign) {
+          sessionStorage.setItem('xpower_utm_campaign', utmCampaign);
+          localStorage.setItem('xpower_utm_campaign', utmCampaign);
+        }
+      } catch {}
+      return { source: detectedSource, campaign: utmCampaign };
+    }
+
+    // 5. Fallback to existing session or 30-day localStorage attribution
+    const storedSource = sessionStorage.getItem('xpower_traffic_source') || localStorage.getItem('xpower_traffic_source');
+    const storedCampaign = sessionStorage.getItem('xpower_utm_campaign') || localStorage.getItem('xpower_utm_campaign') || undefined;
+
+    return {
+      source: storedSource || 'direct',
+      campaign: storedCampaign
+    };
+  } catch {
+    return { source: 'direct' };
+  }
+}
+
+/**
+ * Returns the currently attributed traffic source for order placement.
+ */
+export function getAttributedTrafficSource(): { source: string; campaign?: string } {
+  if (typeof window === 'undefined') return { source: 'direct' };
+  try {
+    const source = sessionStorage.getItem('xpower_traffic_source') || localStorage.getItem('xpower_traffic_source') || 'direct';
+    const campaign = sessionStorage.getItem('xpower_utm_campaign') || localStorage.getItem('xpower_utm_campaign') || undefined;
+    return { source, campaign };
+  } catch {
+    return { source: 'direct' };
+  }
+}
+
+/**
+ * Extracts and normalizes sources map, handling both nested maps and legacy flat keys.
+ */
+function extractSources(data: Record<string, any>): Record<string, number> {
+  const result: Record<string, number> = {};
+
+  if (data.sources && typeof data.sources === 'object') {
+    Object.entries(data.sources).forEach(([k, v]) => {
+      result[k] = (result[k] || 0) + Number(v || 0);
+    });
+  }
+
+  Object.keys(data).forEach((key) => {
+    if (key.startsWith('sources.')) {
+      const srcKey = key.replace('sources.', '');
+      result[srcKey] = (result[srcKey] || 0) + Number(data[key] || 0);
+    }
+  });
+
+  return result;
+}
+
+/**
  * Extracts and normalizes topPages map, handling both nested maps and legacy flat keys.
  */
 function extractTopPages(data: Record<string, any>): Record<string, number> {
@@ -100,13 +218,20 @@ export async function recordVisit(pathname: string): Promise<void> {
     };
 
     if (isUniqueDaily) {
+      const traffic = detectTrafficSource();
       updatePayload.visitors = increment(1);
       if (isMobile) {
         updatePayload.mobileCount = increment(1);
       } else {
         updatePayload.desktopCount = increment(1);
       }
+      updatePayload.sources = {
+        [traffic.source]: increment(1)
+      };
       localStorage.setItem('xpower_visit_date', todayStr);
+    } else {
+      // Ensure landing with new campaign link captures attribution
+      detectTrafficSource();
     }
 
     await setDoc(docRef, updatePayload, { merge: true });
@@ -139,6 +264,7 @@ export async function getDailyStatsRange(days = 30): Promise<DailyStats[]> {
         pageViews: Number(data.pageViews) || 0,
         mobileCount: Number(data.mobileCount) || 0,
         desktopCount: Number(data.desktopCount) || 0,
+        sources: extractSources(data),
         topPages: extractTopPages(data),
         updatedAt:
           data.updatedAt instanceof Timestamp
@@ -184,6 +310,7 @@ export function subscribeToTodayStats(
           pageViews: Number(data.pageViews) || 0,
           mobileCount: Number(data.mobileCount) || 0,
           desktopCount: Number(data.desktopCount) || 0,
+          sources: extractSources(data),
           topPages: extractTopPages(data),
           updatedAt:
             data.updatedAt instanceof Timestamp
@@ -210,6 +337,10 @@ function generateMockDailyStats(days: number): DailyStats[] {
     const pageViews = visitors * (Math.floor(Math.random() * 3) + 2);
     const mobileCount = Math.floor(visitors * 0.85);
     const desktopCount = visitors - mobileCount;
+    const fb = Math.floor(visitors * 0.45);
+    const tt = Math.floor(visitors * 0.3);
+    const ig = Math.floor(visitors * 0.15);
+    const dir = Math.max(0, visitors - fb - tt - ig);
     list.push({
       id: dateStr,
       date: dateStr,
@@ -217,6 +348,12 @@ function generateMockDailyStats(days: number): DailyStats[] {
       pageViews,
       mobileCount,
       desktopCount,
+      sources: {
+        facebook: fb,
+        tiktok: tt,
+        instagram: ig,
+        direct: dir
+      },
       topPages: {
         home: Math.floor(pageViews * 0.4),
         products: Math.floor(pageViews * 0.3),

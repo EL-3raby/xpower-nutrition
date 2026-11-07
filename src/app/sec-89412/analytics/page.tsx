@@ -10,6 +10,7 @@ import { getDailyStatsRange, subscribeToTodayStats, getCairoDateString } from '@
 import { getStartOfDayEgypt, getStartOfDaysAgoEgypt } from '@/lib/date-utils';
 import SalesChart from '@/components/admin/SalesChart';
 import VisitorsChart from '@/components/admin/VisitorsChart';
+import TrafficSourceIcon from '@/components/admin/TrafficSourceIcon';
 import Spinner from '@/components/ui/Spinner';
 
 type DateRange = 'today' | '7d' | '30d' | 'all';
@@ -253,6 +254,162 @@ function AdminAnalyticsContent() {
       displayName: formatPageName(item.page)
     }));
   }, [mergedDailyStats, currentRange, todayStr]);
+
+  // Traffic Sources Breakdown & Campaign Performance
+  const aggregatedSources = useMemo(() => {
+    const sourcesCount: Record<string, number> = {};
+
+    let filtered = [...mergedDailyStats];
+    if (currentRange === 'today') {
+      filtered = filtered.filter((s) => s.date === todayStr);
+    } else if (currentRange === '7d') {
+      filtered = filtered.slice(-7);
+    } else if (currentRange === '30d') {
+      filtered = filtered.slice(-30);
+    }
+
+    // Total visitors across the selected range
+    const rangeTotalVisitors = filtered.reduce((sum, s) => sum + (Number(s.visitors) || 0), 0);
+
+    // Sum recorded sources and attribute remaining unassigned visitors accurately to 'direct'
+    filtered.forEach((s) => {
+      const dayVisitors = Number(s.visitors) || 0;
+      let daySourcesSum = 0;
+
+      if (s.sources) {
+        Object.entries(s.sources).forEach(([src, count]) => {
+          const num = Number(count || 0);
+          sourcesCount[src] = (sourcesCount[src] || 0) + num;
+          daySourcesSum += num;
+        });
+      }
+
+      // Any visitor without a paid/referral tag is direct traffic (organic/direct link)
+      const unassignedDirect = Math.max(0, dayVisitors - daySourcesSum);
+      if (unassignedDirect > 0) {
+        sourcesCount['direct'] = (sourcesCount['direct'] || 0) + unassignedDirect;
+      }
+    });
+
+    const ordersBySource: Record<string, { count: number; revenue: number }> = {};
+    activeOrders.forEach((o) => {
+      const src = o.trafficSource || 'direct';
+      if (!ordersBySource[src]) {
+        ordersBySource[src] = { count: 0, revenue: 0 };
+      }
+      ordersBySource[src].count += 1;
+      ordersBySource[src].revenue += o.totalPrice || 0;
+    });
+
+    const knownSources = ['facebook', 'tiktok', 'instagram', 'google', 'direct', 'whatsapp', 'referral'];
+    const allKeys = Array.from(
+      new Set([...knownSources, ...Object.keys(sourcesCount), ...Object.keys(ordersBySource)])
+    );
+
+    const totalVisitors = Math.max(
+      rangeTotalVisitors,
+      Object.values(sourcesCount).reduce((a, b) => a + b, 0)
+    );
+
+    const platformMeta: Record<
+      string,
+      { label: string; text: string; bg: string; border: string }
+    > = {
+      facebook: {
+        label: 'فيسبوك (Meta Ads)',
+        text: 'text-[#1877F2]',
+        bg: 'bg-[#1877F2]/10',
+        border: 'border-[#1877F2]/30',
+      },
+      tiktok: {
+        label: 'تيك توك (TikTok Ads)',
+        text: 'text-cyan-400',
+        bg: 'bg-cyan-400/10',
+        border: 'border-cyan-400/30',
+      },
+      instagram: {
+        label: 'إنستجرام (Instagram)',
+        text: 'text-pink-400',
+        bg: 'bg-pink-500/10',
+        border: 'border-pink-500/30',
+      },
+      google: {
+        label: 'جوجل (Search & Ads)',
+        text: 'text-amber-400',
+        bg: 'bg-amber-400/10',
+        border: 'border-amber-400/30',
+      },
+      whatsapp: {
+        label: 'واتساب (WhatsApp)',
+        text: 'text-emerald-400',
+        bg: 'bg-emerald-500/10',
+        border: 'border-emerald-500/30',
+      },
+      referral: {
+        label: 'مواقع خارجية (Referral)',
+        text: 'text-purple-400',
+        bg: 'bg-purple-500/10',
+        border: 'border-purple-500/30',
+      },
+      direct: {
+        label: 'دخول مباشر (Direct)',
+        text: 'text-gray-300',
+        bg: 'bg-white/5',
+        border: 'border-white/10',
+      },
+    };
+
+    return allKeys
+      .map((key) => {
+        const visitors = sourcesCount[key] || 0;
+        const orders = ordersBySource[key]?.count || 0;
+        const revenue = ordersBySource[key]?.revenue || 0;
+        const meta = platformMeta[key] || {
+          label: key,
+          text: 'text-cyan-400',
+          bg: 'bg-cyan-500/10',
+          border: 'border-cyan-500/30',
+        };
+        const percent = totalVisitors > 0 ? Math.round((visitors / totalVisitors) * 100) : 0;
+        const conversionRate =
+          visitors > 0
+            ? ((orders / visitors) * 100).toFixed(1)
+            : orders > 0
+            ? '100'
+            : '0';
+
+        return {
+          key,
+          label: meta.label,
+          text: meta.text,
+          bg: meta.bg,
+          border: meta.border,
+          visitors,
+          percent,
+          orders,
+          revenue,
+          conversionRate,
+        };
+      })
+      .filter(
+        (s) =>
+          s.visitors > 0 ||
+          s.orders > 0 ||
+          ['facebook', 'tiktok', 'instagram', 'google', 'direct'].includes(s.key)
+      )
+      .sort((a, b) => {
+        if (b.visitors !== a.visitors) return b.visitors - a.visitors;
+        if (b.revenue !== a.revenue) return b.revenue - a.revenue;
+        const priorityOrder: Record<string, number> = {
+          facebook: 1,
+          tiktok: 2,
+          instagram: 3,
+          google: 4,
+          direct: 5,
+        };
+        return (priorityOrder[a.key] || 99) - (priorityOrder[b.key] || 99);
+      });
+  }, [mergedDailyStats, activeOrders, currentRange, todayStr]);
 
   // Top Products for sales tab
   const topProducts = useMemo(() => {
@@ -595,6 +752,91 @@ function AdminAnalyticsContent() {
               </div>
               <div className="min-h-[350px]">
                 <VisitorsChart stats={mergedDailyStats} range={currentRange} />
+              </div>
+            </div>
+
+            {/* Traffic Sources & Ads Performance */}
+            <div className="space-y-4 pt-4 border-t border-white/10">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h3 className="font-product-title text-base sm:text-lg font-bold text-white flex items-center gap-2">
+                    <span className="material-symbols-outlined text-cyan-400">campaign</span>
+                    مصادر الزيارات وأداء الحملات الإعلانية
+                  </h3>
+                  <p className="text-xs text-text-muted font-body mt-1">
+                    تتبع دقيق لمصادر الزوار (تيك توك، فيسبوك، إنستجرام، جوجل) وعدد الطلبات والمبيعات الناتجة عن كل منصة
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {aggregatedSources.map((item) => (
+                  <div
+                    key={item.key}
+                    className={`bg-white/[0.02] border ${item.border} rounded-2xl p-4 flex flex-col justify-between hover:bg-white/[0.04] transition-all`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`w-9 h-9 rounded-xl ${item.bg} border ${item.border} flex items-center justify-center shrink-0 ${item.text}`}
+                          >
+                            <TrafficSourceIcon source={item.key} className="w-5 h-5" />
+                          </div>
+                          <span className="text-sm font-product-title font-bold text-white">
+                            {item.label}
+                          </span>
+                        </div>
+                        <span
+                          className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full ${item.bg} ${item.text}`}
+                        >
+                          {item.percent}%
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 py-2 border-y border-white/5 my-2">
+                        <div>
+                          <div className="text-[10px] text-text-muted font-body">عدد الزوار</div>
+                          <div className={`font-mono text-lg font-black ${item.text}`}>
+                            {item.visitors.toLocaleString()}{' '}
+                            <span className="text-[10px] text-text-muted font-normal font-body">
+                              زائر
+                            </span>
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] text-text-muted font-body">الطلبات</div>
+                          <div className="font-mono text-lg font-black text-emerald-400">
+                            {item.orders.toLocaleString()}{' '}
+                            <span className="text-[10px] text-text-muted font-normal font-body">
+                              أوردر
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 flex items-center justify-between text-xs">
+                      <div>
+                        <span className="text-[10px] text-text-muted font-body block">
+                          العائد / المبيعات
+                        </span>
+                        <span className="font-mono font-bold text-white">
+                          {item.revenue.toLocaleString()}{' '}
+                          <span className="text-[9px] text-text-muted font-body">EGP</span>
+                        </span>
+                      </div>
+                      <div className="text-left">
+                        <span className="text-[10px] text-text-muted font-body block">
+                          معدل التحويل
+                        </span>
+                        <span className="font-mono font-bold text-emerald-400">
+                          {item.conversionRate}%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
