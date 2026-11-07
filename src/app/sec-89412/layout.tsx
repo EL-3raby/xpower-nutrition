@@ -211,6 +211,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <span>الرئيسية</span>
           </Link>
 
+          <Link href="/sec-89412/analytics" className={navLinkClass('/sec-89412/analytics')}>
+            <span className="material-symbols-outlined text-xl">query_stats</span>
+            <span>التقارير والزوار</span>
+          </Link>
+
           <Link href="/sec-89412/orders" className={navLinkClass('/sec-89412/orders')}>
             <span className="material-symbols-outlined text-xl">shopping_cart</span>
             <span className="flex-grow text-right">الأوردرات</span>
