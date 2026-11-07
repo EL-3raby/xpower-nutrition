@@ -12,6 +12,7 @@ import {
   Legend
 } from 'recharts';
 import { DailyStats } from '@/lib/types';
+import { getCairoDateString } from '@/lib/firebase/analytics-stats';
 
 interface VisitorsChartProps {
   stats: DailyStats[];
@@ -20,36 +21,60 @@ interface VisitorsChartProps {
 
 export default function VisitorsChart({ stats, range }: VisitorsChartProps) {
   const chartData = React.useMemo(() => {
-    if (!stats || stats.length === 0) return [];
+    // Map existing stats by date string (YYYY-MM-DD)
+    const statsMap = new Map<string, DailyStats>();
+    (stats || []).forEach((s) => {
+      if (s.date) statsMap.set(s.date, s);
+    });
 
-    let filtered = [...stats];
-
-    // Filter by range if needed
-    if (range === 'today') {
-      filtered = filtered.slice(-1);
-    } else if (range === '7d') {
-      filtered = filtered.slice(-7);
-    } else if (range === '30d') {
-      filtered = filtered.slice(-30);
+    // If 'all', use chronological range from earliest stat to today
+    if (range === 'all') {
+      if (!stats || stats.length === 0) return [];
+      return stats.map((item) => {
+        let label = item.date;
+        try {
+          const [year, month, day] = item.date.split('-').map(Number);
+          const d = new Date(year, month - 1, day);
+          label = d.toLocaleDateString('ar-EG', { month: 'short', day: 'numeric' });
+        } catch {
+          label = item.date;
+        }
+        return {
+          date: label,
+          rawDate: item.date,
+          visitors: item.visitors || 0,
+          pageViews: item.pageViews || 0
+        };
+      });
     }
 
-    return filtered.map((item) => {
-      let label = item.date;
+    // Determine number of days for the selected range
+    const daysCount = range === 'today' ? 1 : range === '7d' ? 7 : 30;
+    const result = [];
+
+    for (let i = daysCount - 1; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+      const dateStr = getCairoDateString(d);
+      const stat = statsMap.get(dateStr);
+
+      let label = dateStr;
       try {
-        const [year, month, day] = item.date.split('-').map(Number);
-        const d = new Date(year, month - 1, day);
-        label = d.toLocaleDateString('ar-EG', { month: 'short', day: 'numeric' });
+        const [year, month, day] = dateStr.split('-').map(Number);
+        const dateObj = new Date(year, month - 1, day);
+        label = dateObj.toLocaleDateString('ar-EG', { month: 'short', day: 'numeric' });
       } catch {
-        label = item.date;
+        label = dateStr;
       }
 
-      return {
+      result.push({
         date: label,
-        rawDate: item.date,
-        visitors: item.visitors || 0,
-        pageViews: item.pageViews || 0
-      };
-    });
+        rawDate: dateStr,
+        visitors: stat?.visitors || 0,
+        pageViews: stat?.pageViews || 0
+      });
+    }
+
+    return result;
   }, [stats, range]);
 
   if (chartData.length === 0) {
@@ -132,6 +157,8 @@ export default function VisitorsChart({ stats, range }: VisitorsChartProps) {
             fillOpacity={1}
             fill="url(#visitorsGradient)"
             name="visitors"
+            dot={{ r: 4, strokeWidth: 2, fill: '#111111', stroke: '#e31e24' }}
+            activeDot={{ r: 6, stroke: '#ffffff', strokeWidth: 2, fill: '#e31e24' }}
           />
           <Area
             type="monotone"
@@ -141,10 +168,11 @@ export default function VisitorsChart({ stats, range }: VisitorsChartProps) {
             fillOpacity={1}
             fill="url(#pageViewsGradient)"
             name="pageViews"
+            dot={{ r: 3.5, strokeWidth: 2, fill: '#111111', stroke: '#38bdf8' }}
+            activeDot={{ r: 5.5, stroke: '#ffffff', strokeWidth: 2, fill: '#38bdf8' }}
           />
         </AreaChart>
       </ResponsiveContainer>
     </div>
   );
 }
-

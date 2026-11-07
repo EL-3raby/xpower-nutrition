@@ -31,6 +31,28 @@ export function getCairoDateString(date = new Date()): string {
 }
 
 /**
+ * Extracts and normalizes topPages map, handling both nested maps and legacy flat keys.
+ */
+function extractTopPages(data: Record<string, any>): Record<string, number> {
+  const result: Record<string, number> = {};
+
+  if (data.topPages && typeof data.topPages === 'object') {
+    Object.entries(data.topPages).forEach(([k, v]) => {
+      result[k] = (result[k] || 0) + Number(v || 0);
+    });
+  }
+
+  Object.keys(data).forEach((key) => {
+    if (key.startsWith('topPages.')) {
+      const pageKey = key.replace('topPages.', '');
+      result[pageKey] = (result[pageKey] || 0) + Number(data[key] || 0);
+    }
+  });
+
+  return result;
+}
+
+/**
  * Records a page view and checks if the visitor is a new unique visitor today.
  * Deduplicates using localStorage so 1 person = 1 visitor count per day.
  * Excludes admin sessions and admin routes (/sec-89412).
@@ -57,9 +79,14 @@ export async function recordVisit(pathname: string): Promise<void> {
       navigator.userAgent
     );
 
-    // Sanitize pathname for Firestore map key
-    const cleanPath = (pathname.replace(/^\/+|\/+$/g, '') || 'home')
-      .replace(/[\/\.\#\$\[\]]/g, '_')
+    // Sanitize pathname for Firestore map key safely
+    let safePath = pathname;
+    try {
+      safePath = decodeURIComponent(pathname);
+    } catch {}
+
+    const cleanPath = (safePath.replace(/^\/+|\/+$/g, '') || 'home')
+      .replace(/[\/\.\#\$\[\]\~\*]/g, '_')
       .slice(0, 60);
 
     const docRef = doc(db, 'dailyStats', todayStr);
@@ -67,7 +94,9 @@ export async function recordVisit(pathname: string): Promise<void> {
       date: todayStr,
       pageViews: increment(1),
       updatedAt: serverTimestamp(),
-      [`topPages.${cleanPath}`]: increment(1)
+      topPages: {
+        [cleanPath]: increment(1)
+      }
     };
 
     if (isUniqueDaily) {
@@ -110,7 +139,7 @@ export async function getDailyStatsRange(days = 30): Promise<DailyStats[]> {
         pageViews: Number(data.pageViews) || 0,
         mobileCount: Number(data.mobileCount) || 0,
         desktopCount: Number(data.desktopCount) || 0,
-        topPages: data.topPages || {},
+        topPages: extractTopPages(data),
         updatedAt:
           data.updatedAt instanceof Timestamp
             ? data.updatedAt.toDate()
@@ -155,7 +184,7 @@ export function subscribeToTodayStats(
           pageViews: Number(data.pageViews) || 0,
           mobileCount: Number(data.mobileCount) || 0,
           desktopCount: Number(data.desktopCount) || 0,
-          topPages: data.topPages || {},
+          topPages: extractTopPages(data),
           updatedAt:
             data.updatedAt instanceof Timestamp
               ? data.updatedAt.toDate()
@@ -197,4 +226,3 @@ function generateMockDailyStats(days: number): DailyStats[] {
   }
   return list;
 }
-

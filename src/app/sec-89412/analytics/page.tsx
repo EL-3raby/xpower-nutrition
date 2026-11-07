@@ -20,8 +20,14 @@ function formatPageName(pageKey: string): string {
   if (pageKey === 'cart') return 'سلة المشتريات';
   if (pageKey === 'checkout') return 'صفحة إتمام الطلب';
   if (pageKey === 'order-success') return 'تأكيد الطلب الناجح';
-  if (pageKey.startsWith('product_')) {
-    const slug = pageKey.replace('product_', '').replace(/_/g, ' ');
+  if (pageKey === 'faq') return 'الأسئلة الشائعة';
+  if (pageKey === 'track-order') return 'تتبع حالة الطلب';
+  if (pageKey === 'terms') return 'الشروط والأحكام';
+  if (pageKey === 'return-policy') return 'سياسة الاستبدال والاسترجاع';
+  if (pageKey === 'shipping-policy') return 'سياسة الشحن والتوصيل';
+  if (pageKey === 'verify') return 'التحقق من كود المنتج';
+  if (pageKey.startsWith('product_') || pageKey.startsWith('products_')) {
+    const slug = pageKey.replace(/^(product_|products_)/, '').replace(/_/g, ' ');
     try {
       return `منتج: ${decodeURIComponent(slug)}`;
     } catch {
@@ -102,9 +108,7 @@ function AdminAnalyticsContent() {
   // Date constants (Cairo timezone)
   const todayStr = useMemo(() => getCairoDateString(), []);
   const yesterdayStr = useMemo(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 1);
-    return getCairoDateString(d);
+    return getCairoDateString(new Date(Date.now() - 24 * 60 * 60 * 1000));
   }, []);
 
   // Today & Yesterday stats
