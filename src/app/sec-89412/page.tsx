@@ -4,8 +4,9 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { getOrders } from '@/lib/firebase/orders';
 import { getProducts } from '@/lib/firebase/products';
-import { Order, Product } from '@/lib/types';
+import { Order, Product, DailyStats } from '@/lib/types';
 import { getStartOfDayEgypt, getStartOfDaysAgoEgypt } from '@/lib/date-utils';
+import { subscribeToTodayStats } from '@/lib/firebase/analytics-stats';
 
 import SalesChart from '@/components/admin/SalesChart';
 import Spinner from '@/components/ui/Spinner';
@@ -13,7 +14,16 @@ import Spinner from '@/components/ui/Spinner';
 export default function AdminDashboardPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [todayStats, setTodayStats] = useState<DailyStats | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Live subscription to today's visitor stats
+  useEffect(() => {
+    const unsubscribe = subscribeToTodayStats((stats) => {
+      setTodayStats(stats);
+    });
+    return () => unsubscribe();
+  }, []);
 
   // DEBUG BUG: log to uncover "ث" issue. I will check the console log to find why it is "ث"
   useEffect(() => {
@@ -160,9 +170,35 @@ export default function AdminDashboardPage() {
             نظرة شاملة على مبيعات المتجر، نشاط الأوردرات، والتحويلات بانتظار المراجعة.
           </p>
         </div>
-        <div className="flex items-center gap-2.5 bg-[#0a0a0a] border border-white/10 px-3.5 py-2 rounded-xl text-xs text-text-muted shadow-sm">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span>البيانات متصلة ومحدثة</span>
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* اختصار زوار اليوم اللحظي */}
+          <Link
+            href="/sec-89412/analytics?tab=visitors"
+            className="flex items-center gap-2.5 bg-[#0a0a0a] border border-cyan-500/30 hover:border-cyan-400 px-3.5 py-2 rounded-xl text-xs transition-all shadow-sm group hover:bg-cyan-500/10 cursor-pointer"
+            title="اضغط لعرض تفاصيل حركة الزوار والصفحات"
+          >
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
+            </span>
+            <span className="material-symbols-outlined text-cyan-400 text-base group-hover:scale-110 transition-transform">group</span>
+            <div className="flex items-center gap-1.5 font-product-title">
+              <span className="text-text-muted group-hover:text-white transition-colors">زوار اليوم:</span>
+              <span className="font-mono text-cyan-400 font-black text-sm">
+                {(todayStats?.visitors || 0).toLocaleString()}
+              </span>
+            </div>
+            <span className="text-[10px] text-text-muted/60 font-body hidden md:inline">
+              ({(todayStats?.pageViews || 0).toLocaleString()} مشاهدة)
+            </span>
+            <span className="material-symbols-outlined text-text-muted/40 text-xs group-hover:text-cyan-400 group-hover:translate-x-[-2px] transition-all">arrow_back</span>
+          </Link>
+
+          {/* حالة الاتصال */}
+          <div className="hidden sm:flex items-center gap-2.5 bg-[#0a0a0a] border border-white/10 px-3.5 py-2 rounded-xl text-xs text-text-muted shadow-sm">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>البيانات متصلة ومحدثة</span>
+          </div>
         </div>
       </div>
 
