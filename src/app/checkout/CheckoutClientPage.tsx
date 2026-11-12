@@ -21,6 +21,7 @@ import { getOptimizedImageUrl } from '@/lib/utils/image';
 import { trackBeginCheckout, trackPurchase } from '@/lib/analytics';
 import { checkOrderSpamLimit, recordOrderSubmission, sanitizeText } from '@/lib/utils/security';
 import { getProducts } from '@/lib/firebase/products';
+import { getVariantTerminology } from '@/lib/utils/product-variants';
 
 // Regex for Egyptian Phone Numbers
 const phoneRegex = /^(010|011|012|015)[0-9]{8}$/;
@@ -994,7 +995,7 @@ export default function CheckoutClientPage() {
                             </div>
                           </div>
                         ) : (
-                          item.flavor && <div className="text-[10px] text-text-muted mt-0.5">الطعم: <span className="text-white">{item.flavor}</span></div>
+                          item.flavor && <div className="text-[10px] text-text-muted mt-0.5">{getVariantTerminology({ name: item.name }).specLabel}: <span className="text-white">{item.flavor}</span></div>
                         )}
                         <div className="flex justify-between items-center mt-1">
                           <div className="text-[11px] text-text-muted">{item.quantity} × {item.price} EGP</div>
@@ -2234,7 +2235,7 @@ export default function CheckoutClientPage() {
                           </div>
                         </div>
                       ) : (
-                        item.flavor && <div className="text-[10px] text-text-muted mt-0.5">الطعم: {item.flavor}</div>
+                        item.flavor && <div className="text-[10px] text-text-muted mt-0.5">{getVariantTerminology({ name: item.name }).specLabel}: {item.flavor}</div>
                       )}
                       <div className="text-[11px] text-text-muted mt-1">{item.quantity} x {item.price} EGP</div>
                     </div>

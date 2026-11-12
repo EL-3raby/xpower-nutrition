@@ -1,6 +1,7 @@
 import emailjs from '@emailjs/browser';
 import { Order } from './types';
 import { getSiteUrl } from './utils/seo';
+import { getVariantTerminology } from './utils/product-variants';
 
 export async function sendNewOrderEmail(order: Order) {
   const serviceId = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID || '';
@@ -16,7 +17,8 @@ export async function sendNewOrderEmail(order: Order) {
 
   const itemsSummary = order.items
     .map((item) => {
-      const flavorText = item.flavor ? ` - نكهة: ${item.flavor}` : '';
+      const label = item.isBundle ? 'الخيارات' : getVariantTerminology({ name: item.name }).specLabel;
+      const flavorText = item.flavor ? ` - ${label}: ${item.flavor}` : '';
       return `${item.name}${flavorText} (عدد: ${item.quantity}) - بسعر ${item.price} EGP`;
     })
     .join('\n');

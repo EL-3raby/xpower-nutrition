@@ -7,6 +7,7 @@ import { getOrderById, updateOrderStatus, markOrderAsRead, updateOrderPaymentSta
 import { getProductById } from '@/lib/firebase/products';
 import { getSiteConfig } from '@/lib/firebase/admin-actions';
 import { Order, SiteConfig } from '@/lib/types';
+import { getVariantTerminology } from '@/lib/utils/product-variants';
 import TrafficSourceIcon from '@/components/admin/TrafficSourceIcon';
 import Spinner from '@/components/ui/Spinner';
 
@@ -615,7 +616,9 @@ function OrderDetailContent() {
                           )}
                         </div>
                         {item.flavor && (
-                          <div className="text-xs text-text-muted font-body mt-0.5 font-normal">النكهات المختارة: {item.flavor}</div>
+                          <div className="text-xs text-text-muted font-body mt-0.5 font-normal">
+                            {item.isBundle ? 'الخيارات المختارة:' : `${getVariantTerminology({ name: item.name }).specLabel}:`} {item.flavor}
+                          </div>
                         )}
                         {item.isBundle && item.bundleItems && item.bundleItems.length > 0 && (
                           <div className="mt-2 bg-white/5 border border-white/5 rounded-lg p-2.5 space-y-1">
@@ -875,7 +878,11 @@ function OrderDetailContent() {
                   <div className="text-right flex-1 pr-1">
                     <span className="font-bold text-sm">{item.quantity}x {item.name}</span>
                     {item.isBundle && <span className="text-[10px] font-mono text-zinc-600 block">[باقة توفير]</span>}
-                    {item.flavor && <div className="text-[11px] text-zinc-700">النكهات: {item.flavor}</div>}
+                    {item.flavor && (
+                      <div className="text-[11px] text-zinc-700">
+                        {item.isBundle ? 'الخيارات:' : `${getVariantTerminology({ name: item.name }).specLabel}:`} {item.flavor}
+                      </div>
+                    )}
                     {item.isBundle && item.bundleItems && (
                       <div className="text-[10px] text-zinc-600 space-y-0.5 mt-1 border-r-2 border-zinc-400 pr-1.5">
                         {item.bundleItems.map((b, bIdx) => (

@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { BundleItem, BundleVariantOption, Product } from '@/lib/types';
+import { isAccessoryProduct } from '@/lib/utils/product-variants';
 
 interface BundleItemCardProps {
   item: BundleItem;
@@ -62,6 +63,8 @@ export default function BundleItemCard({
   const [isAddingFlavor, setIsAddingFlavor] = useState(false);
   const [flavorSearchQuery, setFlavorSearchQuery] = useState('');
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+
+  const isAcc = isAccessoryProduct({ name: item.name });
 
   const originalProd = useMemo(() => {
     return allProducts.find((p) => p.id === item.productId);
@@ -303,7 +306,7 @@ export default function BundleItemCard({
         <div className="bg-amber-500/10 border border-amber-500/20 p-2.5 rounded-xl text-xs flex flex-wrap items-center gap-2">
           <span className="text-amber-400 font-bold flex items-center gap-1">
             <span className="material-symbols-outlined text-sm">lightbulb</span>
-            اقتراح أطعم لنفس المنتج موجودة في المتجر:
+            {isAcc ? 'اقتراح ألوان لنفس المنتج موجودة في المتجر:' : 'اقتراح أطعم لنفس المنتج موجودة في المتجر:'}
           </span>
           {autoSuggestions.map((s) => (
             <button
@@ -323,7 +326,7 @@ export default function BundleItemCard({
         <div className="flex items-center justify-between text-[11px]">
           <span className="text-text-muted font-bold flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-accent-red"></span>
-            الأطعم والخيارات المتاحة لاختيار العميل ({currentOptions.length}):
+            {isAcc ? 'الألوان والخيارات المتاحة لاختيار العميل' : 'الأطعم والخيارات المتاحة لاختيار العميل'} ({currentOptions.length}):
           </span>
           {!isAddingFlavor && (
             <button
@@ -335,7 +338,7 @@ export default function BundleItemCard({
               className="text-accent-red hover:underline font-bold flex items-center gap-1 cursor-pointer"
             >
               <span className="material-symbols-outlined text-sm">add</span>
-              <span>إضافة طعم آخر كبديل</span>
+              <span>{isAcc ? 'إضافة لون آخر كبديل' : 'إضافة طعم آخر كبديل'}</span>
             </button>
           )}
         </div>
@@ -359,7 +362,7 @@ export default function BundleItemCard({
                       type="text"
                       value={opt.flavorLabel}
                       onChange={(e) => handleUpdateOptionLabel(opt.productId, e.target.value)}
-                      placeholder="اسم النكهة المعروض..."
+                      placeholder={isAcc ? "اسم اللون المعروض..." : "اسم النكهة المعروض..."}
                       className="bg-black/60 border border-white/10 text-amber-400 font-bold text-[10px] px-2 py-0.5 rounded w-28 focus:border-accent-red focus:outline-none"
                       title="الاسم الذي يظهر للعميل في صفحة المنتج"
                     />
@@ -374,7 +377,7 @@ export default function BundleItemCard({
                     type="button"
                     onClick={() => handleRemoveFlavorOption(opt.productId)}
                     className="w-5 h-5 rounded text-text-muted hover:text-accent-red hover:bg-white/5 flex items-center justify-center transition-colors cursor-pointer shrink-0"
-                    title="إزالة هذا الطعم البديل"
+                    title={isAcc ? "إزالة هذا اللون البديل" : "إزالة هذا الطعم البديل"}
                   >
                     ✕
                   </button>
@@ -415,7 +418,7 @@ export default function BundleItemCard({
                 autoFocus
                 value={flavorSearchQuery}
                 onChange={(e) => setFlavorSearchQuery(e.target.value)}
-                placeholder="ابحث باسم المنتج أو النكهة (عربي أو إنجليزي)..."
+                placeholder={isAcc ? "ابحث باسم المنتج أو اللون (عربي أو إنجليزي)..." : "ابحث باسم المنتج أو النكهة (عربي أو إنجليزي)..."}
                 className="w-full bg-[#050505] text-white border border-white/10 focus:border-accent-red pr-9 pl-8 py-2 rounded-lg text-xs focus:outline-none transition-colors"
               />
               {flavorSearchQuery && (

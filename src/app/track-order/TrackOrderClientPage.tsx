@@ -6,6 +6,7 @@ import { db } from '@/lib/firebase/client';
 import { doc, getDoc } from 'firebase/firestore';
 import { Order } from '@/lib/types';
 import Spinner from '@/components/ui/Spinner';
+import { getVariantTerminology } from '@/lib/utils/product-variants';
 
 function TrackOrderContent() {
   const searchParams = useSearchParams();
@@ -246,7 +247,7 @@ function TrackOrderContent() {
                   <div key={`track-item-${idx}`} className="flex justify-between items-center text-xs text-text-muted bg-[#050505] p-3 rounded-xl border border-white/5">
                     <div className="font-bold text-white">
                       <span>{item.name}</span>
-                      {item.flavor && <span className="text-[10px] text-text-muted block">الطعم: {item.flavor}</span>}
+                      {item.flavor && <span className="text-[10px] text-text-muted block">{getVariantTerminology({ name: item.name }).specLabel}: {item.flavor}</span>}
                     </div>
                     <div className="text-white font-mono font-bold" dir="ltr">
                       {item.quantity} × {item.price} EGP

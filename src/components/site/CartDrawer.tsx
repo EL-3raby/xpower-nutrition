@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useCart } from '@/hooks/useCart';
 import { getSiteConfig } from '@/lib/firebase/admin-actions';
 import { SiteConfig } from '@/lib/types';
+import { getVariantTerminology } from '@/lib/utils/product-variants';
 
 export default function CartDrawer() {
   const { cart, removeFromCart, updateQuantity, getCartTotal, isDrawerOpen, setIsDrawerOpen, lastAddedItemId } = useCart();
@@ -216,7 +217,7 @@ export default function CartDrawer() {
                     ) : (
                       (item.flavor || item.size) && (
                         <p className="font-body text-xs text-text-muted mt-1 bg-black/40 inline-block px-1.5 py-0.5 rounded-sm">
-                          {item.flavor && `نكهة: ${item.flavor}`}
+                          {item.flavor && `${getVariantTerminology({ name: item.name }).specLabel}: ${item.flavor}`}
                           {item.flavor && item.size && ' - '}
                           {item.size && `حجم: ${item.size}`}
                         </p>

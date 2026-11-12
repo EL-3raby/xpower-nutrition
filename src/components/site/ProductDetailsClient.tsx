@@ -11,6 +11,7 @@ import { getProducts, getProductById } from '@/lib/firebase/products';
 import { getOptimizedImageUrl } from '@/lib/utils/image';
 import { trackViewItem } from '@/lib/analytics';
 import { getProductUsageGuide } from '@/lib/utils/product-usage';
+import { getVariantTerminology } from '@/lib/utils/product-variants';
 
 interface ProductDetailsClientProps {
   product: Product;
@@ -598,11 +599,11 @@ export default function ProductDetailsClient({ product }: ProductDetailsClientPr
                           </div>
                         </div>
 
-                        {/* Flavor Selector for this Component (Product Variants / Options) */}
+                        {/* Flavor / Color Selector for this Component (Product Variants / Options) */}
                         {bItem.flavorOptions && bItem.flavorOptions.length > 0 ? (
                           <div className="pt-2 border-t border-white/5 space-y-1.5">
                             <span className="text-[11px] text-text-muted font-bold block">
-                              اختار نكهة {bItem.name}:
+                              {getVariantTerminology({ name: bItem.name }).chooseItemPrefix} {bItem.name}:
                             </span>
                             <div className="flex flex-wrap gap-2">
                               {bItem.flavorOptions.map((opt) => {
@@ -644,7 +645,7 @@ export default function ProductDetailsClient({ product }: ProductDetailsClientPr
                         ) : bItem.availableFlavors && bItem.availableFlavors.length > 0 ? (
                           <div className="pt-2 border-t border-white/5 space-y-1.5">
                             <span className="text-[11px] text-text-muted font-bold block">
-                              اختار نكهة {bItem.name}:
+                              {getVariantTerminology({ name: bItem.name }).chooseItemPrefix} {bItem.name}:
                             </span>
                             <div className="flex flex-wrap gap-2">
                               {bItem.availableFlavors.map((flv) => {
@@ -674,12 +675,12 @@ export default function ProductDetailsClient({ product }: ProductDetailsClientPr
               </div>
             )}
 
-            {/* Flavors Select (Standard Products Only) */}
+            {/* Variants Select (Standard Products Only - Flavors for Supplements, Colors for Accessories) */}
             {!product.isBundle && product.flavors && product.flavors.length > 0 && (
               <div className="space-y-2.5">
                 <span className="text-xs uppercase font-product-title font-bold text-text-muted tracking-wider flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-accent-red"></span>
-                  اختر النكهة
+                  {getVariantTerminology({ category: product.category, name: product.name }).chooseTitle}
                 </span>
                 <div className="flex flex-wrap gap-2.5">
                   {product.flavors.map((flavor) => (

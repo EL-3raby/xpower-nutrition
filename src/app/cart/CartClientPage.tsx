@@ -9,6 +9,7 @@ import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore
 import { Coupon, SiteConfig } from '@/lib/types';
 import { getSiteConfig } from '@/lib/firebase/admin-actions';
 import { getOptimizedImageUrl } from '@/lib/utils/image';
+import { getVariantTerminology } from '@/lib/utils/product-variants';
 
 export default function CartClientPage() {
   const { cart, updateQuantity, removeFromCart, getCartTotal, clearCart } = useCart();
@@ -259,7 +260,7 @@ export default function CartClientPage() {
                     ) : (
                       item.flavor && (
                         <div className="text-[11px] text-text-muted mb-3 flex items-center gap-1.5">
-                          <span>الطعم:</span>
+                          <span>{getVariantTerminology({ name: item.name }).specLabel}:</span>
                           <span className="text-white font-bold bg-white/10 px-2 py-0.5 rounded-md border border-white/5">{item.flavor}</span>
                         </div>
                       )
