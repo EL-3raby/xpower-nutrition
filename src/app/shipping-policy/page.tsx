@@ -4,7 +4,7 @@ import ShippingPolicyClientPage from './ShippingPolicyClientPage';
 
 export const metadata: Metadata = {
   title: 'سياسة ومصاريف الشحن والتوصيل | Xpower Nutrition',
-  description: 'تعرف على تفاصيل مصاريف الشحن لجميع محافظات مصر، نظام ديبوزيت الشحن المسبق، طرق الدفع عند الاستلام وفودافون كاش وانستاباي، وحق المعاينة قبل الدفع.',
+  description: 'تعرف على تفاصيل مصاريف الشحن لجميع محافظات مصر، طرق الدفع عند الاستلام وفودافون كاش وانستاباي، وضمانات المعاينة قبل الدفع في Xpower Nutrition.',
   alternates: {
     canonical: getSiteUrl('/shipping-policy'),
   },

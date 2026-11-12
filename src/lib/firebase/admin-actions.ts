@@ -188,8 +188,10 @@ export const DEFAULT_CONFIG: SiteConfig = {
     isEnabled: true,
     thresholdAmount: 1000,
     depositAmountWhenFree: 100,
-    codDepositAmount: 100
+    codDepositAmount: 100,
+    codDepositEnabled: true,
   },
+  codDepositEnabled: true,
   flashSale: {
     isActive: false,
     productId: '',

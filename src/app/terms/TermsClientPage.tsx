@@ -39,6 +39,7 @@ export default function TermsClientPage() {
   const isCodEnabled = config?.paymentMethodsEnabled?.cod ?? false;
   const isVodafoneCashEnabled = config?.paymentMethodsEnabled?.vodafoneCash ?? true;
   const isInstapayEnabled = config?.paymentMethodsEnabled?.instapay ?? true;
+  const isCodDepositRequired = config?.freeShipping?.codDepositEnabled ?? config?.codDepositEnabled ?? true;
   const enabledCount = (isCodEnabled ? 1 : 0) + (isVodafoneCashEnabled ? 1 : 0) + (isInstapayEnabled ? 1 : 0);
 
   return (
@@ -81,7 +82,7 @@ export default function TermsClientPage() {
           <div className="flex items-center gap-2.5">
             <span className="w-1.5 h-6 bg-accent-red rounded-full shrink-0"></span>
             <h2 className="font-product-title text-base sm:text-lg font-bold text-white">
-              {isCodEnabled ? '2. طرق الدفع ونظام ديبوزيت الشحن' : '2. طرق الدفع المتاحة'}
+              {isCodEnabled && isCodDepositRequired ? '2. طرق الدفع ونظام ديبوزيت الشحن' : '2. طرق الدفع المتاحة'}
             </h2>
           </div>
           <p className="font-body text-xs sm:text-sm text-text-muted leading-relaxed">
@@ -99,7 +100,9 @@ export default function TermsClientPage() {
                   <span>الدفع عند الاستلام (COD)</span>
                 </div>
                 <p className="text-[11px] sm:text-xs text-text-muted font-body leading-relaxed">
-                  يتم سداد مصاريف الشحن مسبقاً كديبوزيت جدية عبر فودافون كاش أو انستاباي لتأكيد الطلب، بينما يتم سداد قيمة المنتجات بالكامل كاش للمندوب عند الاستلام بعد المعاينة.
+                  {isCodDepositRequired
+                    ? 'يتم سداد عربون تأكيد رمزي مسبقاً (يُخصم من إجمالي الفاتورة) عبر فودافون كاش أو انستاباي لتأكيد جدية الطلب وسرعة الشحن، بينما يتم سداد باقي قيمة الطلب كاش للمندوب عند الاستلام بعد المعاينة.'
+                    : 'يتم سداد كامل قيمة الطلب نقداً لمندوب شركة الشحن عند باب البيت بعد فتح ومعاينة الطرد والتأكد من مطابقة وسلامة المنتجات، بدون أي عربون مسبق أو متطلبات تحويل.'}
                 </p>
               </div>
             )}

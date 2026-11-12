@@ -37,6 +37,7 @@ export default function ReturnPolicyClientPage() {
   const cleanWhatsapp = whatsappNumber.replace(/[^0-9]/g, '');
 
   const isCodEnabled = config?.paymentMethodsEnabled?.cod ?? false;
+  const isCodDepositRequired = config?.freeShipping?.codDepositEnabled ?? config?.codDepositEnabled ?? true;
 
   return (
     <div className="bg-[#050505] text-text-primary min-h-screen py-10 sm:py-16 md:py-20 px-4 sm:px-6 relative overflow-hidden" dir="rtl">
@@ -122,7 +123,7 @@ export default function ReturnPolicyClientPage() {
           <div className="flex items-center gap-2.5">
             <span className="w-1.5 h-6 bg-accent-red rounded-full shrink-0"></span>
             <h2 className="font-product-title text-base sm:text-lg font-bold text-white">
-              {isCodEnabled ? '4. سياسة استرداد الأموال وديبوزيت الشحن' : '4. سياسة استرداد الأموال'}
+              {isCodEnabled && isCodDepositRequired ? '4. سياسة استرداد الأموال وديبوزيت الشحن' : '4. سياسة استرداد الأموال'}
             </h2>
           </div>
           <div className={`grid grid-cols-1 ${isCodEnabled ? 'sm:grid-cols-2' : ''} gap-3.5`}>
@@ -132,7 +133,7 @@ export default function ReturnPolicyClientPage() {
                 <span>الاسترجاع لخطأ بالطلب أو عيب مصنعي</span>
               </span>
               <p className="text-[11px] sm:text-xs text-text-muted font-body leading-relaxed">
-                {isCodEnabled
+                {isCodDepositRequired
                   ? 'يتحمل المتجر كافة تكاليف الشحن ذهاباً وعودة، ويتم رد كامل المبلغ المسدد بما فيه ديبوزيت الشحن أو استبدال المنتج مجاناً وبدون أي اقتطاعات.'
                   : 'يتحمل المتجر كافة تكاليف الشحن ذهاباً وعودة، ويتم رد كامل المبلغ المسدد بالكامل أو استبدال المنتج مجاناً وبدون أي اقتطاعات.'}
               </p>
@@ -145,7 +146,9 @@ export default function ReturnPolicyClientPage() {
                   <span>رفض الاستلام لسبب شخصي (تغيير الرأي)</span>
                 </span>
                 <p className="text-[11px] sm:text-xs text-text-muted font-body leading-relaxed">
-                  في حال خروج الشحنة ورفض الاستلام بدون وجود أي عيب في المنتج، يُخصم ديبوزيت الشحن المسبق لتغطية التكلفة الفعلية لشركة التوصيل، حمايةً من الطلبات غير الجادة.
+                  {isCodDepositRequired
+                    ? 'في حال خروج الشحنة ورفض الاستلام بدون وجود أي عيب في المنتج، يُخصم ديبوزيت الشحن المسبق لتغطية التكلفة الفعلية لشركة التوصيل، حمايةً من الطلبات غير الجادة.'
+                    : 'في حال خروج الشحنة ورفض الاستلام عند باب البيت بدون وجود أي عيب في المنتج أو خطأ بالطلب، يتحمل العميل فقط مصاريف الشحن الفعلية لشركة التوصيل.'}
                 </p>
               </div>
             )}

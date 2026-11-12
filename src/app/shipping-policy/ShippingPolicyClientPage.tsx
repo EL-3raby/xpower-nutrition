@@ -42,6 +42,8 @@ export default function ShippingPolicyClientPage() {
   const isCodEnabled = config?.paymentMethodsEnabled?.cod ?? false;
   const isVodafoneCashEnabled = config?.paymentMethodsEnabled?.vodafoneCash ?? true;
   const isInstapayEnabled = config?.paymentMethodsEnabled?.instapay ?? true;
+  const isCodDepositRequired = config?.freeShipping?.codDepositEnabled ?? config?.codDepositEnabled ?? true;
+  const codDepositAmount = config?.freeShipping?.codDepositAmount ?? config?.freeShipping?.depositAmountWhenFree ?? 100;
   const enabledCount = (isCodEnabled ? 1 : 0) + (isVodafoneCashEnabled ? 1 : 0) + (isInstapayEnabled ? 1 : 0);
 
   return (
@@ -100,7 +102,7 @@ export default function ShippingPolicyClientPage() {
           <div className="flex items-center gap-2">
             <span className="w-1.5 h-5 bg-accent-red rounded-full"></span>
             <h2 className="font-product-title text-lg sm:text-xl font-bold text-white">
-              {isCodEnabled ? 'طرق الدفع ونظام ديبوزيت الشحن' : 'طرق الدفع المتاحة'}
+              {isCodEnabled && isCodDepositRequired ? 'طرق الدفع ونظام ديبوزيت الشحن' : 'طرق الدفع والتوصيل المتاحة'}
             </h2>
           </div>
 
@@ -109,7 +111,7 @@ export default function ShippingPolicyClientPage() {
             enabledCount === 2 ? 'md:grid-cols-2' : 'md:grid-cols-3'
           } gap-4`}>
             
-            {/* Card 1: COD with Deposit */}
+            {/* Card 1: COD Option */}
             {isCodEnabled && (
               <div className="bg-[#0a0a0a] border border-accent-red/30 rounded-2xl p-4 sm:p-5 flex flex-col justify-between hover:border-accent-red transition-all relative overflow-hidden group">
                 <div className="absolute top-0 left-0 w-24 h-24 bg-accent-red/5 rounded-full blur-xl pointer-events-none" />
@@ -118,32 +120,46 @@ export default function ShippingPolicyClientPage() {
                     <div className="w-11 h-11 rounded-xl bg-accent-red/10 border border-accent-red/20 flex items-center justify-center text-accent-red">
                       <span className="material-symbols-outlined text-xl">payments</span>
                     </div>
-                    <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 px-2.5 py-1.5 rounded-xl">
-                      <div className="w-4 h-4 shrink-0">
-                        <img src="/images/vodafone.png" alt="Vodafone Cash" className="w-full h-full object-contain" />
+                    {isCodDepositRequired ? (
+                      <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 px-2.5 py-1.5 rounded-xl">
+                        <div className="w-4 h-4 shrink-0">
+                          <img src="/images/vodafone.png" alt="Vodafone Cash" className="w-full h-full object-contain" />
+                        </div>
+                        <span className="text-[10px] text-text-muted font-bold">+</span>
+                        <div className="w-4 h-4 shrink-0">
+                          <img src="/images/instapay.png" alt="InstaPay" className="w-full h-full object-contain" />
+                        </div>
                       </div>
-                      <span className="text-[10px] text-text-muted font-bold">+</span>
-                      <div className="w-4 h-4 shrink-0">
-                        <img src="/images/instapay.png" alt="InstaPay" className="w-full h-full object-contain" />
-                      </div>
-                    </div>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                        كاش مباشر 100%
+                      </span>
+                    )}
                   </div>
                   <div>
                     <h3 className="font-product-title font-bold text-white text-sm sm:text-base mb-1">
                       الدفع عند الاستلام (COD)
                     </h3>
                     <span className="text-[11px] text-accent-red font-bold inline-block mb-2">
-                      ديبوزيت شحن مسبق + باقي الحساب كاش 
+                      {isCodDepositRequired
+                        ? `عربون تأكيد (${codDepositAmount} ج.م) + باقي الحساب كاش`
+                        : 'كاش بالكامل عند باب بيتك للمندوب'}
                     </span>
                     <p className="text-text-muted text-xs leading-relaxed font-body">
-                      لضمان جدية الطلب، يتم تحويل مبلغ مصاريف الشحن فقط مسبقاً (ديبوزيت)، بينما يتم دفع باقي ثمن المكملات نقداً للمندوب بعد استلام ومعاينة الطرد.
+                      {isCodDepositRequired
+                        ? `لضمان جدية الطلب وسرعة الشحن للمحافظات، يتم تحويل عربون تأكيد رمزي (${codDepositAmount} ج.م) مسبقاً عبر فودافون كاش أو انستاباي ويُخصم بالكامل من إجمالي الفاتورة، بينما يتم دفع باقي ثمن الطلب نقداً للمندوب بعد استلام ومعاينة الطرد.`
+                        : 'بتدفع كامل قيمة طلبك نقداً لمندوب الشحن بعد استلام ومعاينة الطرد والتأكد من مطابقة الأصناف وسلامتها، وبدون الحاجة لسداد أي عربون مسبق أو رفع إيصالات تحويل.'}
                     </p>
                   </div>
                 </div>
 
                 <div className="mt-4 pt-3 border-t border-white/5 text-[11px] text-text-muted/80 flex items-center gap-1.5">
                   <span className="material-symbols-outlined text-accent-red text-sm">security</span>
-                  <span>الديبوزيت مسترد بالكامل في حال وجود أي خلل بالمنتج</span>
+                  <span>
+                    {isCodDepositRequired
+                      ? 'العربون مخصوم بالكامل من الفاتورة ومسترد فوراً في حال وجود أي خلل بالمنتج'
+                      : 'حق المعاينة الكامل ومراجعة الطرد قبل سداد أي مبالغ للمندوب'}
+                  </span>
                 </div>
               </div>
             )}
@@ -327,7 +343,9 @@ export default function ShippingPolicyClientPage() {
               </div>
               <p className="text-[11px] text-text-muted leading-relaxed font-body">
                 {isCodEnabled
-                  ? 'إذا وجدت أي تلف ناتج عن الشحن أو خطأ، يحق لك رفض الاستلام مع استرداد الديبوزيت فوراً.'
+                  ? (isCodDepositRequired
+                    ? 'إذا وجدت أي تلف ناتج عن الشحن أو خطأ، يحق لك رفض الاستلام مع استرداد الديبوزيت فوراً وبدون أي اقتطاعات.'
+                    : 'إذا وجدت أي تلف ناتج عن الشحن أو خطأ، يحق لك رفض الاستلام فوراً دون دفع أي مبالغ للمندوب.')
                   : 'إذا وجدت أي تلف ناتج عن الشحن أو خطأ، يحق لك رفض الاستلام مع استرداد كامل المبلغ المدفوع فوراً.'}
               </p>
             </div>

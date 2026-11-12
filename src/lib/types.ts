@@ -168,7 +168,9 @@ export interface SiteConfig {
     thresholdAmount: number;
     depositAmountWhenFree?: number;
     codDepositAmount?: number;
+    codDepositEnabled?: boolean; // تفعيل أو إلغاء إلزامية الديبوزيت لطلبات الدفع عند الاستلام
   };
+  codDepositEnabled?: boolean; // اختصار مباشر على مستوى الإعدادات الرئيسية
   flashSale?: {
     isActive: boolean;
     productId?: string;

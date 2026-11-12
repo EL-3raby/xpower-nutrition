@@ -17,6 +17,7 @@ export default function AdminShippingPage() {
   const [freeShippingEnabled, setFreeShippingEnabled] = useState(false);
   const [freeShippingThreshold, setFreeShippingThreshold] = useState(0);
   const [freeShippingDepositAmount, setFreeShippingDepositAmount] = useState(100);
+  const [codDepositEnabled, setCodDepositEnabled] = useState(true);
   const [shippingBannerActive, setShippingBannerActive] = useState(true);
   const [shippingBannerText, setShippingBannerText] = useState('');
 
@@ -49,6 +50,7 @@ export default function AdminShippingPage() {
       setFreeShippingEnabled(fetchedConfig.freeShipping?.isEnabled ?? false);
       setFreeShippingThreshold(fetchedConfig.freeShipping?.thresholdAmount ?? 0);
       setFreeShippingDepositAmount(fetchedConfig.freeShipping?.codDepositAmount ?? fetchedConfig.freeShipping?.depositAmountWhenFree ?? 100);
+      setCodDepositEnabled(fetchedConfig.freeShipping?.codDepositEnabled ?? fetchedConfig.codDepositEnabled ?? true);
 
       setShippingBannerActive(fetchedConfig.promoBanner?.isActive ?? (fetchedConfig.freeShipping?.isEnabled ?? true));
       const existingBanner = fetchedConfig.promoBanner?.text?.trim() || '';
@@ -121,8 +123,10 @@ export default function AdminShippingPage() {
           isEnabled: freeShippingEnabled,
           thresholdAmount: Number(freeShippingThreshold),
           depositAmountWhenFree: Number.isFinite(Number(freeShippingDepositAmount)) ? Math.max(0, Number(freeShippingDepositAmount)) : 100,
-          codDepositAmount: Number.isFinite(Number(freeShippingDepositAmount)) ? Math.max(0, Number(freeShippingDepositAmount)) : 100
+          codDepositAmount: Number.isFinite(Number(freeShippingDepositAmount)) ? Math.max(0, Number(freeShippingDepositAmount)) : 100,
+          codDepositEnabled: codDepositEnabled,
         },
+        codDepositEnabled: codDepositEnabled,
         promoBanner: {
           isActive: shippingBannerActive,
           text: shippingBannerText.trim() || ((freeShippingEnabled && Number(freeShippingThreshold) > 0)
@@ -393,11 +397,32 @@ export default function AdminShippingPage() {
                 </div>
               )}
 
-              {/* Unified COD Deposit Amount (Always Visible and Configurable) */}
-              <div className="flex flex-col gap-2 pt-3 border-t border-text-muted/10">
+              {/* COD Deposit Enable/Disable Toggle */}
+              <div className="pt-3 border-t border-text-muted/10 space-y-2">
+                <div className="flex items-center gap-3 py-1">
+                  <input 
+                    type="checkbox" 
+                    id="codDepositEnabled"
+                    checked={codDepositEnabled}
+                    onChange={(e) => setCodDepositEnabled(e.target.checked)}
+                    className="accent-accent-red w-5 h-5 cursor-pointer bg-bg-primary border-text-muted/20"
+                  />
+                  <label htmlFor="codDepositEnabled" className="font-body text-sm text-white cursor-pointer select-none">
+                    إلزامية ديبوزيت عربون الدفع عند الاستلام (COD Deposit)
+                  </label>
+                </div>
+                <p className="text-[11px] text-text-muted leading-relaxed mr-8">
+                  عند إلغاء هذا الخيار، يتمكن العملاء من طلب الدفع عند الاستلام كاش بالكامل بدون أي عربون مقدم أو رفع إيصال تحويل.
+                </p>
+              </div>
+
+              {/* Unified COD Deposit Amount (Configurable) */}
+              <div className={`flex flex-col gap-2 pt-1 transition-opacity ${!codDepositEnabled ? 'opacity-50' : ''}`}>
                 <label className="font-body text-xs text-white font-bold flex items-center justify-between">
                   <span>قيمة الديبوزيت الموحد لطلبات الدفع عند الاستلام (جنيه)</span>
-                  <span className="text-[10px] text-accent-red font-mono font-bold bg-accent-red/10 border border-accent-red/20 px-2 py-0.5 rounded">موحد لجميع الطلبات</span>
+                  <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded ${codDepositEnabled ? 'text-accent-red bg-accent-red/10 border border-accent-red/20' : 'text-amber-400 bg-amber-400/10 border border-amber-400/20'}`}>
+                    {codDepositEnabled ? 'موحد لجميع الطلبات' : 'معطل حالياً (0 عربون)'}
+                  </span>
                 </label>
                 <input 
                   type="number" 
@@ -405,12 +430,15 @@ export default function AdminShippingPage() {
                   value={freeShippingDepositAmount}
                   onChange={(e) => setFreeShippingDepositAmount(Number(e.target.value))}
                   min="0"
-                  required
-                  className="bg-bg-primary text-white border border-text-muted/20 px-4 py-2.5 font-body text-sm focus:border-accent-red focus:outline-none text-left"
+                  disabled={!codDepositEnabled}
+                  required={codDepositEnabled}
+                  className={`bg-bg-primary text-white border border-text-muted/20 px-4 py-2.5 font-body text-sm focus:border-accent-red focus:outline-none text-left ${!codDepositEnabled ? 'cursor-not-allowed bg-black/40' : ''}`}
                   dir="ltr"
                 />
                 <span className="text-[11px] text-text-muted leading-relaxed">
-                  مبلغ الديبوزيت التأكيدي الثابت والموحد لأي أوردر دفع عند الاستلام (سواء الشحن مجاني أو مدفوع). يُخصم هذا المبلغ تلقائياً من إجمالي الأوردر ويسدد العميل الباقي كاش للمندوب عند الاستلام.
+                  {codDepositEnabled
+                    ? 'مبلغ الديبوزيت التأكيدي الثابت والموحد لأي أوردر دفع عند الاستلام (سواء الشحن مجاني أو مدفوع). يُخصم هذا المبلغ تلقائياً من إجمالي الأوردر ويسدد العميل الباقي كاش للمندوب عند الاستلام.'
+                    : 'تم إيقاف الديبوزيت حالياً. لن يُطلب من أي عميل سداد أي عربون عند اختيار الدفع عند الاستلام.'}
                 </span>
               </div>
 

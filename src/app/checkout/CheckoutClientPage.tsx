@@ -338,26 +338,28 @@ export default function CheckoutClientPage() {
         return;
       }
     } else if (selectedPaymentMethod === 'cod') {
-      const senderVal = (watch('depositSenderInfo') || '').trim();
-      if (!senderVal || senderVal.length < 3) {
-        setError('depositSenderInfo', {
-          type: 'manual',
-          message: watchedDepositMethod === 'vodafone_cash'
-            ? 'اكتب رقم فودافون كاش اللي حوّلت منه العربون.'
-            : 'اكتب رقم الموبايل أو عنوان انستاباي اللي حوّلت منه العربون.'
-        });
-        return;
-      }
-      if (watchedDepositMethod === 'vodafone_cash' && !phoneRegex.test(senderVal)) {
-        setError('depositSenderInfo', {
-          type: 'manual',
-          message: 'اكتب رقم فودافون كاش صحيح مكون من 11 رقم (مثال: 01012345678).'
-        });
-        return;
-      }
-      if (!paymentProofFile) {
-        setUploadError('ارفع صورة أو سكرين شوت لوصل تحويل العربون.');
-        return;
+      if (isCodDepositRequired) {
+        const senderVal = (watch('depositSenderInfo') || '').trim();
+        if (!senderVal || senderVal.length < 3) {
+          setError('depositSenderInfo', {
+            type: 'manual',
+            message: watchedDepositMethod === 'vodafone_cash'
+              ? 'اكتب رقم فودافون كاش اللي حوّلت منه العربون.'
+              : 'اكتب رقم الموبايل أو عنوان انستاباي اللي حوّلت منه العربون.'
+          });
+          return;
+        }
+        if (watchedDepositMethod === 'vodafone_cash' && !phoneRegex.test(senderVal)) {
+          setError('depositSenderInfo', {
+            type: 'manual',
+            message: 'اكتب رقم فودافون كاش صحيح مكون من 11 رقم (مثال: 01012345678).'
+          });
+          return;
+        }
+        if (!paymentProofFile) {
+          setUploadError('ارفع صورة أو سكرين شوت لوصل تحويل العربون.');
+          return;
+        }
       }
     }
 
@@ -468,6 +470,11 @@ export default function CheckoutClientPage() {
   // Drawn from siteConfig (default 100 EGP) and deducted from the total order amount.
   const codDepositAmount = React.useMemo(() => {
     return siteConfig?.freeShipping?.codDepositAmount ?? siteConfig?.freeShipping?.depositAmountWhenFree ?? 100;
+  }, [siteConfig]);
+
+  // Check whether COD deposit requirement is active in site settings (defaults to true)
+  const isCodDepositRequired = React.useMemo(() => {
+    return siteConfig?.freeShipping?.codDepositEnabled ?? siteConfig?.codDepositEnabled ?? true;
   }, [siteConfig]);
 
   // Calculate discount
@@ -638,9 +645,9 @@ export default function CheckoutClientPage() {
       const isVodafone = data.paymentMethod === 'vodafone_cash';
       const isInstapay = data.paymentMethod === 'instapay';
       const isCod = data.paymentMethod === 'cod';
-      const requiresProof = isVodafone || isInstapay || isCod;
+      const requiresProof = isVodafone || isInstapay || (isCod && isCodDepositRequired);
 
-      if (isCod) {
+      if (isCod && isCodDepositRequired) {
         if (!data.depositSenderInfo || data.depositSenderInfo.trim().length < 3) {
           setUploadError(
             data.depositPaymentMethod === 'instapay'
@@ -719,9 +726,9 @@ export default function CheckoutClientPage() {
         paymentMethod: data.paymentMethod,
         vodafoneCashNumber: isVodafone && data.vodafoneCashNumber ? data.vodafoneCashNumber.trim() : undefined,
         instapayHandle: isInstapay && data.instapayHandle ? data.instapayHandle.trim() : undefined,
-        depositPaymentMethod: isCod ? (data.depositPaymentMethod || 'vodafone_cash') : undefined,
-        depositSenderInfo: isCod && data.depositSenderInfo ? sanitizeText(data.depositSenderInfo, 60) : undefined,
-        depositAmount: isCod ? codDepositAmount : undefined,
+        depositPaymentMethod: (isCod && isCodDepositRequired) ? (data.depositPaymentMethod || 'vodafone_cash') : undefined,
+        depositSenderInfo: (isCod && isCodDepositRequired) && data.depositSenderInfo ? sanitizeText(data.depositSenderInfo, 60) : undefined,
+        depositAmount: (isCod && isCodDepositRequired) ? codDepositAmount : undefined,
         paymentProofUrl: uploadedProofUrl || undefined,
         paymentStatus: requiresProof ? ('pending_review' as const) : undefined,
         couponCode: appliedCoupon ? appliedCoupon.code : undefined,
@@ -1218,7 +1225,9 @@ export default function CheckoutClientPage() {
                   <div
                     onClick={() => {
                       switchPaymentMethod('cod');
-                      setIsPaymentModalOpen(true);
+                      if (isCodDepositRequired) {
+                        setIsPaymentModalOpen(true);
+                      }
                     }}
                     className={`p-3.5 sm:p-5 rounded-2xl border transition-all cursor-pointer relative flex items-center sm:flex-col sm:justify-between gap-3 sm:gap-0 group ${
                       selectedPaymentMethod === 'cod'
@@ -1251,26 +1260,36 @@ export default function CheckoutClientPage() {
                           الدفع عند الاستلام
                         </div>
                         <div className="text-[11px] text-text-muted truncate">
-                          {calculatedShippingCost === 0 ? `شحن مجاني (عربون ${codDepositAmount} جنيه بس)` : `عربون ${codDepositAmount} جنيه بس والباقي كاش للمندوب`}
+                          {!isCodDepositRequired
+                            ? (calculatedShippingCost === 0 ? 'شحن مجاني — كاش للمندوب بدون أي عربون' : 'الدفع كاش بالكامل للمندوب عند الاستلام')
+                            : (calculatedShippingCost === 0 ? `شحن مجاني (عربون ${codDepositAmount} جنيه بس)` : `عربون ${codDepositAmount} جنيه بس والباقي كاش للمندوب`)}
                         </div>
                       </div>
                     </div>
 
                     {/* Mobile Right-Side Action & Arrow */}
-                    <div className="flex items-center gap-1.5 sm:hidden shrink-0">
-                      <span className="text-[11px] font-bold text-accent-red">
-                        {paymentProofFile && selectedPaymentMethod === 'cod' ? 'تم الإرفاق' : 'التفاصيل'}
-                      </span>
-                      <span className="material-symbols-outlined text-lg text-accent-red">chevron_left</span>
-                    </div>
+                    {isCodDepositRequired ? (
+                      <div className="flex items-center gap-1.5 sm:hidden shrink-0">
+                        <span className="text-[11px] font-bold text-accent-red">
+                          {paymentProofFile && selectedPaymentMethod === 'cod' ? 'تم الإرفاق' : 'التفاصيل'}
+                        </span>
+                        <span className="material-symbols-outlined text-lg text-accent-red">chevron_left</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1 sm:hidden shrink-0">
+                        <span className="text-[11px] font-bold text-emerald-400">مباشر</span>
+                      </div>
+                    )}
 
                     {/* Desktop Bottom Row */}
                     <div className="hidden sm:flex mt-4 pt-3 border-t border-white/5 items-center justify-between text-xs w-full">
                       <span className="text-text-muted group-hover:text-white transition-colors font-medium">
-                        {paymentProofFile && selectedPaymentMethod === 'cod' ? 'تم إرفاق الإيصال' : 'عرض التفاصيل'}
+                        {isCodDepositRequired
+                          ? (paymentProofFile && selectedPaymentMethod === 'cod' ? 'تم إرفاق الإيصال' : 'عرض التفاصيل')
+                          : 'الدفع عند باب البيت'}
                       </span>
                       <span className="material-symbols-outlined text-sm text-accent-red group-hover:translate-x-[-3px] transition-transform">
-                        open_in_new
+                        {isCodDepositRequired ? 'open_in_new' : 'check_circle'}
                       </span>
                     </div>
 
@@ -1430,14 +1449,14 @@ export default function CheckoutClientPage() {
                   <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 ${
                     !selectedPaymentMethod
                       ? 'bg-white/5 text-text-muted border border-white/10'
-                      : paymentProofFile
+                      : (selectedPaymentMethod === 'cod' && !isCodDepositRequired) || paymentProofFile
                       ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/25'
                       : 'bg-accent-red/10 text-accent-red border border-accent-red/25'
                   }`}>
                     <span className="material-symbols-outlined text-lg sm:text-xl">
                       {!selectedPaymentMethod
                         ? 'touch_app'
-                        : paymentProofFile
+                        : (selectedPaymentMethod === 'cod' && !isCodDepositRequired) || paymentProofFile
                         ? 'check_circle'
                         : 'info'}
                     </span>
@@ -1447,7 +1466,9 @@ export default function CheckoutClientPage() {
                       {!selectedPaymentMethod
                         ? 'اختر طريقة الدفع المناسبة'
                         : selectedPaymentMethod === 'cod'
-                        ? paymentProofFile
+                        ? !isCodDepositRequired
+                          ? 'الدفع عند الاستلام — كاش بالكامل للمندوب'
+                          : paymentProofFile
                           ? 'تمام! تم إرفاق وصل العربون بنجاح'
                           : 'مطلوب إرفاق وصل تحويل العربون'
                         : selectedPaymentMethod === 'vodafone_cash'
@@ -1461,6 +1482,8 @@ export default function CheckoutClientPage() {
                     <div className="text-[11px] sm:text-xs text-text-muted mt-0.5">
                       {!selectedPaymentMethod
                         ? 'اختار الطريقة اللي تناسبك فوق (دفع عند الاستلام، فودافون كاش، أو انستاباي).'
+                        : selectedPaymentMethod === 'cod' && !isCodDepositRequired
+                        ? 'مش محتاج تدفع أي عربون دلوقتي، هتدفع إجمالي الأوردر كاش للمندوب وقت استلام شحنتك.'
                         : paymentProofFile
                         ? 'تمام! بيانات التحويل اتسجلت، دوس لو حابب تعدلها.'
                         : selectedPaymentMethod === 'cod'
@@ -1472,7 +1495,7 @@ export default function CheckoutClientPage() {
                   </div>
                 </div>
 
-                {selectedPaymentMethod ? (
+                {selectedPaymentMethod && !(selectedPaymentMethod === 'cod' && !isCodDepositRequired) ? (
                   <button
                     type="button"
                     onClick={() => setIsPaymentModalOpen(true)}
@@ -1532,13 +1555,15 @@ export default function CheckoutClientPage() {
                       <div className="min-w-0">
                         <h3 className="font-product-title font-bold text-white text-sm sm:text-lg truncate">
                           {selectedPaymentMethod === 'cod'
-                            ? `الدفع عند الاستلام (عربون ${codDepositAmount} جنيه)`
+                            ? (!isCodDepositRequired ? 'الدفع عند الاستلام (كاش بالكامل)' : `الدفع عند الاستلام (عربون ${codDepositAmount} جنيه)`)
                             : selectedPaymentMethod === 'vodafone_cash'
                             ? 'التحويل عبر فودافون كاش'
                             : 'التحويل عبر انستاباي (InstaPay)'}
                         </h3>
                         <span className="text-[10px] sm:text-[11px] text-text-muted truncate block">
-                          {selectedPaymentMethod === 'cod' ? 'عربون بسيط بيتخصم من الأوردر لتأكيد وتجهيز شحنتك فوراً' : 'سداد إجمالي الطلب مسبقاً وتأكيده'}
+                          {selectedPaymentMethod === 'cod'
+                            ? (!isCodDepositRequired ? 'سداد كامل المبلغ كاش للمندوب وقت استلام الشحنة' : 'عربون بسيط بيتخصم من الأوردر لتأكيد وتجهيز شحنتك فوراً')
+                            : 'سداد إجمالي الطلب مسبقاً وتأكيده'}
                         </span>
                       </div>
                     </div>
@@ -1610,7 +1635,17 @@ export default function CheckoutClientPage() {
                     {/* CASE 1: Cash on Delivery (COD) Details - only if cod is enabled */}
                     {isCodEnabled && selectedPaymentMethod === 'cod' && (
                       <div className="space-y-3.5 sm:space-y-4">
-                        {!selectedGovernorate ? (
+                        {!isCodDepositRequired ? (
+                          <div className="p-4 sm:p-5 bg-emerald-500/10 border border-emerald-500/25 rounded-2xl text-emerald-400 space-y-2">
+                            <div className="flex items-center gap-2 font-bold font-product-title text-sm sm:text-base">
+                              <span className="material-symbols-outlined text-lg sm:text-xl">check_circle</span>
+                              <span>الدفع عند الاستلام كاش بالكامل بدون أي عربون</span>
+                            </div>
+                            <p className="text-xs text-text-muted leading-relaxed">
+                              مش محتاج تحول أي مبالغ أو ترفع إيصالات حالياً. اضغط على تأكيد في الأسفل لإنهاء الطلب مباشرة وهتدفع كامل الحساب للمندوب وقت التسليم.
+                            </p>
+                          </div>
+                        ) : !selectedGovernorate ? (
                           <div className="flex items-center gap-3 p-3.5 sm:p-4 bg-white/5 border border-white/10 rounded-xl text-text-muted text-xs sm:text-sm">
                             <span className="material-symbols-outlined text-accent-red text-lg sm:text-xl shrink-0">location_on</span>
                             <span>اختار المحافظة والمدينة الأول في بيانات الشحن عشان تكمّل الأوردر.</span>

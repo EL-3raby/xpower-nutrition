@@ -99,6 +99,7 @@ export default function AdminSettingsPage() {
   const [freeShippingEnabled, setFreeShippingEnabled] = useState(false);
   const [freeShippingThreshold, setFreeShippingThreshold] = useState(1000);
   const [freeShippingDepositAmount, setFreeShippingDepositAmount] = useState(100);
+  const [codDepositEnabled, setCodDepositEnabled] = useState(true);
 
   // Maintenance Mode States
   const [maintenanceActive, setMaintenanceActive] = useState(false);
@@ -185,6 +186,7 @@ export default function AdminSettingsPage() {
         setFreeShippingEnabled(fetched.freeShipping?.isEnabled ?? false);
         setFreeShippingThreshold(fetched.freeShipping?.thresholdAmount ?? 1000);
         setFreeShippingDepositAmount(fetched.freeShipping?.codDepositAmount ?? fetched.freeShipping?.depositAmountWhenFree ?? 100);
+        setCodDepositEnabled(fetched.freeShipping?.codDepositEnabled ?? fetched.codDepositEnabled ?? true);
 
         // Prepopulate Maintenance Mode
         setMaintenanceActive(fetched.maintenanceMode?.isActive ?? false);
@@ -272,7 +274,9 @@ export default function AdminSettingsPage() {
           thresholdAmount: Number(freeShippingThreshold) || 1000,
           depositAmountWhenFree: Number.isFinite(Number(freeShippingDepositAmount)) ? Math.max(0, Number(freeShippingDepositAmount)) : 100,
           codDepositAmount: Number.isFinite(Number(freeShippingDepositAmount)) ? Math.max(0, Number(freeShippingDepositAmount)) : 100,
+          codDepositEnabled: codDepositEnabled,
         },
+        codDepositEnabled: codDepositEnabled,
         maintenanceMode: {
           isActive: maintenanceActive,
           title: maintenanceTitle.trim() || 'الموقع تحت الصيانة والتطوير',
@@ -805,13 +809,30 @@ export default function AdminSettingsPage() {
             إعدادات الشحن المجاني وديبوزيت الكاش (Free Shipping & Deposit)
           </h2>
 
-          <div className="bg-bg-primary/30 p-4 rounded-xl border border-white/5">
-            <ToggleSwitch
-              id="freeShippingEnabled"
-              checked={freeShippingEnabled}
-              onChange={setFreeShippingEnabled}
-              label="تفعيل ميزة الشحن المجاني للأوردرات المؤهلة"
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-bg-primary/30 p-4 rounded-xl border border-white/5">
+              <ToggleSwitch
+                id="freeShippingEnabled"
+                checked={freeShippingEnabled}
+                onChange={setFreeShippingEnabled}
+                label="تفعيل ميزة الشحن المجاني للأوردرات المؤهلة"
+              />
+              <p className="text-[11px] text-text-muted mt-1.5 mr-11">
+                تطبيق الشحن المجاني تلقائياً عند وصول سلة العميل للحد الأدنى المحدد أدناه.
+              </p>
+            </div>
+
+            <div className="bg-bg-primary/30 p-4 rounded-xl border border-white/5">
+              <ToggleSwitch
+                id="codDepositEnabled"
+                checked={codDepositEnabled}
+                onChange={setCodDepositEnabled}
+                label="إلزامية ديبوزيت عربون الدفع عند الاستلام (COD Deposit)"
+              />
+              <p className="text-[11px] text-text-muted mt-1.5 mr-11">
+                عند إلغاء التفعيل، يستطيع العميل عمل أوردر كاش عند الاستلام فوراً وبدون أي عربون مقدم أو رفع إيصال تحويل.
+              </p>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -829,18 +850,30 @@ export default function AdminSettingsPage() {
               <p className="text-[11px] text-text-muted mt-1.5">إذا تجاوز إجمالي المشتريات هذا المبلغ، يصبح الشحن مجانياً تلقائياً.</p>
             </div>
 
-            <div>
-              <label className={labelClass}>قيمة الديبوزيت الموحد لطلبات الدفع عند الاستلام (جنيه)</label>
+            <div className={!codDepositEnabled ? 'opacity-50 transition-opacity' : 'transition-opacity'}>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-bold text-text-muted">قيمة الديبوزيت الموحد لطلبات الدفع عند الاستلام (جنيه)</label>
+                {!codDepositEnabled && (
+                  <span className="text-[10px] text-amber-400 bg-amber-400/10 border border-amber-400/20 px-2 py-0.5 rounded font-bold">
+                    معطل حالياً (0 عربون)
+                  </span>
+                )}
+              </div>
               <input
                 type="number"
                 min="0"
+                disabled={!codDepositEnabled}
                 value={freeShippingDepositAmount}
                 onChange={(e) => setFreeShippingDepositAmount(Number(e.target.value))}
                 placeholder="100"
-                className={`${inputClass} text-left`}
+                className={`${inputClass} text-left ${!codDepositEnabled ? 'cursor-not-allowed bg-black/40' : ''}`}
                 dir="ltr"
               />
-              <p className="text-[11px] text-text-muted mt-1.5">مبلغ الديبوزيت التأكيدي الثابت والموحد لأي أوردر دفع عند الاستلام (سواء الشحن مجاني أو غير مجاني). يُخصم هذا المبلغ تلقائياً من إجمالي الأوردر ويسدد العميل الباقي كاش للمندوب عند الاستلام.</p>
+              <p className="text-[11px] text-text-muted mt-1.5">
+                {codDepositEnabled
+                  ? 'مبلغ الديبوزيت التأكيدي الثابت والموحد لأي أوردر دفع عند الاستلام (سواء الشحن مجاني أو غير مجاني). يُخصم هذا المبلغ تلقائياً من إجمالي الأوردر ويسدد العميل الباقي كاش للمندوب عند الاستلام.'
+                  : 'تم إيقاف الديبوزيت، العميل لن يُطلب منه دفع هذا المبلغ مقدماً طالما الخيار بالأعلى ملغي.'}
+              </p>
             </div>
           </div>
         </div>

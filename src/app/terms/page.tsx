@@ -4,7 +4,7 @@ import TermsClientPage from './TermsClientPage';
 
 export const metadata: Metadata = {
   title: 'الشروط والأحكام | Xpower Nutrition',
-  description: 'اتفاقية الاستخدام والشروط والأحكام الخاصة بالشراء، طرق الدفع عند الاستلام وفودافون كاش وانستاباي، ونظام ديبوزيت الشحن في متجر Xpower Nutrition.',
+  description: 'اتفاقية الاستخدام والشروط والأحكام الخاصة بالشراء، طرق الدفع عند الاستلام وفودافون كاش وانستاباي، وحقوق المعاينة في متجر Xpower Nutrition.',
   alternates: {
     canonical: getSiteUrl('/terms'),
   },

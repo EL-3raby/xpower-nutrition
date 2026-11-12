@@ -4,7 +4,7 @@ import ReturnPolicyClientPage from './ReturnPolicyClientPage';
 
 export const metadata: Metadata = {
   title: 'سياسة الاستبدال والاسترجاع | Xpower Nutrition',
-  description: 'سياسة الاستبدال والاسترجاع المرنة وضمانات حق المعاينة عند الاستلام، شروط استرداد الأموال وديبوزيت الشحن لعملاء Xpower Nutrition.',
+  description: 'سياسة الاستبدال والاسترجاع المرنة وضمانات حق المعاينة عند الاستلام، وشروط استرداد الأموال لعملاء Xpower Nutrition.',
   alternates: {
     canonical: getSiteUrl('/return-policy'),
   },
