@@ -171,15 +171,84 @@ function extractTopPages(data: Record<string, any>): Record<string, number> {
 }
 
 /**
+ * Detects whether the current client is an automated bot, headless browser,
+ * crawler, or synthetic monitor, to prevent skewing analytics data.
+ */
+export function isAutomatedTraffic(): boolean {
+  if (typeof window === 'undefined') return true;
+
+  try {
+    const nav = window.navigator as any;
+    if (!nav) return false;
+
+    // 1. W3C WebDriver flag (Headless Chrome, Puppeteer, Selenium, Playwright, Lighthouse)
+    if (nav.webdriver === true) {
+      return true;
+    }
+
+    // 2. Headless browser environment flags
+    const win = window as any;
+    if (
+      win.document?.documentElement?.getAttribute('webdriver') ||
+      win.phantom ||
+      win._phantom ||
+      win.__nightmare ||
+      win.callPhantom ||
+      win.__webdriver_script_function
+    ) {
+      return true;
+    }
+
+    // 3. User-Agent heuristics (standard bots, web crawlers, search engines, audit tools)
+    const ua = (nav.userAgent || '').toLowerCase();
+    const botPatterns = [
+      'bot',
+      'crawler',
+      'spider',
+      'headless',
+      'lighthouse',
+      'screaming frog',
+      'semrush',
+      'ahrefs',
+      'bingbot',
+      'googlebot',
+      'yandex',
+      'duckduckbot',
+      'baiduspider',
+      'twitterbot',
+      'facebookexternalhit',
+      'meta-externalagent',
+      'bytespider',
+      'petalbot',
+      'curl',
+      'wget',
+      'python-requests',
+      'node-fetch',
+      'axios',
+      'go-http-client'
+    ];
+
+    if (botPatterns.some((pattern) => ua.includes(pattern))) {
+      return true;
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Records a page view and checks if the visitor is a new unique visitor today.
  * Deduplicates using localStorage so 1 person = 1 visitor count per day.
- * Excludes admin sessions and admin routes (/sec-89412).
+ * Excludes bots/crawlers, admin sessions, and admin routes (/sec-89412).
  */
 export async function recordVisit(pathname: string): Promise<void> {
   if (typeof window === 'undefined' || isDummyFirebase) return;
 
-  // 1. Exclude admin routes & authenticated admin visits
+  // 1. Exclude bots, admin routes & authenticated admin visits
   if (
+    isAutomatedTraffic() ||
     pathname.startsWith('/sec-89412') ||
     pathname.startsWith('/api') ||
     localStorage.getItem('xpower_is_admin') === '1'
