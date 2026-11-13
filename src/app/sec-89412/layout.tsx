@@ -17,7 +17,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [loading, setLoading] = useState(true);
   const [unreadOrders, setUnreadOrders] = useState(0);
   const [uncontactedCheckouts, setUncontactedCheckouts] = useState(0);
-  const [unresolvedSecurityAlerts, setUnresolvedSecurityAlerts] = useState(0);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const isLoginPage = pathname === '/sec-89412/login' || pathname === '/sec-89412/login/';
@@ -107,35 +106,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return () => unsubscribe();
   }, [user, isLoginPage]);
 
-  // Real-time unresolved security alerts listener
-  useEffect(() => {
-    if (!user || isLoginPage) return;
-
-    if (isDummyFirebase) {
-      setUnresolvedSecurityAlerts(0);
-      return;
-    }
-
-    const colRef = collection(db, 'securityLogs');
-    const q = query(colRef, where('isResolved', '==', false));
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        setUnresolvedSecurityAlerts(snapshot.size);
-      },
-      (error) => {
-        if (error.code === 'permission-denied') {
-          console.debug('Security logs subscription waiting for deployed rules.');
-        } else {
-          console.warn('Security logs listener notice:', error);
-        }
-      }
-    );
-
-    return () => unsubscribe();
-  }, [user, isLoginPage]);
-
   const handleLogout = async () => {
     try {
       await adminLogout();
@@ -183,9 +153,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <span className="text-[10px] text-text-muted uppercase">لوحة التحكم (آدمن)</span>
         </div>
         <div className="flex items-center gap-3">
-          {(unreadOrders > 0 || uncontactedCheckouts > 0 || unresolvedSecurityAlerts > 0) && (
+          {(unreadOrders > 0 || uncontactedCheckouts > 0) && (
             <div className="bg-accent-red text-white text-[11px] px-2 py-0.5 rounded-full font-bold flex items-center gap-1 animate-pulse shadow-[0_0_10px_rgba(227,30,36,0.5)]">
-              {unreadOrders + uncontactedCheckouts + unresolvedSecurityAlerts}
+              {unreadOrders + uncontactedCheckouts}
               <span className="material-symbols-outlined text-[14px]">notifications</span>
             </div>
           )}
@@ -230,12 +200,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <Link href="/sec-89412/abandoned-checkouts" className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 text-amber-500 px-3 py-2 w-full justify-start transition-colors hover:bg-amber-500/20 rounded-xl">
               <span className="material-symbols-outlined text-[18px] animate-pulse">shopping_cart_off</span>
               <span className="font-bold text-xs">{uncontactedCheckouts} سلة متروكة في الانتظار</span>
-            </Link>
-          )}
-          {unresolvedSecurityAlerts > 0 && (
-            <Link href="/sec-89412/security" className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 text-red-400 px-3 py-2 w-full justify-start transition-colors hover:bg-red-500/20 rounded-xl">
-              <span className="material-symbols-outlined text-[18px] animate-pulse">shield</span>
-              <span className="font-bold text-xs">{unresolvedSecurityAlerts} تنبيه أمني بالرادار</span>
             </Link>
           )}
         </div>
@@ -320,16 +284,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <Link href="/sec-89412/activity-log" className={navLinkClass('/sec-89412/activity-log')}>
             <span className="material-symbols-outlined text-xl">history</span>
             <span>سجل الحركات</span>
-          </Link>
-
-          <Link href="/sec-89412/security" className={navLinkClass('/sec-89412/security')}>
-            <span className="material-symbols-outlined text-xl">shield</span>
-            <span className="flex-grow text-right">رادار الأمان والمراقبة</span>
-            {unresolvedSecurityAlerts > 0 && (
-              <span className="bg-red-500 text-white text-[10px] rounded-full px-2 py-0.5 flex items-center justify-center font-bold animate-pulse">
-                {unresolvedSecurityAlerts}
-              </span>
-            )}
           </Link>
         </nav>
 
