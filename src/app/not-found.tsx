@@ -3,6 +3,35 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import ProductDetailContainer from '@/components/site/ProductDetailContainer';
+import { logSecurityThreat } from '@/lib/firebase/security';
+
+const HONEYPOT_PROBE_PATTERNS = [
+  'wp-admin',
+  'wp-login',
+  'wp-content',
+  'wp-includes',
+  'xmlrpc',
+  '.env',
+  '.git',
+  'admin.php',
+  'phpmyadmin',
+  'pma',
+  'cgi-bin',
+  'eval-stdin',
+  'shell',
+  'vendor',
+  'actuator',
+  'solr',
+  'database.yml',
+  'config.json',
+  'setup.php',
+  'alfa-rex',
+  'webdav',
+  'wso.php',
+  'c99.php',
+  'r57.php',
+  'xleet'
+];
 
 export default function NotFound() {
   const [isProductRoute, setIsProductRoute] = useState(false);
@@ -12,6 +41,18 @@ export default function NotFound() {
   useEffect(() => {
     setMounted(true);
     const path = window.location.pathname;
+
+    // Security Honeypot: Detect malicious vulnerability scanners probing for WordPress / PHP / config files
+    const lowerPath = (path || '').toLowerCase();
+    const isProbe = HONEYPOT_PROBE_PATTERNS.some((pattern) => lowerPath.includes(pattern));
+    if (isProbe) {
+      logSecurityThreat({
+        type: 'honeypot',
+        severity: 'high',
+        path: path.slice(0, 100),
+        details: `رصد محاولة فحص آلي أو استهداف مسار وهمي مشبوه: ${path.slice(0, 60)}`
+      }).catch(() => {});
+    }
     if (path.startsWith('/products/') && path.length > '/products/'.length) {
       const slug = path.split('/')[2];
       // Exclude generic paths or static paths if needed, but any unbuilt product hits here

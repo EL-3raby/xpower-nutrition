@@ -271,3 +271,42 @@ export interface DailyStats {
   topPages?: Record<string, number>;
   updatedAt?: Timestamp | Date;
 }
+
+export type SecurityThreatType = 
+  | 'honeypot' 
+  | 'injection_attempt' 
+  | 'login_failure' 
+  | 'rate_limit' 
+  | 'price_tamper' 
+  | 'probe';
+
+export type SecurityThreatSeverity = 'low' | 'medium' | 'high' | 'critical';
+
+export interface SecurityLog {
+  id?: string;
+  type: SecurityThreatType;
+  severity: SecurityThreatSeverity;
+  path: string;
+  details: string;
+  payload?: string;
+  userAgent?: string;
+  timestamp: Timestamp | Date;
+  isResolved: boolean;
+}
+
+export interface SecurityAuditFinding {
+  id: string;
+  title: string;
+  description: string;
+  status: 'pass' | 'warning' | 'alert';
+  recommendation?: string;
+}
+
+export interface SecurityAuditResult {
+  score: number; // 0 - 100
+  status: 'secure' | 'warning' | 'danger';
+  scannedAt: Date;
+  totalChecks: number;
+  passedChecks: number;
+  findings: SecurityAuditFinding[];
+}

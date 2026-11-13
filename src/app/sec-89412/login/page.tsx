@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { adminLogin } from '@/lib/firebase/auth';
+import { logSecurityThreat } from '@/lib/firebase/security';
 import Spinner from '@/components/ui/Spinner';
 
 const MAX_FAILED_ATTEMPTS = 5;
@@ -88,6 +89,14 @@ export default function AdminLoginPage() {
       
       const newAttempts = failedAttempts + 1;
       setFailedAttempts(newAttempts);
+
+      // Log security threat for admin failure tracking
+      logSecurityThreat({
+        type: 'login_failure',
+        severity: newAttempts >= 3 ? 'high' : 'medium',
+        path: '/sec-89412/login',
+        details: `محاولة تسجيل دخول فاشلة للوحة التحكم بالبريد: ${email.slice(0, 50)} (المحاولة رقم ${newAttempts})`
+      }).catch(() => {});
 
       try {
         localStorage.setItem('xpower_admin_failed_attempts', String(newAttempts));

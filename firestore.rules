@@ -125,5 +125,17 @@ service cloud.firestore {
       allow create, update: if dateId.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
       allow delete: if isAdmin();
     }
+
+    // Security Radar Logs: Public creation with strict validation, Admin read/update/delete
+    match /securityLogs/{logId} {
+      allow create: if request.resource.data.type in ['honeypot', 'injection_attempt', 'login_failure', 'rate_limit', 'price_tamper', 'probe']
+                    && request.resource.data.severity in ['low', 'medium', 'high', 'critical']
+                    && request.resource.data.details is string
+                    && request.resource.data.details.size() <= 1000
+                    && request.resource.data.path is string
+                    && request.resource.data.path.size() <= 200
+                    && request.resource.data.isResolved == false;
+      allow read, update, delete: if isAdmin();
+    }
   }
 }

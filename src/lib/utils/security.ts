@@ -26,6 +26,33 @@ export function sanitizeText(input: string | undefined | null, maxLength = 500):
   return cleaned;
 }
 
+/**
+ * Detects whether user input contains suspicious injection patterns
+ * (XSS, SQL injection, Command Injection, Prototype Pollution).
+ */
+export function detectMaliciousPayload(input: string | undefined | null): { isMalicious: boolean; pattern?: string } {
+  if (!input || typeof input !== 'string') return { isMalicious: false };
+
+  const attackPatterns: { name: string; regex: RegExp }[] = [
+    { name: 'XSS Script Tag', regex: /<\s*script\b[^>]*>/i },
+    { name: 'XSS Event Handler', regex: /\bon(error|load|click|mouse|hover|focus|blur|change|submit)\s*=/i },
+    { name: 'JavaScript Protocol', regex: /javascript\s*:/i },
+    { name: 'SQL Injection Union/Select', regex: /\b(union\s+select|select\s+.*\s+from|insert\s+into|drop\s+table|delete\s+from)\b/i },
+    { name: 'SQL Injection Boolean', regex: /('\s*or\s+'1'\s*=\s*'1|'\s*or\s+1\s*=\s*1|--\s*$|\/\*.*\*\/)/i },
+    { name: 'Path Traversal', regex: /(\.\.\/|\.\.\\)/ },
+    { name: 'Template Injection', regex: /(\$\{[^}]+\}|\{\{[^}]+\}\})/ },
+    { name: 'Prototype Pollution', regex: /(__proto__|constructor\.prototype)/ }
+  ];
+
+  for (const { name, regex } of attackPatterns) {
+    if (regex.test(input)) {
+      return { isMalicious: true, pattern: name };
+    }
+  }
+
+  return { isMalicious: false };
+}
+
 const ORDER_COOLDOWN_SECONDS = 15;
 const MAX_ORDERS_PER_WINDOW = 3;
 const WINDOW_DURATION_MS = 5 * 60 * 1000; // 5 minutes

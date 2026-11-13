@@ -19,7 +19,8 @@ import { collection, doc, query, where, getDocs, Timestamp } from 'firebase/fire
 import Spinner from '@/components/ui/Spinner';
 import { getOptimizedImageUrl } from '@/lib/utils/image';
 import { trackBeginCheckout, trackPurchase } from '@/lib/analytics';
-import { checkOrderSpamLimit, recordOrderSubmission, sanitizeText } from '@/lib/utils/security';
+import { checkOrderSpamLimit, recordOrderSubmission, sanitizeText, detectMaliciousPayload } from '@/lib/utils/security';
+import { logSecurityThreat } from '@/lib/firebase/security';
 import { getProducts } from '@/lib/firebase/products';
 import { getVariantTerminology } from '@/lib/utils/product-variants';
 
@@ -628,8 +629,29 @@ export default function CheckoutClientPage() {
     // Security Anti-Spam Check: Prevent rapid repetitive submissions or bot flooding
     const spamCheck = checkOrderSpamLimit();
     if (!spamCheck.allowed) {
+      logSecurityThreat({
+        type: 'rate_limit',
+        severity: 'medium',
+        path: '/checkout',
+        details: `حظر طلب مكرر (Anti-Spam Rate Limit) للعميل: ${data.customerName || data.phone}`
+      }).catch(() => {});
       setOrderError(spamCheck.reason || 'يرجى الانتظار قليلاً قبل تقديم طلب آخر.');
       return;
+    }
+
+    // Security Malicious Payload Check: Detect XSS or SQL injection strings
+    const checkName = detectMaliciousPayload(data.customerName);
+    const checkAddress = detectMaliciousPayload(data.address);
+    const checkNotes = detectMaliciousPayload(data.notes);
+    if (checkName.isMalicious || checkAddress.isMalicious || checkNotes.isMalicious) {
+      const pattern = checkName.pattern || checkAddress.pattern || checkNotes.pattern || 'Unknown';
+      logSecurityThreat({
+        type: 'injection_attempt',
+        severity: 'critical',
+        path: '/checkout',
+        details: `رصد محاولة حقن كود خبيث (${pattern}) في حقول الطلب`,
+        payload: `${data.customerName} | ${data.address} | ${data.notes || ''}`.slice(0, 200)
+      }).catch(() => {});
     }
 
     if (!enabledPaymentMethods.includes(data.paymentMethod as any)) {
