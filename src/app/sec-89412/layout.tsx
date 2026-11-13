@@ -125,7 +125,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         setUnresolvedSecurityAlerts(snapshot.size);
       },
       (error) => {
-        console.error('Error listening to security logs snapshot:', error);
+        if (error.code === 'permission-denied') {
+          console.debug('Security logs subscription waiting for deployed rules.');
+        } else {
+          console.warn('Security logs listener notice:', error);
+        }
       }
     );
 

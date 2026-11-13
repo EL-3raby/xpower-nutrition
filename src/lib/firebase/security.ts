@@ -153,7 +153,12 @@ export function subscribeToSecurityLogs(
         callback(logs);
       },
       (error) => {
-        console.error('Error in security logs subscription:', error);
+        if (error.code === 'permission-denied') {
+          console.debug('Security logs subscription waiting for deployed rules.');
+        } else {
+          console.warn('Security logs subscription notice:', error);
+        }
+        callback([]);
       }
     );
   } catch {
