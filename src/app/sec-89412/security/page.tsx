@@ -119,7 +119,7 @@ export default function AdminSecurityPage() {
   const getTypeLabel = (type: SecurityThreatType) => {
     switch (type) {
       case 'honeypot':
-        return { label: 'فخ اصطياد (Honeypot)', icon: 'catching_pokemon', color: 'text-amber-400' };
+        return { label: 'فخ اصطياد (Honeypot)', icon: 'radar', color: 'text-amber-400' };
       case 'injection_attempt':
         return { label: 'محاولة حقن كود', icon: 'code_blocks', color: 'text-red-400' };
       case 'login_failure':
@@ -242,7 +242,7 @@ export default function AdminSecurityPage() {
           <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl pointer-events-none"></div>
           <div className="flex items-center justify-between text-xs text-text-muted mb-2 font-bold">
             <span>فخاخ الاصطياد (Honeypot)</span>
-            <span className="material-symbols-outlined text-amber-400 text-lg">catching_pokemon</span>
+            <span className="material-symbols-outlined text-amber-400 text-lg">radar</span>
           </div>
           <div className="font-product-title text-3xl font-black text-amber-400 tracking-tight font-mono">
             {honeypotCount}
