@@ -8,6 +8,7 @@ import { Order, Product, DailyStats } from '@/lib/types';
 import { getSiteConfig, updateSiteConfig } from '@/lib/firebase/admin-actions';
 import { getDailyStatsRange, subscribeToTodayStats, getCairoDateString } from '@/lib/firebase/analytics-stats';
 import { getStartOfDayEgypt, getStartOfDaysAgoEgypt } from '@/lib/date-utils';
+import { aggregateOrdersFinancials } from '@/lib/utils/order-calculations';
 import SalesChart from '@/components/admin/SalesChart';
 import VisitorsChart from '@/components/admin/VisitorsChart';
 import TrafficSourceIcon from '@/components/admin/TrafficSourceIcon';
@@ -141,7 +142,7 @@ function AdminAnalyticsContent() {
   }, [mergedDailyStats, currentMonthPrefix]);
 
   // Active Orders & Revenue by current range
-  const { activeOrders, totalSalesCount, totalRevenue } = useMemo(() => {
+  const { activeOrders, totalSalesCount, totalRevenue, netProductsRevenue, shippingRevenue } = useMemo(() => {
     let result = orders.filter(
       (o) => o.status !== 'cancelled' && o.paymentStatus !== 'rejected'
     );
@@ -168,9 +169,15 @@ function AdminAnalyticsContent() {
       return d >= startDate;
     });
 
-    const revenue = result.reduce((sum, o) => sum + o.totalPrice, 0);
+    const financials = aggregateOrdersFinancials(result);
 
-    return { activeOrders: result, totalSalesCount: result.length, totalRevenue: revenue };
+    return {
+      activeOrders: result,
+      totalSalesCount: result.length,
+      totalRevenue: financials.totalGrossRevenue,
+      netProductsRevenue: financials.totalNetProducts,
+      shippingRevenue: financials.totalShippingFees,
+    };
   }, [orders, currentRange]);
 
   // Today's Conversion Rate
@@ -564,9 +571,14 @@ function AdminAnalyticsContent() {
             </div>
           </div>
           <div className="relative z-10 mt-auto">
-            <div className="font-mono text-2xl sm:text-3xl font-black text-emerald-400 flex items-baseline gap-1.5">
+            <div className="font-mono text-2xl sm:text-3xl font-black text-emerald-400 flex items-baseline gap-1.5" dir="ltr">
               {totalRevenue.toLocaleString()}{' '}
               <span className="text-xs font-body text-text-muted font-bold">EGP</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-[10px] text-text-muted mt-1 font-mono" dir="rtl">
+              <span>بضاعة: <strong className="text-white font-bold">{netProductsRevenue.toLocaleString()}</strong></span>
+              <span>•</span>
+              <span>شحن: <strong className="text-amber-400 font-bold">{shippingRevenue.toLocaleString()}</strong></span>
             </div>
           </div>
         </div>

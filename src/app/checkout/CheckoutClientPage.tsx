@@ -745,6 +745,8 @@ export default function CheckoutClientPage() {
           }
           return itemData;
         }),
+        subtotal: subtotal,
+        shippingCost: calculatedShippingCost,
         totalPrice: finalTotal,
         paymentMethod: data.paymentMethod,
         vodafoneCashNumber: isVodafone && data.vodafoneCashNumber ? data.vodafoneCashNumber.trim() : undefined,

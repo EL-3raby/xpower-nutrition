@@ -7,6 +7,7 @@ import { getProducts } from '@/lib/firebase/products';
 import { Order, Product, DailyStats } from '@/lib/types';
 import { getStartOfDayEgypt, getStartOfDaysAgoEgypt } from '@/lib/date-utils';
 import { subscribeToTodayStats } from '@/lib/firebase/analytics-stats';
+import { getOrderFinancials } from '@/lib/utils/order-calculations';
 
 import SalesChart from '@/components/admin/SalesChart';
 import Spinner from '@/components/ui/Spinner';
@@ -66,20 +67,36 @@ export default function AdminDashboardPage() {
     const startOf7DaysAgo = getStartOfDaysAgoEgypt(7);
 
     let todaySales = 0;
+    let todayNetProducts = 0;
+    let todayShipping = 0;
+
     let weeklySales = 0;
+    let weeklyNetProducts = 0;
+    let weeklyShipping = 0;
+
     let totalSales = 0;
+    let totalNetProducts = 0;
+    let totalShipping = 0;
+
     const productSalesCount: { [key: string]: { name: string; quantity: number } } = {};
 
     activeOrders.forEach(o => {
       const orderDate = o.createdAt instanceof Date ? o.createdAt : (o.createdAt as any)?.seconds ? new Date((o.createdAt as any).seconds * 1000) : new Date();
+      const fin = getOrderFinancials(o);
 
-      totalSales += o.totalPrice;
+      totalSales += fin.totalPrice;
+      totalNetProducts += fin.netProducts;
+      totalShipping += fin.shippingCost;
 
       if (orderDate.getTime() >= startOfToday.getTime()) {
-        todaySales += o.totalPrice;
+        todaySales += fin.totalPrice;
+        todayNetProducts += fin.netProducts;
+        todayShipping += fin.shippingCost;
       }
       if (orderDate.getTime() >= startOf7DaysAgo.getTime()) {
-        weeklySales += o.totalPrice;
+        weeklySales += fin.totalPrice;
+        weeklyNetProducts += fin.netProducts;
+        weeklyShipping += fin.shippingCost;
       }
 
       // Track item sales quantities
@@ -108,8 +125,14 @@ export default function AdminDashboardPage() {
       pendingOrders,
       paymentsPendingReview,
       todaySales,
+      todayNetProducts,
+      todayShipping,
       weeklySales,
+      weeklyNetProducts,
+      weeklyShipping,
       totalSales,
+      totalNetProducts,
+      totalShipping,
       topProduct: topProductQty > 0 ? `${topProduct} (${topProductQty} حتة)` : topProduct,
       activeProdCount,
       totalOrdersCount: orders.length
@@ -233,10 +256,14 @@ export default function AdminDashboardPage() {
             </div>
           </div>
           <div className="relative z-10 mt-auto">
-            <div className="font-mono text-3xl sm:text-4xl font-black text-white group-hover:text-accent-red transition-colors flex items-baseline gap-1.5">
+            <div className="font-mono text-3xl sm:text-4xl font-black text-white group-hover:text-accent-red transition-colors flex items-baseline gap-1.5" dir="ltr">
               {stats.totalSales.toLocaleString()} <span className="text-xs font-body text-text-muted font-bold">EGP</span>
             </div>
-            <span className="text-[10px] text-text-muted/70 mt-1 block">كل الأوردرات المؤكدة</span>
+            <div className="flex items-center gap-1.5 text-[10px] text-text-muted mt-1 font-mono" dir="rtl">
+              <span>بضاعة: <strong className="text-emerald-400 font-bold">{stats.totalNetProducts.toLocaleString()}</strong></span>
+              <span>•</span>
+              <span>شحن: <strong className="text-amber-400 font-bold">{stats.totalShipping.toLocaleString()}</strong></span>
+            </div>
           </div>
         </Link>
 
@@ -253,10 +280,14 @@ export default function AdminDashboardPage() {
             </div>
           </div>
           <div className="relative z-10 mt-auto">
-            <div className="font-mono text-3xl sm:text-4xl font-black text-emerald-400 flex items-baseline gap-1.5">
+            <div className="font-mono text-3xl sm:text-4xl font-black text-emerald-400 flex items-baseline gap-1.5" dir="ltr">
               {stats.todaySales.toLocaleString()} <span className="text-xs font-body text-text-muted font-bold">EGP</span>
             </div>
-            <span className="text-[10px] text-text-muted/70 mt-1 block">مبيعات آخر 24 ساعة</span>
+            <div className="flex items-center gap-1.5 text-[10px] text-text-muted mt-1 font-mono" dir="rtl">
+              <span>بضاعة: <strong className="text-emerald-400 font-bold">{stats.todayNetProducts.toLocaleString()}</strong></span>
+              <span>•</span>
+              <span>شحن: <strong className="text-amber-400 font-bold">{stats.todayShipping.toLocaleString()}</strong></span>
+            </div>
           </div>
         </Link>
 
@@ -273,10 +304,14 @@ export default function AdminDashboardPage() {
             </div>
           </div>
           <div className="relative z-10 mt-auto">
-            <div className="font-mono text-3xl sm:text-4xl font-black text-white flex items-baseline gap-1.5">
+            <div className="font-mono text-3xl sm:text-4xl font-black text-white flex items-baseline gap-1.5" dir="ltr">
               {stats.weeklySales.toLocaleString()} <span className="text-xs font-body text-text-muted font-bold">EGP</span>
             </div>
-            <span className="text-[10px] text-text-muted/70 mt-1 block">خلال الـ 7 أيام الأخيرة</span>
+            <div className="flex items-center gap-1.5 text-[10px] text-text-muted mt-1 font-mono" dir="rtl">
+              <span>بضاعة: <strong className="text-emerald-400 font-bold">{stats.weeklyNetProducts.toLocaleString()}</strong></span>
+              <span>•</span>
+              <span>شحن: <strong className="text-amber-400 font-bold">{stats.weeklyShipping.toLocaleString()}</strong></span>
+            </div>
           </div>
         </Link>
 
@@ -437,9 +472,19 @@ export default function AdminDashboardPage() {
                       </span>
                       {o.paymentMethod === 'cod' ? 'دفع عند الاستلام' : 'فودافون كاش'}
                     </span>
-                    <span className="font-mono font-bold text-white text-xs" dir="ltr">
-                      {o.totalPrice.toLocaleString()} <span className="text-[10px] text-accent-red font-body">EGP</span>
-                    </span>
+                    {(() => {
+                      const fin = getOrderFinancials(o);
+                      return (
+                        <div className="flex flex-col items-end">
+                          <span className="font-mono font-bold text-white text-xs" dir="ltr">
+                            {fin.totalPrice.toLocaleString()} <span className="text-[10px] text-accent-red font-body">EGP</span>
+                          </span>
+                          <span className="text-[9px] text-text-muted font-mono mt-0.5" dir="rtl">
+                            بضاعة: <strong className="text-white">{fin.netProducts}</strong> | شحن: {fin.shippingCost > 0 ? <strong className="text-amber-400">{fin.shippingCost}</strong> : <span className="text-emerald-400">مجاني</span>}
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </Link>
               ))}

@@ -7,6 +7,7 @@ import { getOrders } from '@/lib/firebase/orders';
 import { Order } from '@/lib/types';
 import TrafficSourceIcon from '@/components/admin/TrafficSourceIcon';
 import Spinner from '@/components/ui/Spinner';
+import { getOrderFinancials, aggregateOrdersFinancials, generateOrdersSettlementCSV } from '@/lib/utils/order-calculations';
 
 function AdminOrdersContent() {
   const searchParams = useSearchParams();
@@ -16,6 +17,7 @@ function AdminOrdersContent() {
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || 'all');
   const [paymentStatusFilter, setPaymentStatusFilter] = useState(searchParams.get('paymentStatus') || 'all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [exportingCSV, setExportingCSV] = useState(false);
 
   const loadOrders = async () => {
     try {
@@ -59,6 +61,33 @@ function AdminOrdersContent() {
 
     return result;
   }, [orders, statusFilter, paymentStatusFilter, searchQuery]);
+
+  // Aggregate financial metrics for current filtered view
+  const financials = React.useMemo(() => {
+    return aggregateOrdersFinancials(filteredOrders);
+  }, [filteredOrders]);
+
+  const handleExportCSV = () => {
+    if (filteredOrders.length === 0) return;
+    try {
+      setExportingCSV(true);
+      const csv = generateOrdersSettlementCSV(filteredOrders);
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const todayStr = new Date().toISOString().slice(0, 10);
+      a.download = `xpower-orders-settlement-${todayStr}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Failed to export orders CSV:', err);
+    } finally {
+      setExportingCSV(false);
+    }
+  };
 
   const getStatusBadge = (status: Order['status']) => {
     switch (status) {
@@ -132,7 +161,65 @@ function AdminOrdersContent() {
             </span>
           </div>
           <p className="font-body text-xs sm:text-sm text-text-muted">
-            تابع طلبات العملاء، حالات الشحن، وأكّد تحويلات فودافون كاش وانستاباي وديبوزيت التوصيل.
+            تابع طلبات العملاء، حسابات البضاعة ومصاريف الشحن بشكل مستقل، وأكّد تحويلات الدفع.
+          </p>
+        </div>
+
+        {/* Action Button: Export Settlement CSV */}
+        <button
+          onClick={handleExportCSV}
+          disabled={filteredOrders.length === 0 || exportingCSV}
+          className="flex items-center gap-2 bg-[#121212] hover:bg-white/10 text-white border border-white/15 px-4 py-2.5 rounded-xl text-xs font-bold transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none self-stretch sm:self-auto justify-center shadow-lg"
+          title="تصدير كشف حساب ببيانات الشحن والبضاعة المنفصلة لشركة الشحن"
+        >
+          <span className="material-symbols-outlined text-base text-accent-red">
+            {exportingCSV ? 'hourglass_top' : 'download'}
+          </span>
+          <span>{exportingCSV ? 'جاري التحضير...' : 'تصدير كشف شحن (Excel)'}</span>
+        </button>
+      </div>
+
+      {/* Financial Summary Metric Cards (Separation of Products & Shipping) */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Card 1: Net Products Revenue */}
+        <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-4 sm:p-5 relative overflow-hidden group hover:border-emerald-500/40 transition-all shadow-lg">
+          <div className="flex items-center justify-between text-xs text-text-muted mb-2 font-bold">
+            <span>صافي قيمة المنتجات (البضاعة)</span>
+            <span className="material-symbols-outlined text-emerald-400 text-lg">inventory_2</span>
+          </div>
+          <div className="font-product-title text-2xl sm:text-3xl font-black text-emerald-400 tracking-tight font-mono" dir="ltr">
+            {financials.totalNetProducts.toLocaleString()} <span className="text-xs font-body text-text-muted">EGP</span>
+          </div>
+          <p className="text-[11px] text-text-muted font-body mt-1">
+            إيراد المتجر الفعلي للمنتجات بعد الخصومات (بدون الشحن)
+          </p>
+        </div>
+
+        {/* Card 2: Total Shipping Collected */}
+        <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-4 sm:p-5 relative overflow-hidden group hover:border-amber-500/40 transition-all shadow-lg">
+          <div className="flex items-center justify-between text-xs text-text-muted mb-2 font-bold">
+            <span>إجمالي مصاريف الشحن</span>
+            <span className="material-symbols-outlined text-amber-400 text-lg">local_shipping</span>
+          </div>
+          <div className="font-product-title text-2xl sm:text-3xl font-black text-amber-400 tracking-tight font-mono" dir="ltr">
+            {financials.totalShippingFees.toLocaleString()} <span className="text-xs font-body text-text-muted">EGP</span>
+          </div>
+          <p className="text-[11px] text-text-muted font-body mt-1">
+            المبالغ المحصلة لصالح شركات الشحن والمناديب
+          </p>
+        </div>
+
+        {/* Card 3: Grand Total */}
+        <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-4 sm:p-5 relative overflow-hidden group hover:border-accent-red/40 transition-all shadow-lg">
+          <div className="flex items-center justify-between text-xs text-text-muted mb-2 font-bold">
+            <span>إجمالي التحصيل الكلي</span>
+            <span className="material-symbols-outlined text-accent-red text-lg">payments</span>
+          </div>
+          <div className="font-product-title text-2xl sm:text-3xl font-black text-accent-red tracking-tight font-mono" dir="ltr">
+            {financials.totalGrossRevenue.toLocaleString()} <span className="text-xs font-body text-text-muted">EGP</span>
+          </div>
+          <p className="text-[11px] text-text-muted font-body mt-1">
+            إجمالي الفواتير المطلوب تحصيلها من العملاء
           </p>
         </div>
       </div>
@@ -295,17 +382,29 @@ function AdminOrdersContent() {
                     </td>
 
                     <td className="py-4 pl-6 text-left">
-                      <div className="flex justify-end items-center gap-3">
-                        <span className="font-mono font-bold text-accent-red text-sm" dir="ltr">
-                          {o.totalPrice.toLocaleString()} <span className="text-[10px] font-body text-text-muted font-normal">EGP</span>
-                        </span>
-                        <Link 
-                          href={`/sec-89412/orders/detail?id=${o.id}`} 
-                          className="opacity-0 group-hover:opacity-100 transition-all text-text-muted hover:text-white bg-white/5 hover:bg-accent-red/20 p-2 rounded-xl border border-white/10 hover:border-accent-red/30"
-                        >
-                          <span className="material-symbols-outlined text-[18px] align-middle">chevron_left</span>
-                        </Link>
-                      </div>
+                      {(() => {
+                        const fin = getOrderFinancials(o);
+                        return (
+                          <div className="flex justify-end items-center gap-3">
+                            <div className="flex flex-col items-end">
+                              <span className="font-mono font-bold text-accent-red text-sm" dir="ltr">
+                                {fin.totalPrice.toLocaleString()} <span className="text-[10px] font-body text-text-muted font-normal">EGP</span>
+                              </span>
+                              <div className="flex items-center gap-1.5 text-[10px] text-text-muted font-mono mt-0.5" dir="rtl">
+                                <span>بضاعة: <strong className="text-white font-bold">{fin.netProducts.toLocaleString()}</strong></span>
+                                <span className="text-white/20">•</span>
+                                <span>شحن: {fin.shippingCost > 0 ? <strong className="text-amber-400 font-bold">{fin.shippingCost}</strong> : <span className="text-emerald-400 font-bold">مجاني</span>}</span>
+                              </div>
+                            </div>
+                            <Link 
+                              href={`/sec-89412/orders/detail?id=${o.id}`} 
+                              className="opacity-0 group-hover:opacity-100 transition-all text-text-muted hover:text-white bg-white/5 hover:bg-accent-red/20 p-2 rounded-xl border border-white/10 hover:border-accent-red/30"
+                            >
+                              <span className="material-symbols-outlined text-[18px] align-middle">chevron_left</span>
+                            </Link>
+                          </div>
+                        );
+                      })()}
                     </td>
 
                   </tr>
@@ -380,9 +479,21 @@ function AdminOrdersContent() {
                     <span className="text-[10px] text-text-muted font-mono mb-0.5">
                       {o.createdAt ? (o.createdAt as Date).toLocaleDateString('ar-EG') : 'N/A'}
                     </span>
-                    <span className="font-mono font-bold text-accent-red text-base" dir="ltr">
-                      {o.totalPrice.toLocaleString()} <span className="text-[10px] font-body text-text-muted">EGP</span>
-                    </span>
+                    {(() => {
+                      const fin = getOrderFinancials(o);
+                      return (
+                        <>
+                          <span className="font-mono font-bold text-accent-red text-base" dir="ltr">
+                            {fin.totalPrice.toLocaleString()} <span className="text-[10px] font-body text-text-muted">EGP</span>
+                          </span>
+                          <div className="flex items-center gap-1 text-[10px] font-mono text-text-muted mt-0.5" dir="rtl">
+                            <span>بضاعة: <strong className="text-white">{fin.netProducts.toLocaleString()}</strong></span>
+                            <span className="text-white/20">•</span>
+                            <span>شحن: {fin.shippingCost > 0 ? <strong className="text-amber-400">{fin.shippingCost}</strong> : <span className="text-emerald-400">مجاني</span>}</span>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
               </Link>

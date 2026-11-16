@@ -79,6 +79,8 @@ export interface Order {
   address: string;
   city: string;
   items: OrderItem[];
+  subtotal?: number;                  // إجمالي سعر المنتجات قبل الخصم والشحن
+  shippingCost?: number;              // مصاريف الشحن وقت الطلب (0 إذا كان مجاني)
   totalPrice: number;
   paymentMethod: 'cod' | 'vodafone_cash' | 'instapay';
   vodafoneCashNumber?: string;        // دفع فودافون كاش كامل

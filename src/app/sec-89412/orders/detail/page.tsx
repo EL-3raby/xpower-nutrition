@@ -8,6 +8,7 @@ import { getProductById } from '@/lib/firebase/products';
 import { getSiteConfig } from '@/lib/firebase/admin-actions';
 import { Order, SiteConfig } from '@/lib/types';
 import { getVariantTerminology } from '@/lib/utils/product-variants';
+import { getOrderFinancials } from '@/lib/utils/order-calculations';
 import TrafficSourceIcon from '@/components/admin/TrafficSourceIcon';
 import Spinner from '@/components/ui/Spinner';
 
@@ -289,9 +290,10 @@ function OrderDetailContent() {
 
   const o = order!;
 
-  const subtotal = o.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const discountAmount = o.discountAmount || 0;
-  const shippingCost = o.totalPrice - (subtotal - discountAmount);
+  const fin = getOrderFinancials(o);
+  const subtotal = fin.subtotal;
+  const discountAmount = fin.discountAmount;
+  const shippingCost = fin.shippingCost;
 
   return (
     <>

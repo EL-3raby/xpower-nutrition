@@ -65,6 +65,8 @@ export async function createOrder(orderData: Omit<Order, 'id' | 'createdAt' | 's
       address: orderData.address,
       city: orderData.city,
       items: orderData.items,
+      subtotal: orderData.subtotal ?? orderData.items.reduce((sum, it) => sum + (it.price * it.quantity), 0),
+      shippingCost: orderData.shippingCost ?? Math.max(0, orderData.totalPrice - (orderData.items.reduce((sum, it) => sum + (it.price * it.quantity), 0) - (orderData.discountAmount || 0))),
       totalPrice: orderData.totalPrice,
       paymentMethod: orderData.paymentMethod,
       vodafoneCashNumber: orderData.vodafoneCashNumber,
@@ -292,12 +294,21 @@ export async function createOrder(orderData: Omit<Order, 'id' | 'createdAt' | 's
     }
 
     // 2c. Create the order document payload
+    const verifiedSubtotal = typeof orderData.subtotal === 'number' && !isNaN(orderData.subtotal) && orderData.subtotal >= 0
+      ? orderData.subtotal
+      : verifiedItemsSubtotal;
+    const verifiedShippingCost = typeof orderData.shippingCost === 'number' && !isNaN(orderData.shippingCost) && orderData.shippingCost >= 0
+      ? orderData.shippingCost
+      : impliedShipping;
+
     const orderPayload: any = {
       customerName: orderData.customerName,
       phone: orderData.phone,
       address: orderData.address,
       city: orderData.city,
       items: cleanItems,
+      subtotal: verifiedSubtotal,
+      shippingCost: verifiedShippingCost,
       totalPrice: finalVerifiedTotalPrice,
       paymentMethod: orderData.paymentMethod,
       status: 'pending',
