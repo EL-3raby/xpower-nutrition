@@ -158,6 +158,214 @@ export function formatOrderDate(dateVal: Date | Timestamp | { toDate?: () => Dat
 }
 
 /**
+ * Generates a fully designed, color-coded, branded HTML Excel spreadsheet (.xls)
+ * featuring:
+ * - High-contrast obsidian dark athletic header with fiery brand red accent
+ * - Beautiful color-coded status badges (delivered, confirmed, shipped, pending, cancelled)
+ * - Soft pastel color-highlighted financial columns (net products, shipping, total, remaining cash)
+ * - Explicit mso-number-format preserving leading zero on phone numbers (01...)
+ * - Zebra row striping for comfortable reading
+ * - Right-to-Left (RTL) Arabic layout
+ * - High-impact summary cards in the title banner
+ * - Dark high-contrast summary totals row at the bottom with double-accounting underline
+ */
+export function generateOrdersSettlementStyledExcel(orders: Order[]): Blob {
+  const finTotal = aggregateOrdersFinancials(orders);
+  const todayStr = new Date().toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' });
+
+  const getStatusBadge = (status: Order['status']) => {
+    switch (status) {
+      case 'delivered':
+        return `<span style="background-color:#DCFCE7;color:#15803D;font-weight:bold;padding:5px 10px;border-radius:6px;display:inline-block;white-space:nowrap;border:1px solid #BBF7D0;">تم التوصيل والتحصيل ✓</span>`;
+      case 'confirmed':
+        return `<span style="background-color:#DBEAFE;color:#1E40AF;font-weight:bold;padding:5px 10px;border-radius:6px;display:inline-block;white-space:nowrap;border:1px solid #BFDBFE;">تم التأكيد والتجهيز</span>`;
+      case 'shipped':
+        return `<span style="background-color:#EDE9FE;color:#6D28D9;font-weight:bold;padding:5px 10px;border-radius:6px;display:inline-block;white-space:nowrap;border:1px solid #DDD6FE;">مع المندوب (في الطريق)</span>`;
+      case 'pending':
+        return `<span style="background-color:#FEF3C7;color:#B45309;font-weight:bold;padding:5px 10px;border-radius:6px;display:inline-block;white-space:nowrap;border:1px solid #FDE68A;">قيد الانتظار والمراجعة</span>`;
+      case 'cancelled':
+        return `<span style="background-color:#FEE2E2;color:#B91C1C;font-weight:bold;padding:5px 10px;border-radius:6px;display:inline-block;white-space:nowrap;border:1px solid #FECACA;">طلب ملغي ✗</span>`;
+      default:
+        return `<span style="font-weight:bold;">${status}</span>`;
+    }
+  };
+
+  const getPaymentBadge = (o: Order) => {
+    if (o.paymentMethod === 'vodafone_cash') {
+      return `<strong style="color:#DC2626;background-color:#FEF2F2;padding:4px 8px;border-radius:4px;border:1px solid #FECACA;white-space:nowrap;">فودافون كاش (كامل)</strong>`;
+    }
+    if (o.paymentMethod === 'instapay') {
+      return `<strong style="color:#4F46E5;background-color:#EEF2FF;padding:4px 8px;border-radius:4px;border:1px solid #E0E7FF;white-space:nowrap;">انستاباي (كامل)</strong>`;
+    }
+    if (o.depositAmount && o.depositAmount > 0) {
+      return `<span style="white-space:nowrap;">دفع عند الاستلام + <strong style="color:#D97706;">عربون</strong></span>`;
+    }
+    return `<span style="color:#374151;white-space:nowrap;">دفع عند الاستلام (كاش)</span>`;
+  };
+
+  let sumSubtotal = 0;
+  let sumDiscount = 0;
+  let sumNet = 0;
+  let sumShipping = 0;
+  let sumTotal = 0;
+  let sumDeposit = 0;
+  let sumRemaining = 0;
+
+  const dataRowsHtml = orders.map((o, idx) => {
+    const fin = getOrderFinancials(o);
+
+    if (o.status !== 'cancelled' && o.paymentStatus !== 'rejected') {
+      sumSubtotal += fin.subtotal;
+      sumDiscount += fin.discountAmount;
+      sumNet += fin.netProducts;
+      sumShipping += fin.shippingCost;
+      sumTotal += fin.totalPrice;
+      sumDeposit += fin.depositAmount;
+      sumRemaining += fin.remainingCash;
+    }
+
+    const rowBg = idx % 2 === 0 ? '#FFFFFF' : '#F8FAFC';
+
+    return `
+      <tr style="background-color:${rowBg};">
+        <td style="text-align:center;font-family:Consolas,monospace;font-weight:bold;color:#18181B;mso-number-format:'\\@';">#${o.id || ''}</td>
+        <td style="text-align:center;mso-number-format:'\\@';color:#4B5563;white-space:nowrap;">${formatOrderDate(o.createdAt)}</td>
+        <td style="font-weight:bold;color:#111827;white-space:nowrap;">${o.customerName || ''}</td>
+        <td style="text-align:center;font-family:Consolas,monospace;font-weight:bold;color:#0284C7;mso-number-format:'\\@';white-space:nowrap;">${String(o.phone || '').trim()}</td>
+        <td style="text-align:center;font-weight:bold;color:#374151;white-space:nowrap;">${o.city || ''}</td>
+        <td style="color:#4B5563;font-size:9.5pt;max-width:280px;">${o.address || ''}</td>
+        <td style="color:#1F2937;font-size:9.5pt;max-width:320px;">${formatOrderItemsSummary(o.items)}</td>
+        <td style="text-align:center;">${getPaymentBadge(o)}</td>
+        <td style="text-align:center;">${getStatusBadge(o.status)}</td>
+        <td style="text-align:center;mso-number-format:'#,##0';color:#64748B;">${fin.subtotal.toLocaleString()}</td>
+        <td style="text-align:center;mso-number-format:'#,##0';color:#DC2626;">${fin.discountAmount > 0 ? `-${fin.discountAmount.toLocaleString()}` : '-'}</td>
+        <td style="text-align:center;mso-number-format:'#,##0';color:#15803D;font-weight:bold;background-color:#F0FDF4;">${fin.netProducts.toLocaleString()}</td>
+        <td style="text-align:center;mso-number-format:'#,##0';color:#B45309;font-weight:bold;background-color:#FFFBEB;">${fin.shippingCost > 0 ? fin.shippingCost.toLocaleString() : 'مجاني'}</td>
+        <td style="text-align:center;mso-number-format:'#,##0';color:#991B1B;font-weight:bold;font-size:11pt;background-color:#FEF2F2;">${fin.totalPrice.toLocaleString()}</td>
+        <td style="text-align:center;mso-number-format:'#,##0';color:#6D28D9;background-color:#F5F3FF;">${fin.depositAmount > 0 ? fin.depositAmount.toLocaleString() : '-'}</td>
+        <td style="text-align:center;mso-number-format:'#,##0';color:#047857;font-weight:bold;font-size:11pt;background-color:#ECFDF5;">${fin.remainingCash.toLocaleString()}</td>
+      </tr>
+    `;
+  }).join('');
+
+  const html = `
+    <html xmlns:o="urn:schemas-microsoft-com:office:office"
+          xmlns:x="urn:schemas-microsoft-com:office:excel"
+          xmlns="http://www.w3.org/TR/REC-html40"
+          dir="rtl" lang="ar">
+    <head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+      <!--[if gte mso 9]>
+      <xml>
+        <x:ExcelWorkbook>
+          <x:ExcelWorksheets>
+            <x:ExcelWorksheet>
+              <x:Name>كشف تسوية الأوردرات</x:Name>
+              <x:WorksheetOptions>
+                <x:DisplayRightToLeft/>
+                <x:DoNotDisplayGridlines/>
+              </x:WorksheetOptions>
+            </x:ExcelWorksheet>
+          </x:ExcelWorksheets>
+        </x:ExcelWorkbook>
+      </xml>
+      <![endif]-->
+      <style>
+        body, table, td, th {
+          font-family: 'Segoe UI', Tahoma, Cairo, Arial, sans-serif;
+          font-size: 10.5pt;
+        }
+        table {
+          border-collapse: collapse;
+          width: 100%;
+          direction: rtl;
+        }
+        th {
+          background-color: #0F0F11;
+          color: #FFFFFF;
+          font-weight: bold;
+          text-align: center;
+          padding: 14px 10px;
+          border: 1px solid #27272A;
+          border-bottom: 3px solid #E31E24;
+          font-size: 10.5pt;
+          white-space: nowrap;
+        }
+        td {
+          padding: 10px 10px;
+          border: 1px solid #E2E8F0;
+          vertical-align: middle;
+        }
+      </style>
+    </head>
+    <body style="margin:0;padding:20px;background-color:#FFFFFF;">
+      <table cellpadding="0" cellspacing="0">
+        <!-- Title Banner -->
+        <tr>
+          <td colspan="16" style="background-color:#09090B;color:#FFFFFF;padding:20px 24px;border-bottom:4px solid #E31E24;">
+            <div style="font-size:18pt;font-weight:900;color:#FFFFFF;margin-bottom:8px;letter-spacing:-0.5px;">
+              X-POWER NUTRITION <span style="font-size:12pt;font-weight:normal;color:#A1A1AA;">&bull; كشف تسوية ومتابعة الشحن والمبيعات</span>
+            </div>
+            <div style="font-size:10pt;color:#D4D4D8;line-height:1.6;">
+              تاريخ التصدير: <strong style="color:#FFFFFF;">${todayStr}</strong> &nbsp;|&nbsp; 
+              عدد الطلبات: <strong style="color:#FFFFFF;">${orders.length} طلب</strong> &nbsp;|&nbsp; 
+              صافي قيمة البضاعة: <strong style="color:#4ADE80;font-size:11pt;">${Math.round(finTotal.totalNetProducts).toLocaleString()} ج.م</strong> &nbsp;|&nbsp; 
+              إجمالي مصاريف الشحن: <strong style="color:#FBBF24;font-size:11pt;">${Math.round(finTotal.totalShippingFees).toLocaleString()} ج.م</strong> &nbsp;|&nbsp; 
+              إجمالي التحصيل الكلي: <strong style="color:#F87171;font-size:12pt;">${Math.round(finTotal.totalGrossRevenue).toLocaleString()} ج.م</strong>
+            </div>
+          </td>
+        </tr>
+        
+        <!-- Spacing row -->
+        <tr style="height:14px;"><td colspan="16" style="border:none;background-color:#FFFFFF;"></td></tr>
+
+        <!-- Table Column Headers -->
+        <tr>
+          ${EXCEL_ORDER_HEADERS.map(h => `<th>${h}</th>`).join('')}
+        </tr>
+
+        <!-- Data Rows -->
+        ${dataRowsHtml}
+
+        <!-- Spacing row -->
+        <tr style="height:10px;"><td colspan="16" style="border:none;background-color:#FFFFFF;"></td></tr>
+
+        <!-- Summary Totals Row -->
+        <tr style="background-color:#09090B;color:#FFFFFF;font-weight:bold;font-size:11pt;">
+          <td colspan="9" style="background-color:#09090B;color:#FFFFFF;padding:16px 14px;border-top:3px solid #E31E24;border-bottom:3px double #3F3F46;border-left:1px solid #27272A;border-right:1px solid #27272A;text-align:right;">
+            الإجمالي العام (${orders.length} طلب مسجل)
+          </td>
+          <td style="background-color:#09090B;color:#94A3B8;padding:16px 10px;border-top:3px solid #E31E24;border-bottom:3px double #3F3F46;border-left:1px solid #27272A;border-right:1px solid #27272A;text-align:center;mso-number-format:'#,##0';">
+            ${Math.round(sumSubtotal).toLocaleString()}
+          </td>
+          <td style="background-color:#09090B;color:#F87171;padding:16px 10px;border-top:3px solid #E31E24;border-bottom:3px double #3F3F46;border-left:1px solid #27272A;border-right:1px solid #27272A;text-align:center;mso-number-format:'#,##0';">
+            ${sumDiscount > 0 ? `-${Math.round(sumDiscount).toLocaleString()}` : '-'}
+          </td>
+          <td style="background-color:#09090B;color:#4ADE80;font-size:12pt;padding:16px 10px;border-top:3px solid #E31E24;border-bottom:3px double #3F3F46;border-left:1px solid #27272A;border-right:1px solid #27272A;text-align:center;mso-number-format:'#,##0';">
+            ${Math.round(sumNet).toLocaleString()}
+          </td>
+          <td style="background-color:#09090B;color:#FBBF24;font-size:11pt;padding:16px 10px;border-top:3px solid #E31E24;border-bottom:3px double #3F3F46;border-left:1px solid #27272A;border-right:1px solid #27272A;text-align:center;mso-number-format:'#,##0';">
+            ${Math.round(sumShipping).toLocaleString()}
+          </td>
+          <td style="background-color:#09090B;color:#EF4444;font-size:12pt;padding:16px 10px;border-top:3px solid #E31E24;border-bottom:3px double #3F3F46;border-left:1px solid #27272A;border-right:1px solid #27272A;text-align:center;mso-number-format:'#,##0';">
+            ${Math.round(sumTotal).toLocaleString()}
+          </td>
+          <td style="background-color:#09090B;color:#C084FC;padding:16px 10px;border-top:3px solid #E31E24;border-bottom:3px double #3F3F46;border-left:1px solid #27272A;border-right:1px solid #27272A;text-align:center;mso-number-format:'#,##0';">
+            ${sumDeposit > 0 ? Math.round(sumDeposit).toLocaleString() : '-'}
+          </td>
+          <td style="background-color:#09090B;color:#34D399;font-size:12pt;padding:16px 10px;border-top:3px solid #E31E24;border-bottom:3px double #3F3F46;border-left:1px solid #27272A;border-right:1px solid #27272A;text-align:center;mso-number-format:'#,##0';">
+            ${Math.round(sumRemaining).toLocaleString()}
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `;
+
+  return new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+}
+
+/**
  * Generates a modern native .xlsx Excel workbook with:
  * - Professional spacious Arabic labels
  * - Custom wide column widths (no clipped or squished text)

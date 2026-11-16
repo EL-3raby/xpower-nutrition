@@ -7,7 +7,7 @@ import { getOrders } from '@/lib/firebase/orders';
 import { Order } from '@/lib/types';
 import TrafficSourceIcon from '@/components/admin/TrafficSourceIcon';
 import Spinner from '@/components/ui/Spinner';
-import { getOrderFinancials, aggregateOrdersFinancials, generateOrdersSettlementExcel } from '@/lib/utils/order-calculations';
+import { getOrderFinancials, aggregateOrdersFinancials, generateOrdersSettlementExcel, generateOrdersSettlementStyledExcel } from '@/lib/utils/order-calculations';
 
 function AdminOrdersContent() {
   const searchParams = useSearchParams();
@@ -67,7 +67,30 @@ function AdminOrdersContent() {
     return aggregateOrdersFinancials(filteredOrders);
   }, [filteredOrders]);
 
-  const handleExportExcel = async () => {
+  // 1. Export fully designed & color-coded Excel spreadsheet (.xls)
+  const handleExportStyledExcel = () => {
+    if (filteredOrders.length === 0) return;
+    try {
+      setExportingExcel(true);
+      const blob = generateOrdersSettlementStyledExcel(filteredOrders);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const todayStr = new Date().toISOString().slice(0, 10);
+      a.download = `xpower-orders-design-${todayStr}.xls`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Failed to export styled Excel:', err);
+    } finally {
+      setExportingExcel(false);
+    }
+  };
+
+  // 2. Export standard OpenXML Excel workbook (.xlsx)
+  const handleExportStandardExcel = async () => {
     if (filteredOrders.length === 0) return;
     try {
       setExportingExcel(true);
@@ -164,18 +187,30 @@ function AdminOrdersContent() {
           </p>
         </div>
 
-        {/* Action Button: Export Settlement Excel (.xlsx) */}
-        <button
-          onClick={handleExportExcel}
-          disabled={filteredOrders.length === 0 || exportingExcel}
-          className="flex items-center gap-2 bg-[#121212] hover:bg-white/10 text-white border border-white/15 px-4 py-2.5 rounded-xl text-xs font-bold transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none self-stretch sm:self-auto justify-center shadow-lg"
-          title="تصدير كشف حساب منسق لشركة الشحن بصيغة Excel (.xlsx)"
-        >
-          <span className="material-symbols-outlined text-base text-accent-red">
-            {exportingExcel ? 'hourglass_top' : 'download'}
-          </span>
-          <span>{exportingExcel ? 'جاري إنشاء الإكسيل...' : 'تصدير كشف شحن (Excel)'}</span>
-        </button>
+        {/* Action Buttons: Export Designed Excel & Standard .xlsx */}
+        <div className="flex flex-wrap items-center gap-2.5 self-stretch sm:self-auto">
+          {/* Primary Styled Designed Excel (.xls with full visual design, badges & colors) */}
+          <button
+            onClick={handleExportStyledExcel}
+            disabled={filteredOrders.length === 0 || exportingExcel}
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-gradient-to-r from-accent-red to-red-700 hover:from-red-600 hover:to-accent-red text-white px-4 py-2.5 rounded-xl text-xs font-bold transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none shadow-lg shadow-accent-red/20 cursor-pointer"
+            title="تصدير كشف حساب مصمم بالألوان والبادجات والترويسة لشركة الشحن"
+          >
+            <span className="material-symbols-outlined text-base">palette</span>
+            <span>{exportingExcel ? 'جاري التحضير...' : 'تصدير إكسيل مصمم (Design)'}</span>
+          </button>
+
+          {/* Standard OpenXML (.xlsx) */}
+          <button
+            onClick={handleExportStandardExcel}
+            disabled={filteredOrders.length === 0 || exportingExcel}
+            className="flex items-center justify-center gap-1.5 bg-[#121212] hover:bg-white/10 text-white border border-white/15 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none shadow-sm cursor-pointer"
+            title="تصدير ملف إكسيل قياسي بصيغة .xlsx"
+          >
+            <span className="material-symbols-outlined text-base text-text-muted">download</span>
+            <span className="font-mono text-[11px]">.xlsx</span>
+          </button>
+        </div>
       </div>
 
       {/* Financial Summary Metric Cards (Separation of Products & Shipping) */}
