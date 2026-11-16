@@ -7,7 +7,7 @@ import { getOrders } from '@/lib/firebase/orders';
 import { Order } from '@/lib/types';
 import TrafficSourceIcon from '@/components/admin/TrafficSourceIcon';
 import Spinner from '@/components/ui/Spinner';
-import { getOrderFinancials, aggregateOrdersFinancials, generateOrdersSettlementCSV } from '@/lib/utils/order-calculations';
+import { getOrderFinancials, aggregateOrdersFinancials, generateOrdersSettlementExcel } from '@/lib/utils/order-calculations';
 
 function AdminOrdersContent() {
   const searchParams = useSearchParams();
@@ -17,7 +17,7 @@ function AdminOrdersContent() {
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || 'all');
   const [paymentStatusFilter, setPaymentStatusFilter] = useState(searchParams.get('paymentStatus') || 'all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [exportingCSV, setExportingCSV] = useState(false);
+  const [exportingExcel, setExportingExcel] = useState(false);
 
   const loadOrders = async () => {
     try {
@@ -67,25 +67,24 @@ function AdminOrdersContent() {
     return aggregateOrdersFinancials(filteredOrders);
   }, [filteredOrders]);
 
-  const handleExportCSV = () => {
+  const handleExportExcel = async () => {
     if (filteredOrders.length === 0) return;
     try {
-      setExportingCSV(true);
-      const csv = generateOrdersSettlementCSV(filteredOrders);
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      setExportingExcel(true);
+      const blob = await generateOrdersSettlementExcel(filteredOrders);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       const todayStr = new Date().toISOString().slice(0, 10);
-      a.download = `xpower-orders-settlement-${todayStr}.csv`;
+      a.download = `xpower-orders-settlement-${todayStr}.xlsx`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (err) {
-      console.error('Failed to export orders CSV:', err);
+      console.error('Failed to export orders Excel:', err);
     } finally {
-      setExportingCSV(false);
+      setExportingExcel(false);
     }
   };
 
@@ -165,17 +164,17 @@ function AdminOrdersContent() {
           </p>
         </div>
 
-        {/* Action Button: Export Settlement CSV */}
+        {/* Action Button: Export Settlement Excel (.xlsx) */}
         <button
-          onClick={handleExportCSV}
-          disabled={filteredOrders.length === 0 || exportingCSV}
+          onClick={handleExportExcel}
+          disabled={filteredOrders.length === 0 || exportingExcel}
           className="flex items-center gap-2 bg-[#121212] hover:bg-white/10 text-white border border-white/15 px-4 py-2.5 rounded-xl text-xs font-bold transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none self-stretch sm:self-auto justify-center shadow-lg"
-          title="تصدير كشف حساب ببيانات الشحن والبضاعة المنفصلة لشركة الشحن"
+          title="تصدير كشف حساب منسق لشركة الشحن بصيغة Excel (.xlsx)"
         >
           <span className="material-symbols-outlined text-base text-accent-red">
-            {exportingCSV ? 'hourglass_top' : 'download'}
+            {exportingExcel ? 'hourglass_top' : 'download'}
           </span>
-          <span>{exportingCSV ? 'جاري التحضير...' : 'تصدير كشف شحن (Excel)'}</span>
+          <span>{exportingExcel ? 'جاري إنشاء الإكسيل...' : 'تصدير كشف شحن (Excel)'}</span>
         </button>
       </div>
 

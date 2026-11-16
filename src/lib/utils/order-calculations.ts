@@ -102,75 +102,267 @@ export function aggregateOrdersFinancials(orders: Order[]): AggregatedOrderFinan
   };
 }
 
+// ── Shared Label Formatters for Excel & CSV ──────────────────────────────
+export const EXCEL_ORDER_HEADERS = [
+  'رقم الأوردر',
+  'تاريخ الطلب',
+  'اسم العميل',
+  'رقم الموبايل',
+  'المحافظة',
+  'العنوان بالتفصيل',
+  'بيان الأصناف والكميات',
+  'طريقة السداد',
+  'حالة الأوردر',
+  'قيمة البضاعة (ج.م)',
+  'الخصم المطبق (ج.م)',
+  'صافي المنتجات (ج.م)',
+  'تكلفة الشحن (ج.م)',
+  'إجمالي الفاتورة (ج.م)',
+  'العربون المسدد (ج.م)',
+  'المتبقي كاش للمندوب (ج.م)',
+] as const;
+
+export function formatOrderPaymentMethod(o: Order): string {
+  if (o.paymentMethod === 'vodafone_cash') return 'فودافون كاش (كامل)';
+  if (o.paymentMethod === 'instapay') return 'انستاباي (كامل)';
+  if (o.depositAmount && o.depositAmount > 0) return 'دفع عند الاستلام + عربون';
+  return 'دفع عند الاستلام (كاش)';
+}
+
+export function formatOrderStatus(status: Order['status']): string {
+  switch (status) {
+    case 'pending': return 'قيد المراجعة والتأكيد';
+    case 'confirmed': return 'تم التأكيد وجاري التجهيز';
+    case 'shipped': return 'تم التسليم للشحن (في الطريق)';
+    case 'delivered': return 'تم التوصيل والتحصيل بنجاح';
+    case 'cancelled': return 'طلب ملغي';
+    default: return status;
+  }
+}
+
+export function formatOrderItemsSummary(items: Order['items']): string {
+  if (!items || items.length === 0) return '';
+  return items.map(it => {
+    const flavorStr = it.flavor ? ` (${it.flavor})` : '';
+    return `${it.quantity}x ${it.name}${flavorStr}`;
+  }).join(' ، ');
+}
+
+export function formatOrderDate(dateVal: Date | Timestamp | { toDate?: () => Date; seconds?: number } | null | undefined): string {
+  if (!dateVal) return '';
+  if (dateVal instanceof Date) return dateVal.toLocaleDateString('ar-EG');
+  if (dateVal instanceof Timestamp) return dateVal.toDate().toLocaleDateString('ar-EG');
+  if (typeof dateVal?.toDate === 'function') return dateVal.toDate().toLocaleDateString('ar-EG');
+  if (typeof dateVal?.seconds === 'number') return new Date(dateVal.seconds * 1000).toLocaleDateString('ar-EG');
+  return '';
+}
+
+/**
+ * Generates a modern native .xlsx Excel workbook with:
+ * - Professional spacious Arabic labels
+ * - Custom wide column widths (no clipped or squished text)
+ * - Row height breathing room
+ * - Right-to-Left (RTL) worksheet view for Excel
+ * - Formatted text cells for phone numbers (preserves leading zero 01...)
+ * - Formatted item summary strings
+ * - Branded title header block
+ * - Comprehensive summary totals row at the bottom
+ */
+export async function generateOrdersSettlementExcel(orders: Order[]): Promise<Blob> {
+  const XLSX = await import('xlsx');
+
+  const dataRows: (string | number)[][] = [];
+
+  let sumSubtotal = 0;
+  let sumDiscount = 0;
+  let sumNet = 0;
+  let sumShipping = 0;
+  let sumTotal = 0;
+  let sumDeposit = 0;
+  let sumRemaining = 0;
+
+  for (const o of orders) {
+    const fin = getOrderFinancials(o);
+
+    // Accumulate sums for active non-cancelled orders
+    if (o.status !== 'cancelled' && o.paymentStatus !== 'rejected') {
+      sumSubtotal += fin.subtotal;
+      sumDiscount += fin.discountAmount;
+      sumNet += fin.netProducts;
+      sumShipping += fin.shippingCost;
+      sumTotal += fin.totalPrice;
+      sumDeposit += fin.depositAmount;
+      sumRemaining += fin.remainingCash;
+    }
+
+    dataRows.push([
+      String(o.id || ''),
+      formatOrderDate(o.createdAt),
+      o.customerName || '',
+      String(o.phone || '').trim(), // Protected as text to preserve leading zero
+      o.city || '',
+      o.address || '',
+      formatOrderItemsSummary(o.items),
+      formatOrderPaymentMethod(o),
+      formatOrderStatus(o.status),
+      fin.subtotal,
+      fin.discountAmount,
+      fin.netProducts,
+      fin.shippingCost,
+      fin.totalPrice,
+      fin.depositAmount,
+      fin.remainingCash,
+    ]);
+  }
+
+  // Header Title Information Banner
+  const titleRow = ['متجر X-Power Nutrition - كشف تسوية ومتابعة الشحن والمبيعات'];
+  const todayStr = new Date().toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' });
+  const metaRow = [
+    `تاريخ التصدير: ${todayStr}`,
+    '',
+    `عدد الطلبات: ${orders.length} طلب`,
+    '',
+    `صافي البضاعة: ${Math.round(sumNet).toLocaleString()} ج.م`,
+    '',
+    `إجمالي الشحن: ${Math.round(sumShipping).toLocaleString()} ج.م`,
+    '',
+    `إجمالي التحصيل: ${Math.round(sumTotal).toLocaleString()} ج.م`,
+  ];
+  const blankRow: string[] = [];
+
+  // Summary totals row at the bottom
+  const summaryRow = [
+    `الإجمالي العام (${orders.length} طلب)`,
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    Math.round(sumSubtotal * 100) / 100,
+    Math.round(sumDiscount * 100) / 100,
+    Math.round(sumNet * 100) / 100,
+    Math.round(sumShipping * 100) / 100,
+    Math.round(sumTotal * 100) / 100,
+    Math.round(sumDeposit * 100) / 100,
+    Math.round(sumRemaining * 100) / 100,
+  ];
+
+  // Assemble all rows
+  const allSheetRows = [
+    titleRow,
+    metaRow,
+    blankRow,
+    [...EXCEL_ORDER_HEADERS],
+    ...dataRows,
+    blankRow,
+    summaryRow,
+  ];
+
+  // Create worksheet
+  const ws = XLSX.utils.aoa_to_sheet(allSheetRows);
+
+  // Set Right-To-Left (RTL) mode for Excel
+  ws['!views'] = [{ RTL: true }];
+
+  // Generous column widths (character count) ensuring no text or numbers are clipped
+  ws['!cols'] = [
+    { wch: 18 }, // رقم الأوردر
+    { wch: 16 }, // تاريخ الطلب
+    { wch: 26 }, // اسم العميل
+    { wch: 18 }, // رقم الموبايل
+    { wch: 16 }, // المحافظة
+    { wch: 44 }, // العنوان بالتفصيل
+    { wch: 40 }, // بيان الأصناف والكميات
+    { wch: 26 }, // طريقة السداد
+    { wch: 28 }, // حالة الأوردر
+    { wch: 20 }, // قيمة البضاعة
+    { wch: 18 }, // الخصم المطبق
+    { wch: 24 }, // صافي المنتجات
+    { wch: 18 }, // تكلفة الشحن
+    { wch: 24 }, // إجمالي الفاتورة
+    { wch: 20 }, // العربون المسدد
+    { wch: 26 }, // المتبقي كاش للمندوب
+  ];
+
+  // Generous row heights
+  ws['!rows'] = [
+    { hpt: 30 }, // Title row
+    { hpt: 22 }, // Meta row
+    { hpt: 12 }, // Blank
+    { hpt: 28 }, // Header labels row (comfortable padding)
+  ];
+
+  // Protect Phone numbers and Order IDs as explicit Text cells (type 's') to avoid numeric truncation
+  const dataStartRowIndex = 4; // index 4 is first order row
+  for (let r = 0; r < dataRows.length; r++) {
+    const rowIdx = dataStartRowIndex + r;
+    // Col 0: ID
+    const idCellRef = XLSX.utils.encode_cell({ r: rowIdx, c: 0 });
+    if (ws[idCellRef]) ws[idCellRef].t = 's';
+
+    // Col 3: Phone
+    const phoneCellRef = XLSX.utils.encode_cell({ r: rowIdx, c: 3 });
+    if (ws[phoneCellRef]) {
+      ws[phoneCellRef].t = 's';
+      ws[phoneCellRef].z = '@';
+    }
+  }
+
+  // Create workbook and append worksheet
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'كشف تسوية الأوردرات');
+
+  // Generate binary XLSX buffer
+  const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  return new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+}
+
 /**
  * Generates an Excel-ready CSV string for shipping settlements and financial accounting.
  * Includes UTF-8 Byte Order Mark (BOM) so Arabic renders cleanly in Microsoft Excel.
  */
 export function generateOrdersSettlementCSV(orders: Order[]): string {
-  const headers = [
-    'رقم الطلب',
-    'تاريخ الطلب',
-    'اسم العميل',
-    'رقم الهاتف',
-    'المحافظة',
-    'العنوان',
-    'طريقة الدفع',
-    'حالة الطلب',
-    'إجمالي المنتجات (ج.م)',
-    'الخصم (ج.م)',
-    'صافي المنتجات (ج.م)',
-    'مصاريف الشحن (ج.م)',
-    'إجمالي الفاتورة (ج.م)',
-    'العربون المسدد (ج.م)',
-    'المتبقي كاش للمندوب (ج.م)',
-  ];
-
   const escapeCell = (val: string | number | undefined | null) => {
     if (val === undefined || val === null) return '""';
     const str = String(val).replace(/"/g, '""');
     return `"${str}"`;
   };
 
-  const getPaymentMethodLabel = (o: Order) => {
-    if (o.paymentMethod === 'vodafone_cash') return 'فودافون كاش';
-    if (o.paymentMethod === 'instapay') return 'انستاباي';
-    if (o.depositAmount && o.depositAmount > 0) return 'دفع عند الاستلام + عربون';
-    return 'دفع عند الاستلام (كاش)';
-  };
-
-  const getStatusLabel = (status: Order['status']) => {
-    switch (status) {
-      case 'pending': return 'قيد الانتظار';
-      case 'confirmed': return 'مؤكد';
-      case 'shipped': return 'تم الشحن (مع المندوب)';
-      case 'delivered': return 'تم التوصيل';
-      case 'cancelled': return 'ملغي';
-      default: return status;
-    }
-  };
+  let sumSubtotal = 0;
+  let sumDiscount = 0;
+  let sumNet = 0;
+  let sumShipping = 0;
+  let sumTotal = 0;
+  let sumDeposit = 0;
+  let sumRemaining = 0;
 
   const rows = orders.map((o) => {
     const fin = getOrderFinancials(o);
-    let dateStr = '';
-    if (o.createdAt instanceof Date) {
-      dateStr = o.createdAt.toLocaleDateString('ar-EG');
-    } else if (o.createdAt instanceof Timestamp) {
-      dateStr = o.createdAt.toDate().toLocaleDateString('ar-EG');
-    } else if (o.createdAt && typeof (o.createdAt as { toDate?: () => Date }).toDate === 'function') {
-      dateStr = (o.createdAt as { toDate: () => Date }).toDate().toLocaleDateString('ar-EG');
-    } else if (o.createdAt && typeof (o.createdAt as { seconds?: number }).seconds === 'number') {
-      dateStr = new Date((o.createdAt as { seconds: number }).seconds * 1000).toLocaleDateString('ar-EG');
+
+    if (o.status !== 'cancelled' && o.paymentStatus !== 'rejected') {
+      sumSubtotal += fin.subtotal;
+      sumDiscount += fin.discountAmount;
+      sumNet += fin.netProducts;
+      sumShipping += fin.shippingCost;
+      sumTotal += fin.totalPrice;
+      sumDeposit += fin.depositAmount;
+      sumRemaining += fin.remainingCash;
     }
 
     return [
       escapeCell(o.id || ''),
-      escapeCell(dateStr),
-      escapeCell(o.customerName),
-      escapeCell(o.phone),
-      escapeCell(o.city),
-      escapeCell(o.address),
-      escapeCell(getPaymentMethodLabel(o)),
-      escapeCell(getStatusLabel(o.status)),
+      escapeCell(formatOrderDate(o.createdAt)),
+      escapeCell(o.customerName || ''),
+      escapeCell(`=""${String(o.phone || '').trim()}""`), // Preserves leading zero in Excel CSV
+      escapeCell(o.city || ''),
+      escapeCell(o.address || ''),
+      escapeCell(formatOrderItemsSummary(o.items)),
+      escapeCell(formatOrderPaymentMethod(o)),
+      escapeCell(formatOrderStatus(o.status)),
       escapeCell(fin.subtotal),
       escapeCell(fin.discountAmount),
       escapeCell(fin.netProducts),
@@ -181,6 +373,30 @@ export function generateOrdersSettlementCSV(orders: Order[]): string {
     ].join(',');
   });
 
+  // Summary row
+  const summaryRow = [
+    escapeCell(`الإجمالي العام (${orders.length} طلب)`),
+    '""',
+    '""',
+    '""',
+    '""',
+    '""',
+    '""',
+    '""',
+    '""',
+    escapeCell(Math.round(sumSubtotal * 100) / 100),
+    escapeCell(Math.round(sumDiscount * 100) / 100),
+    escapeCell(Math.round(sumNet * 100) / 100),
+    escapeCell(Math.round(sumShipping * 100) / 100),
+    escapeCell(Math.round(sumTotal * 100) / 100),
+    escapeCell(Math.round(sumDeposit * 100) / 100),
+    escapeCell(Math.round(sumRemaining * 100) / 100),
+  ].join(',');
+
   // UTF-8 BOM (\uFEFF) ensures Excel opens Arabic correctly
-  return '\uFEFF' + [headers.map(escapeCell).join(','), ...rows].join('\r\n');
+  return '\uFEFF' + [
+    EXCEL_ORDER_HEADERS.map(escapeCell).join(','),
+    ...rows,
+    summaryRow
+  ].join('\r\n');
 }
