@@ -7,7 +7,7 @@ import { getOrders } from '@/lib/firebase/orders';
 import { Order } from '@/lib/types';
 import TrafficSourceIcon from '@/components/admin/TrafficSourceIcon';
 import Spinner from '@/components/ui/Spinner';
-import { getOrderFinancials, aggregateOrdersFinancials, generateOrdersSettlementExcel } from '@/lib/utils/order-calculations';
+import { getOrderFinancials, aggregateOrdersFinancials, exportOrdersToExcel } from '@/lib/utils/order-calculations';
 
 function AdminOrdersContent() {
   const searchParams = useSearchParams();
@@ -67,21 +67,11 @@ function AdminOrdersContent() {
     return aggregateOrdersFinancials(filteredOrders);
   }, [filteredOrders]);
 
-  // Export native OpenXML Excel workbook (.xlsx) with connected Arabic and compact columns
   const handleExportExcel = async () => {
     if (filteredOrders.length === 0) return;
     try {
       setExportingExcel(true);
-      const blob = await generateOrdersSettlementExcel(filteredOrders);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      const todayStr = new Date().toISOString().slice(0, 10);
-      a.download = `xpower-orders-settlement-${todayStr}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      await exportOrdersToExcel(filteredOrders);
     } catch (err) {
       console.error('Failed to export orders Excel:', err);
     } finally {
@@ -165,18 +155,18 @@ function AdminOrdersContent() {
           </p>
         </div>
 
-        {/* Action Button: Export Native .xlsx */}
-        <div className="flex items-center gap-2.5 self-stretch sm:self-auto">
-          <button
-            onClick={handleExportExcel}
-            disabled={filteredOrders.length === 0 || exportingExcel}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-gradient-to-r from-accent-red to-red-700 hover:from-red-600 hover:to-accent-red text-white px-4 py-2.5 rounded-xl text-xs font-bold transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none shadow-lg shadow-accent-red/20 cursor-pointer"
-            title="تصدير كشف الأوردرات والشحن بصيغة إكسيل (.xlsx)"
-          >
-            <span className="material-symbols-outlined text-base">download</span>
-            <span>{exportingExcel ? 'جاري التحضير...' : 'تصدير كشف إكسيل (.xlsx)'}</span>
-          </button>
-        </div>
+        {/* Action Button: Export Settlement Excel (.xlsx) */}
+        <button
+          onClick={handleExportExcel}
+          disabled={filteredOrders.length === 0 || exportingExcel}
+          className="flex items-center gap-2 bg-[#121212] hover:bg-white/10 text-white border border-white/15 px-4 py-2.5 rounded-xl text-xs font-bold transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none self-stretch sm:self-auto justify-center shadow-lg cursor-pointer"
+          title="تصدير كشف حساب منسق بمساحات واسعة لشركة الشحن (Excel .xlsx)"
+        >
+          <span className="material-symbols-outlined text-base text-accent-red">
+            {exportingExcel ? 'hourglass_top' : 'download'}
+          </span>
+          <span>{exportingExcel ? 'جاري تجهيز الشيت...' : 'تصدير كشف شحن (Excel)'}</span>
+        </button>
       </div>
 
       {/* Financial Summary Metric Cards (Separation of Products & Shipping) */}
