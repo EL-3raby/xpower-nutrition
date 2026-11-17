@@ -187,6 +187,54 @@ function sortProductsForHome(prods: Product[]): Product[] {
   });
 }
 
+function getFeaturedProducts(prods: Product[], cfg?: SiteConfig): Product[] {
+  if (cfg?.featuredProducts?.productIds && cfg.featuredProducts.productIds.length > 0) {
+    const selected = cfg.featuredProducts.productIds
+      .map((id) => prods.find((p) => p.id === id))
+      .filter(Boolean) as Product[];
+
+    if (selected.length > 0) {
+      return selected.slice(0, 10);
+    }
+  }
+
+  return sortProductsForHome(prods).slice(0, 10);
+}
+
+function getBundleProducts(prods: Product[], cfg?: SiteConfig): Product[] {
+  if (cfg?.bundlesSection?.isActive === false) return [];
+
+  if (cfg?.bundlesSection?.productIds && cfg.bundlesSection.productIds.length > 0) {
+    const selected = cfg.bundlesSection.productIds
+      .map((id) => prods.find((p) => p.id === id))
+      .filter((p): p is Product => Boolean(p && p.isActive !== false));
+    if (selected.length > 0) return selected;
+  }
+
+  const isBundle = (p: Product) => {
+    return Boolean(
+      p.isBundle ||
+      p.category === 'bundles' ||
+      p.category === 'باقات التوفير' ||
+      p.slug?.includes('bundle') ||
+      p.slug?.includes('bundel') ||
+      p.name?.includes('باقة') ||
+      p.name?.includes('باندل')
+    );
+  };
+
+  return prods
+    .filter((p) => isBundle(p) && p.isActive !== false)
+    .sort((a, b) => {
+      const orderA = typeof a.order === 'number' && !isNaN(a.order) ? a.order : 999999;
+      const orderB = typeof b.order === 'number' && !isNaN(b.order) ? b.order : 999999;
+      if (orderA !== orderB) return orderA - orderB;
+      const timeA = a.createdAt instanceof Date ? a.createdAt.getTime() : 0;
+      const timeB = b.createdAt instanceof Date ? b.createdAt.getTime() : 0;
+      return timeB - timeA;
+    });
+}
+
 interface HomeClientPageProps {
   initialSettings: SiteConfig;
   initialCategories: Category[];
@@ -194,6 +242,7 @@ interface HomeClientPageProps {
   initialFlashSaleProduct: Product | null;
   initialFlashSaleOffers?: FlashSaleOffer[];
   initialBestSellers: Product[];
+  initialBundleProducts?: Product[];
 }
 
 export default function HomeClientPage({
@@ -203,10 +252,14 @@ export default function HomeClientPage({
   initialFlashSaleProduct,
   initialFlashSaleOffers,
   initialBestSellers,
+  initialBundleProducts,
 }: HomeClientPageProps) {
   const [settings, setSettings] = useState<SiteConfig>(initialSettings);
   const [activeCategories, setActiveCategories] = useState<Category[]>(initialCategories || []);
-  const [displayProducts, setDisplayProducts] = useState<Product[]>(() => sortProductsForHome(initialProducts || []));
+  const [displayProducts, setDisplayProducts] = useState<Product[]>(() => getFeaturedProducts(initialProducts || [], initialSettings));
+  const [bundleProducts, setBundleProducts] = useState<Product[]>(() =>
+    initialBundleProducts || getBundleProducts(initialProducts || [], initialSettings)
+  );
   const [allProducts, setAllProducts] = useState<Product[]>(initialProducts || []);
   const [flashSaleOffers, setFlashSaleOffers] = useState<FlashSaleOffer[]>(() => {
     if (initialFlashSaleOffers && initialFlashSaleOffers.length > 0) {
@@ -256,12 +309,14 @@ export default function HomeClientPage({
             return 0;
           });
 
-        const sortedProducts = sortProductsForHome(prods);
+        const featured = getFeaturedProducts(prods, cfg);
+        const bundles = getBundleProducts(prods, cfg);
 
         setSettings(cfg);
         setActiveCategories(sortedCategories);
         setAllProducts(prods);
-        setDisplayProducts(sortedProducts);
+        setDisplayProducts(featured);
+        setBundleProducts(bundles);
 
         if (cfg.flashSale?.isActive) {
           const offers: FlashSaleOffer[] = [];
@@ -327,15 +382,22 @@ export default function HomeClientPage({
 
     // 2. Real-time multi-device Firestore products listener
     const unsubProducts = subscribeToLiveProducts((liveProds) => {
-      const sortedProducts = sortProductsForHome(liveProds);
-
       setAllProducts(liveProds);
-      setDisplayProducts(sortedProducts);
+      setSettings((currentCfg) => {
+        setDisplayProducts(getFeaturedProducts(liveProds, currentCfg));
+        setBundleProducts(getBundleProducts(liveProds, currentCfg));
+        return currentCfg;
+      });
     }, true);
 
     // 3. Real-time multi-device Firestore siteConfig listener (Hero banner, flash sale, etc.)
     const unsubConfig = subscribeToLiveSiteConfig((liveCfg) => {
       setSettings(liveCfg);
+      setAllProducts((currentProds) => {
+        setDisplayProducts(getFeaturedProducts(currentProds, liveCfg));
+        setBundleProducts(getBundleProducts(currentProds, liveCfg));
+        return currentProds;
+      });
     });
 
     return () => {
@@ -505,6 +567,42 @@ export default function HomeClientPage({
 
           <ScrollReveal delay={150}>
             <BestSellersSlider products={bestSellers} />
+          </ScrollReveal>
+        </section>
+      )}
+
+      {/* Power Bundles & Stacks Section */}
+      {bundleProducts.length > 0 && (
+        <section className="py-10 md:py-20 px-6 max-w-7xl mx-auto w-full relative overflow-hidden bg-transparent border-t border-white/5">
+          {/* Subtle Ambient Red Glow Backdrop */}
+          <div className="absolute top-1/2 left-1/4 -translate-y-1/2 w-96 h-96 bg-accent-red/10 blur-[140px] rounded-full pointer-events-none -z-10" />
+
+          <ScrollReveal>
+            <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 md:mb-12 gap-4">
+              <div>
+                <h2 className="font-display text-2xl md:text-3xl font-black flex items-center gap-4 text-white">
+                  <span className="w-8 h-1 bg-accent-red inline-block"></span>
+                  {settings.bundlesSection?.title || 'باقات وعروض التوفير'}
+                </h2>
+              </div>
+              <p className="text-text-muted font-body text-sm max-w-md">
+                {settings.bundlesSection?.subtitle || 'وفّر أكتر مع باقات متكاملة مجهزة خصيصاً لمساعدتك في تحقيق هدفك بأعلى كفاءة وأفضل سعر.'}
+              </p>
+            </div>
+          </ScrollReveal>
+
+          <ScrollReveal delay={150}>
+            <BestSellersSlider products={bundleProducts} />
+          </ScrollReveal>
+
+          <ScrollReveal className="flex justify-center mt-10">
+            <Link
+              href="/products?category=bundles"
+              className="group inline-flex items-center justify-center gap-2 border border-white/10 hover:border-accent-red/40 bg-white/5 hover:bg-white/10 text-white px-8 py-3 rounded-full font-product-title text-xs sm:text-sm font-bold transition-all duration-300 hover:scale-105 active:scale-95 shadow-sm"
+            >
+              <span>تصفح كل باقات التوفير</span>
+              <span className="material-symbols-outlined text-base transition-transform group-hover:-translate-x-1">arrow_back</span>
+            </Link>
           </ScrollReveal>
         </section>
       )}

@@ -106,6 +106,36 @@ export default async function HomePage() {
     }
   }
 
+  const isBundle = (p: Product) => {
+    return Boolean(
+      p.isBundle ||
+      p.category === 'bundles' ||
+      p.category === 'باقات التوفير' ||
+      p.slug?.includes('bundle') ||
+      p.slug?.includes('bundel') ||
+      p.name?.includes('باقة') ||
+      p.name?.includes('باندل')
+    );
+  };
+
+  let bundleProducts: Product[] = [];
+  if (settings.bundlesSection?.isActive !== false) {
+    if (settings.bundlesSection?.productIds && settings.bundlesSection.productIds.length > 0) {
+      bundleProducts = settings.bundlesSection.productIds
+        .map((id) => products.find((p) => p.id === id))
+        .filter((p): p is Product => Boolean(p && p.isActive !== false));
+    } else {
+      bundleProducts = products
+        .filter((p) => isBundle(p) && p.isActive !== false)
+        .sort((a, b) => {
+          const orderA = typeof a.order === 'number' && !isNaN(a.order) ? a.order : 999999;
+          const orderB = typeof b.order === 'number' && !isNaN(b.order) ? b.order : 999999;
+          if (orderA !== orderB) return orderA - orderB;
+          return 0;
+        });
+    }
+  }
+
   return (
     <HomeClientPage
       initialSettings={toPlainObject(settings)}
@@ -114,6 +144,7 @@ export default async function HomePage() {
       initialFlashSaleProduct={toPlainObject(flashSaleProduct)}
       initialFlashSaleOffers={toPlainObject(flashSaleOffers)}
       initialBestSellers={toPlainObject(bestSellers)}
+      initialBundleProducts={toPlainObject(bundleProducts)}
     />
   );
 }

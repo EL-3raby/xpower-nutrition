@@ -175,6 +175,16 @@ function ProductsContent() {
         c.name === selectedCategory
       );
       pool = pool.filter(p => {
+        if (selectedCategory === 'bundles') {
+          return Boolean(
+            p.isBundle ||
+            p.category === 'bundles' ||
+            p.category === 'باقات التوفير' ||
+            p.slug?.includes('bundle') ||
+            p.name?.includes('باقة') ||
+            p.name?.includes('باندل')
+          );
+        }
         if (!p.category) return false;
         if (p.category === selectedCategory) return true;
         if (targetCat) {

@@ -184,6 +184,16 @@ export interface SiteConfig {
     isActive: boolean;
     productIds?: string[];
   };
+  featuredProducts?: {
+    isActive?: boolean;
+    productIds?: string[];
+  };
+  bundlesSection?: {
+    isActive?: boolean;
+    title?: string;
+    subtitle?: string;
+    productIds?: string[];
+  };
   socialProof?: {
     isActive: boolean;
     images: string[];

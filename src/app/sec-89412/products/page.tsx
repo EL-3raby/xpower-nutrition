@@ -18,6 +18,7 @@ import { Product, SiteConfig, Category } from '@/lib/types';
 import ConfirmationModal from '@/components/admin/ConfirmationModal';
 import BulkDiscountModal from '@/components/admin/BulkDiscountModal';
 import FreeShippingModal from '@/components/admin/FreeShippingModal';
+import FeaturedProductsModal from '@/components/admin/FeaturedProductsModal';
 import Spinner from '@/components/ui/Spinner';
 
 function AdminProductsContent() {
@@ -42,6 +43,9 @@ function AdminProductsContent() {
   // Free Shipping modal & state
   const [isFreeShippingModalOpen, setIsFreeShippingModalOpen] = useState(false);
   const [togglingShippingId, setTogglingShippingId] = useState<string | null>(null);
+
+  // Featured Products (Top 10) modal state
+  const [isFeaturedModalOpen, setIsFeaturedModalOpen] = useState(false);
 
   // Quick Stock & Active status states
   const [updatingStockId, setUpdatingStockId] = useState<string | null>(null);
@@ -397,6 +401,22 @@ function AdminProductsContent() {
             {freeShippingCount > 0 && (
               <span className="bg-emerald-500/25 text-emerald-300 px-2 py-0.5 rounded-full text-[10px] font-black">
                 {freeShippingCount}
+              </span>
+            )}
+          </button>
+
+          {/* Featured Products (Top 10) Shortcut Modal Trigger */}
+          <button
+            type="button"
+            onClick={() => setIsFeaturedModalOpen(true)}
+            className="flex-1 md:flex-initial bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 font-product-title font-bold px-4 py-2.5 rounded-xl hover:scale-102 transition-all text-xs sm:text-sm flex items-center justify-center gap-2 active:scale-95 shadow-[0_0_15px_rgba(245,158,11,0.08)] cursor-pointer"
+            title="تحديد أفضل 10 منتجات للرئيسية والتحكم في ترتيبها مباشرة"
+          >
+            <span className="material-symbols-outlined text-[18px]">workspace_premium</span>
+            <span>أفضل 10 منتجات 🌟</span>
+            {siteConfig?.featuredProducts?.productIds && siteConfig.featuredProducts.productIds.length > 0 && (
+              <span className="bg-amber-500/25 text-amber-200 px-2 py-0.5 rounded-full text-[10px] font-black">
+                {siteConfig.featuredProducts.productIds.length}/10
               </span>
             )}
           </button>
@@ -1128,6 +1148,30 @@ function AdminProductsContent() {
         onSuccess={handleFreeShippingSuccess}
         products={products}
         categories={categories}
+      />
+
+      {/* Featured Products (Top 10) Modal */}
+      <FeaturedProductsModal
+        isOpen={isFeaturedModalOpen}
+        onClose={() => setIsFeaturedModalOpen(false)}
+        products={products}
+        currentFeaturedIds={siteConfig?.featuredProducts?.productIds || []}
+        onSaved={(newIds) => {
+          setSiteConfig((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  featuredProducts: {
+                    ...(prev.featuredProducts || {}),
+                    isActive: true,
+                    productIds: newIds,
+                  },
+                }
+              : prev
+          );
+          setToastMessage(`تم حفظ وتحديث أفضل ${newIds.length} منتجات في الصفحة الرئيسية بنجاح!`);
+          setTimeout(() => setToastMessage(null), 4000);
+        }}
       />
     </div>
   );

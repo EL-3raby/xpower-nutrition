@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { getSiteConfig, updateSiteConfig, DEFAULT_CONFIG } from '@/lib/firebase/admin-actions';
 import { getProducts } from '@/lib/firebase/products';
 import { SiteConfig, Product } from '@/lib/types';
@@ -92,6 +93,42 @@ export default function AdminSettingsPage() {
   // Best Sellers States
   const [bestSellersActive, setBestSellersActive] = useState(true);
 
+  // Bundles Section States
+  const [bundlesSectionActive, setBundlesSectionActive] = useState(true);
+  const [bundlesSectionTitle, setBundlesSectionTitle] = useState('باقات وعروض التوفير');
+  const [bundlesSectionSubtitle, setBundlesSectionSubtitle] = useState('وفّر أكتر مع باقات متكاملة مجهزة خصيصاً لمساعدتك في تحقيق هدفك بأعلى كفاءة وأفضل سعر.');
+
+  // Featured Products States (Max 10)
+  const [featuredProductIds, setFeaturedProductIds] = useState<string[]>([]);
+  const [featuredSearchQuery, setFeaturedSearchQuery] = useState('');
+  const [isAddingFeatured, setIsAddingFeatured] = useState(false);
+
+  const addFeaturedProduct = (pId: string) => {
+    if (!pId) return;
+    if (featuredProductIds.includes(pId)) return;
+    if (featuredProductIds.length >= 10) {
+      alert('الحد الأقصى لسكشن أفضل المنتجات هو 10 منتجات فقط.');
+      return;
+    }
+    setFeaturedProductIds(prev => [...prev, pId]);
+  };
+
+  const removeFeaturedProduct = (pId: string) => {
+    setFeaturedProductIds(prev => prev.filter(id => id !== pId));
+  };
+
+  const moveFeaturedProduct = (index: number, direction: 'up' | 'down') => {
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= featuredProductIds.length) return;
+    setFeaturedProductIds(prev => {
+      const updated = [...prev];
+      const temp = updated[index];
+      updated[index] = updated[targetIndex];
+      updated[targetIndex] = temp;
+      return updated;
+    });
+  };
+
   // Authenticity Check States
   const [authenticityCheckActive, setAuthenticityCheckActive] = useState(false);
 
@@ -179,6 +216,14 @@ export default function AdminSettingsPage() {
         // Prepopulate Best Sellers
         setBestSellersActive(fetched.bestSellers?.isActive ?? true);
 
+        // Prepopulate Bundles Section
+        setBundlesSectionActive(fetched.bundlesSection?.isActive ?? true);
+        setBundlesSectionTitle(fetched.bundlesSection?.title || 'باقات وعروض التوفير');
+        setBundlesSectionSubtitle(fetched.bundlesSection?.subtitle || 'وفّر أكتر مع باقات متكاملة مجهزة خصيصاً لمساعدتك في تحقيق هدفك بأعلى كفاءة وأفضل سعر.');
+
+        // Prepopulate Featured Products (Max 10)
+        setFeaturedProductIds(fetched.featuredProducts?.productIds || []);
+
         // Prepopulate Authenticity Check
         setAuthenticityCheckActive(fetched.authenticityCheck?.isActive ?? false);
 
@@ -254,6 +299,15 @@ export default function AdminSettingsPage() {
         },
         bestSellers: {
           isActive: bestSellersActive
+        },
+        bundlesSection: {
+          isActive: bundlesSectionActive,
+          title: bundlesSectionTitle.trim() || 'باقات وعروض التوفير',
+          subtitle: bundlesSectionSubtitle.trim() || 'وفّر أكتر مع باقات متكاملة مجهزة خصيصاً لمساعدتك في تحقيق هدفك بأعلى كفاءة وأفضل سعر.',
+        },
+        featuredProducts: {
+          isActive: true,
+          productIds: featuredProductIds.slice(0, 10)
         },
         authenticityCheck: {
           isActive: authenticityCheckActive
@@ -1190,6 +1244,334 @@ export default function AdminSettingsPage() {
               label="تفعيل قسم الأكثر مبيعاً (يتم حساب المنتجات آلياً)"
             />
           </div>
+        </div>
+
+        {/* Section: Bundles & Stacks (باقات وعروض التوفير) */}
+        <div id="bundles-section" className={sectionClass}>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-4">
+            <h2 className={headerClass}>
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent-red/20 to-transparent flex items-center justify-center border border-accent-red/30 text-accent-red">
+                <span className="material-symbols-outlined">local_fire_department</span>
+              </div>
+              <span>سكشن باقات وعروض التوفير (الصفحة الرئيسية)</span>
+            </h2>
+
+            <div className="flex items-center gap-2">
+              <span className="px-3 py-1 rounded-xl text-xs font-mono font-bold bg-white/5 text-accent-red border border-accent-red/20">
+                {products.filter(p => p.isBundle || p.category === 'bundles').length} باقات متوفرة
+              </span>
+              <Link
+                href="/sec-89412/products/new"
+                className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-white text-xs font-bold inline-flex items-center gap-1 border border-white/10 transition-all cursor-pointer active:scale-95"
+              >
+                <span className="material-symbols-outlined text-sm">add</span>
+                <span>إنشاء باقة جديدة</span>
+              </Link>
+            </div>
+          </div>
+
+          <p className="text-xs text-text-muted font-body leading-relaxed">
+            يعرض هذا السكشن تلقائياً جميع المنتجات المُعلّمة كـ <strong>باقة توفير (Bundle)</strong> في سلايدر رياضي فخم بالصفحة الرئيسية. يتم إخفاء السكشن تلقائياً إذا لم تكن هناك أي باقات نشطة.
+          </p>
+
+          <div className="space-y-4">
+            <div className="bg-bg-primary/30 p-4 rounded-xl border border-white/5">
+              <ToggleSwitch
+                id="bundlesSectionActive"
+                checked={bundlesSectionActive}
+                onChange={setBundlesSectionActive}
+                label="تفعيل سكشن باقات وعروض التوفير في الصفحة الرئيسية"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className={labelClass}>عنوان السكشن الرئيسي</label>
+                <input
+                  type="text"
+                  value={bundlesSectionTitle}
+                  onChange={(e) => setBundlesSectionTitle(e.target.value)}
+                  placeholder="باقات وعروض التوفير"
+                  className={inputClass}
+                />
+              </div>
+
+              <div>
+                <label className={labelClass}>الوصف الفرعي للسكشن</label>
+                <input
+                  type="text"
+                  value={bundlesSectionSubtitle}
+                  onChange={(e) => setBundlesSectionSubtitle(e.target.value)}
+                  placeholder="وفّر أكتر مع باقات متكاملة مجهزة خصيصاً لمساعدتك..."
+                  className={inputClass}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Section: Featured Products (Max 10) */}
+        <div id="featured-products" className={sectionClass}>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/5 pb-4">
+            <h2 className={headerClass}>
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/20 to-transparent flex items-center justify-center border border-amber-500/30 text-amber-400">
+                <span className="material-symbols-outlined">workspace_premium</span>
+              </div>
+              <span>سكشن أفضل المنتجات (الصفحة الرئيسية)</span>
+            </h2>
+
+            <div className="flex items-center gap-2">
+              <span className={`px-3 py-1 rounded-xl text-xs font-mono font-bold border ${
+                featuredProductIds.length === 10
+                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                  : 'bg-white/5 text-text-muted border-white/10'
+              }`}>
+                {featuredProductIds.length} من 10 منتجات
+              </span>
+
+              {featuredProductIds.length < 10 && (
+                <button
+                  type="button"
+                  onClick={() => setIsAddingFeatured(true)}
+                  className="px-3.5 py-1.5 rounded-xl bg-accent-red hover:bg-accent-red-hover text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-md shadow-accent-red/20"
+                >
+                  <span className="material-symbols-outlined text-sm">add</span>
+                  <span>إضافة منتج +</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          <p className="text-xs text-text-muted font-body leading-relaxed">
+            حدد واضبط ترتيب الـ 10 منتجات التي تظهر في سلايدر <strong>أفضل المنتجات</strong> بالصفحة الرئيسية. يمكنك إعادة ترتيب أولوية ظهور كل منتج باستخدام الأسهم (مين يظهر الأول، التاني، إلخ).
+          </p>
+
+          {/* Selected Products List */}
+          {featuredProductIds.length === 0 ? (
+            <div className="bg-bg-primary/30 p-8 rounded-2xl border border-white/5 text-center space-y-3">
+              <div className="w-12 h-12 rounded-2xl bg-white/5 text-text-muted flex items-center justify-center mx-auto">
+                <span className="material-symbols-outlined text-2xl">star_outline</span>
+              </div>
+              <h4 className="text-white text-sm font-bold">لم يتم تخصيص منتجات يدوياً بعد</h4>
+              <p className="text-xs text-text-muted max-w-md mx-auto">
+                يتم حالياً عرض أول 10 منتجات تلقائياً في الصفحة الرئيسية. اضغط على زر <strong>إضافة منتج +</strong> لاختيار منتجاتك المفضلة والتحكم في ترتيبها.
+              </p>
+              <button
+                type="button"
+                onClick={() => setIsAddingFeatured(true)}
+                className="px-4 py-2 rounded-xl bg-accent-red hover:bg-accent-red-hover text-white text-xs font-bold inline-flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+              >
+                <span className="material-symbols-outlined text-base">add</span>
+                <span>اختر أول منتج الآن</span>
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {featuredProductIds.map((pId, index) => {
+                const prod = products.find(p => p.id === pId);
+                if (!prod) return null;
+
+                const imgUrl = prod.images?.[0] || '';
+
+                return (
+                  <div
+                    key={pId}
+                    className="p-3.5 rounded-2xl bg-bg-primary/50 hover:bg-bg-primary/80 border border-white/5 hover:border-white/10 flex items-center justify-between gap-3 transition-all"
+                  >
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      {/* Rank Index Badge */}
+                      <span className="w-7 h-7 rounded-xl bg-white/5 border border-white/10 text-white font-mono font-bold text-xs flex items-center justify-center shrink-0">
+                        #{index + 1}
+                      </span>
+
+                      {/* Product Thumbnail */}
+                      <div className="w-12 h-12 rounded-xl bg-black border border-white/10 overflow-hidden shrink-0 flex items-center justify-center">
+                        {imgUrl ? (
+                          <img
+                            src={imgUrl}
+                            alt={prod.name}
+                            className="w-full h-full object-contain p-1"
+                          />
+                        ) : (
+                          <span className="material-symbols-outlined text-white/30 text-lg">image</span>
+                        )}
+                      </div>
+
+                      {/* Product Info */}
+                      <div className="min-w-0">
+                        <h4 className="text-xs font-bold text-white truncate max-w-xs md:max-w-md">
+                          {prod.name}
+                        </h4>
+                        <div className="flex items-center gap-2 mt-0.5 text-[11px] text-text-muted">
+                          <span className="text-accent-red font-mono font-bold">
+                            {prod.price} ج.م
+                          </span>
+                          {prod.category && (
+                            <>
+                              <span>•</span>
+                              <span className="truncate">{prod.category}</span>
+                            </>
+                          )}
+                          {prod.stock !== undefined && prod.stock <= 0 && (
+                            <span className="text-[9px] bg-red-500/20 text-red-300 px-1.5 py-0.2 rounded font-bold">
+                              نفد المخزون
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Actions: Reorder & Remove */}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => moveFeaturedProduct(index, 'up')}
+                        disabled={index === 0}
+                        className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 text-text-muted hover:text-white disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center transition-colors cursor-pointer"
+                        title="تحريك لأعلى (تقديم الترتيب)"
+                      >
+                        <span className="material-symbols-outlined text-base">arrow_upward</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => moveFeaturedProduct(index, 'down')}
+                        disabled={index === featuredProductIds.length - 1}
+                        className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 text-text-muted hover:text-white disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center transition-colors cursor-pointer"
+                        title="تحريك لأسفل (تأخير الترتيب)"
+                      >
+                        <span className="material-symbols-outlined text-base">arrow_downward</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => removeFeaturedProduct(pId)}
+                        className="w-8 h-8 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 flex items-center justify-center transition-colors cursor-pointer ml-1"
+                        title="إزالة من أفضل المنتجات"
+                      >
+                        <span className="material-symbols-outlined text-base">delete</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Quick Add Modal / Drawer */}
+          {isAddingFeatured && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200" dir="rtl">
+              <div className="relative w-full max-w-2xl bg-[#0d0d0d] border border-white/15 rounded-3xl p-6 shadow-2xl space-y-4 max-h-[85vh] flex flex-col">
+                <div className="flex items-center justify-between border-b border-white/10 pb-3 shrink-0">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-accent-red/20 text-accent-red flex items-center justify-center">
+                      <span className="material-symbols-outlined text-lg">add_shopping_cart</span>
+                    </div>
+                    <div>
+                      <h3 className="font-product-title font-bold text-white text-base">
+                        اختر منتج لإضافته إلى أفضل المنتجات
+                      </h3>
+                      <span className="text-[11px] text-text-muted">
+                        المتبقي: {10 - featuredProductIds.length} من 10 منتجات
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAddingFeatured(false);
+                      setFeaturedSearchQuery('');
+                    }}
+                    className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 text-text-muted hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Search Bar */}
+                <div className="relative shrink-0">
+                  <span className="material-symbols-outlined absolute right-3.5 top-1/2 -translate-y-1/2 text-text-muted text-lg pointer-events-none">
+                    search
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="ابحث بالاسم أو القسم (مثال: واي بروتين، كرياتين...)"
+                    value={featuredSearchQuery}
+                    onChange={(e) => setFeaturedSearchQuery(e.target.value)}
+                    className="w-full pr-10 pl-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs placeholder:text-text-muted/60 focus:outline-none focus:border-accent-red"
+                    autoFocus
+                  />
+                </div>
+
+                {/* Products Available to Add */}
+                <div className="overflow-y-auto custom-scrollbar flex-1 space-y-2 -mx-1 px-1">
+                  {products
+                    .filter((p): p is Product & { id: string } => Boolean(p.id) && !featuredProductIds.includes(p.id!))
+                    .filter(p => {
+                      if (!featuredSearchQuery.trim()) return true;
+                      const q = featuredSearchQuery.toLowerCase();
+                      return p.name.toLowerCase().includes(q) || (p.category && p.category.toLowerCase().includes(q));
+                    })
+                    .map((p) => {
+                      const img = p.images?.[0];
+                      return (
+                        <div
+                          key={p.id}
+                          onClick={() => {
+                            addFeaturedProduct(p.id);
+                            if (featuredProductIds.length + 1 >= 10) {
+                              setIsAddingFeatured(false);
+                              setFeaturedSearchQuery('');
+                            }
+                          }}
+                          className="p-3 rounded-2xl bg-white/[0.02] hover:bg-white/[0.06] border border-white/5 hover:border-accent-red/40 flex items-center justify-between gap-3 cursor-pointer transition-all active:scale-[0.99] group"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-10 h-10 rounded-xl bg-black border border-white/10 overflow-hidden shrink-0 flex items-center justify-center">
+                              {img ? (
+                                <img src={img} alt={p.name} className="w-full h-full object-contain p-1" />
+                              ) : (
+                                <span className="material-symbols-outlined text-white/30 text-sm">image</span>
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <h5 className="text-xs font-bold text-white group-hover:text-accent-red transition-colors truncate">
+                                {p.name}
+                              </h5>
+                              <div className="flex items-center gap-2 text-[10px] text-text-muted mt-0.5">
+                                <span className="text-accent-red font-mono font-bold">{p.price} ج.م</span>
+                                {p.category && <span>• {p.category}</span>}
+                              </div>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            className="px-3 py-1.5 rounded-xl bg-accent-red/20 group-hover:bg-accent-red text-accent-red group-hover:text-white text-xs font-bold transition-all shrink-0 flex items-center gap-1"
+                          >
+                            <span className="material-symbols-outlined text-sm">add</span>
+                            <span>إضافة</span>
+                          </button>
+                        </div>
+                      );
+                    })}
+                </div>
+
+                <div className="border-t border-white/10 pt-3 flex justify-end shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAddingFeatured(false);
+                      setFeaturedSearchQuery('');
+                    }}
+                    className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    تم
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Section 7: Authenticity Check */}
