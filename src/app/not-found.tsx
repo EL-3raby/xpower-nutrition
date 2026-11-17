@@ -46,6 +46,10 @@ export default function NotFound() {
     const lowerPath = (path || '').toLowerCase();
     const isProbe = HONEYPOT_PROBE_PATTERNS.some((pattern) => lowerPath.includes(pattern));
     if (isProbe) {
+      try {
+        localStorage.setItem('xpower_is_bot', '1');
+        sessionStorage.setItem('xpower_is_bot', '1');
+      } catch {}
       logSecurityThreat({
         type: 'honeypot',
         severity: 'high',

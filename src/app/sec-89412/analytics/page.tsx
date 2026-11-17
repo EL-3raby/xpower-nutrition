@@ -6,7 +6,12 @@ import { getOrders } from '@/lib/firebase/orders';
 import { getProducts } from '@/lib/firebase/products';
 import { Order, Product, DailyStats } from '@/lib/types';
 import { getSiteConfig, updateSiteConfig } from '@/lib/firebase/admin-actions';
-import { getDailyStatsRange, subscribeToTodayStats, getCairoDateString } from '@/lib/firebase/analytics-stats';
+import { 
+  getDailyStatsRange, 
+  subscribeToTodayStats, 
+  getCairoDateString,
+  resetTodayStats 
+} from '@/lib/firebase/analytics-stats';
 import { getStartOfDayEgypt, getStartOfDaysAgoEgypt } from '@/lib/date-utils';
 import { aggregateOrdersFinancials } from '@/lib/utils/order-calculations';
 import SalesChart from '@/components/admin/SalesChart';
@@ -43,8 +48,22 @@ function AdminAnalyticsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const currentTab = searchParams.get('tab') || 'sales';
-  const currentRange = (searchParams.get('range') as DateRange) || '30d';
+  // Instant reactive state for tabs & ranges, preventing any static export router navigation freezes
+  const [currentTab, setCurrentTab] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search);
+      return p.get('tab') || 'sales';
+    }
+    return searchParams.get('tab') || 'sales';
+  });
+
+  const [currentRange, setCurrentRange] = useState<DateRange>(() => {
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search);
+      return (p.get('range') as DateRange) || '30d';
+    }
+    return (searchParams.get('range') as DateRange) || '30d';
+  });
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -52,6 +71,7 @@ function AdminAnalyticsContent() {
   const [todayLiveStats, setTodayLiveStats] = useState<DailyStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [savingBestSellers, setSavingBestSellers] = useState(false);
+  const [resettingStats, setResettingStats] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
 
   // Initial Data Fetch
@@ -85,12 +105,74 @@ function AdminAnalyticsContent() {
     return () => unsubscribe();
   }, []);
 
+  // Sync state if searchParams change externally or via browser back/forward buttons
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    const rangeParam = searchParams.get('range') as DateRange | null;
+    if (tabParam && tabParam !== currentTab) setCurrentTab(tabParam);
+    if (rangeParam && rangeParam !== currentRange) setCurrentRange(rangeParam);
+  }, [searchParams]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const p = new URLSearchParams(window.location.search);
+      const tab = p.get('tab');
+      const range = p.get('range') as DateRange | null;
+      if (tab) setCurrentTab(tab);
+      if (range) setCurrentRange(range);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   const handleTabChange = (tab: string) => {
-    router.push(`/sec-89412/analytics?tab=${tab}&range=${currentRange}`);
+    setCurrentTab(tab);
+    if (typeof window !== 'undefined') {
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set('tab', tab);
+        url.searchParams.set('range', currentRange);
+        window.history.replaceState(null, '', url.pathname + url.search);
+      } catch {}
+    }
   };
 
   const handleRangeChange = (range: DateRange) => {
-    router.push(`/sec-89412/analytics?tab=${currentTab}&range=${range}`);
+    setCurrentRange(range);
+    if (typeof window !== 'undefined') {
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set('tab', currentTab);
+        url.searchParams.set('range', range);
+        window.history.replaceState(null, '', url.pathname + url.search);
+      } catch {}
+    }
+  };
+
+  const handleResetTodayStats = async () => {
+    if (!window.confirm('هل تريد تصفير عداد زوار ومشاهدات اليوم لإزالة الأرقام الناتجة عن البوتات والبدء من الصفر مع نظام الحماية الجديد؟')) {
+      return;
+    }
+    setResettingStats(true);
+    try {
+      await resetTodayStats();
+      setTodayLiveStats((prev) => prev ? {
+        ...prev,
+        visitors: 0,
+        pageViews: 0,
+        mobileCount: 0,
+        desktopCount: 0,
+        sources: {},
+        topPages: {}
+      } : null);
+      setSaveMsg('تم تصفير زيارات اليوم بنجاح وإزالة أثر البوتات!');
+    } catch (err) {
+      console.error(err);
+      setSaveMsg('حدث خطأ أثناء تصفير الإحصائيات.');
+    } finally {
+      setResettingStats(false);
+      setTimeout(() => setSaveMsg(''), 4000);
+    }
   };
 
   // Merge historical stats with live today's stats
@@ -688,6 +770,44 @@ function AdminAnalyticsContent() {
 
         {currentTab === 'visitors' && (
           <div className="space-y-8">
+            {/* Visitors Header with Anti-Bot Status & Reset Action */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-white/10 pb-4 gap-3">
+              <div>
+                <h2 className="font-product-title text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+                  <span className="material-symbols-outlined text-cyan-400">query_stats</span>
+                  حركة الزوار وتصفح المتجر
+                </h2>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-product-title font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    نظام حجب البوتات وحصر الزوار البشريين: مفعّل تلقائياً
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5">
+                {saveMsg && (
+                  <span className="text-xs text-emerald-400 font-body font-bold animate-fade-in">
+                    {saveMsg}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={handleResetTodayStats}
+                  disabled={resettingStats}
+                  title="تصفير أرقام زيارات اليوم لحذف أي أرقام مسجلة من البوتات والبدء من الصفر مع نظام الحماية الجديد"
+                  className="flex items-center gap-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 px-3.5 py-2 rounded-xl text-xs font-product-title font-bold transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                >
+                  {resettingStats ? (
+                    <Spinner className="inline-block animate-spin w-3.5 h-3.5" />
+                  ) : (
+                    <span className="material-symbols-outlined text-[16px]">delete_sweep</span>
+                  )}
+                  <span>تصفير زيارات اليوم (إزالة أثر البوتات)</span>
+                </button>
+              </div>
+            </div>
+
             {/* Additional Quick Stats Row */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Monthly Visitors */}

@@ -178,6 +178,16 @@ export function isAutomatedTraffic(): boolean {
   if (typeof window === 'undefined') return true;
 
   try {
+    // 0. Check if visitor was already identified as a bot in storage
+    try {
+      if (
+        localStorage.getItem('xpower_is_bot') === '1' ||
+        sessionStorage.getItem('xpower_is_bot') === '1'
+      ) {
+        return true;
+      }
+    } catch {}
+
     const nav = window.navigator as any;
     if (!nav) return false;
 
@@ -186,7 +196,7 @@ export function isAutomatedTraffic(): boolean {
       return true;
     }
 
-    // 2. Headless browser environment flags
+    // 2. Headless browser environment flags & missing browser features
     const win = window as any;
     if (
       win.document?.documentElement?.getAttribute('webdriver') ||
@@ -194,17 +204,27 @@ export function isAutomatedTraffic(): boolean {
       win._phantom ||
       win.__nightmare ||
       win.callPhantom ||
-      win.__webdriver_script_function
+      win.__webdriver_script_function ||
+      win._Selenium_IDE_Recorder
     ) {
       return true;
     }
 
-    // 3. User-Agent heuristics (standard bots, web crawlers, search engines, audit tools)
+    // 3. Screen or Language anomalies (bots typically have 0x0 or no language array)
+    if (
+      (win.screen && (win.screen.width === 0 || win.screen.height === 0)) ||
+      (!nav.languages || nav.languages.length === 0)
+    ) {
+      return true;
+    }
+
+    // 4. User-Agent heuristics (standard bots, web crawlers, search engines, audit tools, probes)
     const ua = (nav.userAgent || '').toLowerCase();
     const botPatterns = [
       'bot',
       'crawler',
       'spider',
+      'crawling',
       'headless',
       'lighthouse',
       'screaming frog',
@@ -222,10 +242,34 @@ export function isAutomatedTraffic(): boolean {
       'petalbot',
       'curl',
       'wget',
-      'python-requests',
+      'python',
       'node-fetch',
       'axios',
-      'go-http-client'
+      'go-http',
+      'postman',
+      'preview',
+      'uptimerobot',
+      'pingdom',
+      'feedfetcher',
+      'scanner',
+      'probe',
+      'censys',
+      'shodan',
+      'nessus',
+      'nmap',
+      'sqlmap',
+      'nikto',
+      'masscan',
+      'zgrab',
+      'wappalyzer',
+      'builtwith',
+      'phantomjs',
+      'selenium',
+      'puppeteer',
+      'playwright',
+      'slurp',
+      'mediapartners',
+      'adsbot'
     ];
 
     if (botPatterns.some((pattern) => ua.includes(pattern))) {
@@ -236,6 +280,30 @@ export function isAutomatedTraffic(): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * Resets today's visitor and pageview stats to clean out bot inflation.
+ * Can be called by the admin from the dashboard.
+ */
+export async function resetTodayStats(): Promise<void> {
+  if (isDummyFirebase) return;
+  const todayStr = getCairoDateString();
+  const docRef = doc(db, 'dailyStats', todayStr);
+  await setDoc(
+    docRef,
+    {
+      date: todayStr,
+      visitors: 0,
+      pageViews: 0,
+      mobileCount: 0,
+      desktopCount: 0,
+      sources: {},
+      topPages: {},
+      updatedAt: serverTimestamp()
+    },
+    { merge: true }
+  );
 }
 
 /**
