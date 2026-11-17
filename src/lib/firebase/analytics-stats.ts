@@ -1,4 +1,4 @@
-import { db, isDummyFirebase } from './client';
+import { db, auth, isDummyFirebase } from './client';
 import {
   doc,
   setDoc,
@@ -172,13 +172,35 @@ function extractTopPages(data: Record<string, any>): Record<string, number> {
 
 /**
  * Detects whether the current client is an automated bot, headless browser,
- * crawler, or synthetic monitor, to prevent skewing analytics data.
+ * crawler, synthetic monitor, developer environment, or admin session,
+ * to prevent skewing analytics data.
  */
 export function isAutomatedTraffic(): boolean {
   if (typeof window === 'undefined') return true;
 
   try {
-    // 0. Check if visitor was already identified as a bot in storage
+    // 0. Exclude Localhost & Dev / Staging environments from recording
+    const host = window.location.hostname;
+    if (
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host.endsWith('.local')
+    ) {
+      return true;
+    }
+
+    // 1. Exclude Authenticated Admins from visitor stats
+    try {
+      if (
+        localStorage.getItem('xpower_is_admin') === '1' ||
+        sessionStorage.getItem('xpower_is_admin') === '1' ||
+        auth.currentUser !== null
+      ) {
+        return true;
+      }
+    } catch {}
+
+    // 2. Check if visitor was already identified as a bot in storage
     try {
       if (
         localStorage.getItem('xpower_is_bot') === '1' ||
@@ -191,12 +213,12 @@ export function isAutomatedTraffic(): boolean {
     const nav = window.navigator as any;
     if (!nav) return false;
 
-    // 1. W3C WebDriver flag (Headless Chrome, Puppeteer, Selenium, Playwright, Lighthouse)
+    // 3. W3C WebDriver flag (Headless Chrome, Puppeteer, Selenium, Playwright, Lighthouse)
     if (nav.webdriver === true) {
       return true;
     }
 
-    // 2. Headless browser environment flags & missing browser features
+    // 4. Headless browser environment flags & automation object hooks
     const win = window as any;
     if (
       win.document?.documentElement?.getAttribute('webdriver') ||
@@ -205,20 +227,27 @@ export function isAutomatedTraffic(): boolean {
       win.__nightmare ||
       win.callPhantom ||
       win.__webdriver_script_function ||
-      win._Selenium_IDE_Recorder
+      win._Selenium_IDE_Recorder ||
+      win.__driver_evaluate ||
+      win.__webdriver_evaluate ||
+      win.__selenium_unwrapped ||
+      win.__fxdriver_unwrapped ||
+      win.__webdriver_unwrapped ||
+      win.__lastWatirAlert ||
+      win._WEBDRIVER_ELEM_CACHE
     ) {
       return true;
     }
 
-    // 3. Screen or Language anomalies (bots typically have 0x0 or no language array)
+    // 5. Screen, Viewport or Language anomalies (bots typically have 0x0 or no languages)
     if (
-      (win.screen && (win.screen.width === 0 || win.screen.height === 0)) ||
+      (win.screen && (win.screen.width === 0 || win.screen.height === 0 || win.screen.availWidth === 0)) ||
       (!nav.languages || nav.languages.length === 0)
     ) {
       return true;
     }
 
-    // 4. User-Agent heuristics (standard bots, web crawlers, search engines, audit tools, probes)
+    // 6. User-Agent heuristics (standard bots, web crawlers, search engines, audit tools, probes)
     const ua = (nav.userAgent || '').toLowerCase();
     const botPatterns = [
       'bot',
@@ -226,12 +255,16 @@ export function isAutomatedTraffic(): boolean {
       'spider',
       'crawling',
       'headless',
+      'headlesschrome',
       'lighthouse',
       'screaming frog',
       'semrush',
       'ahrefs',
       'bingbot',
       'googlebot',
+      'google-inspectiontool',
+      'google-read-aloud',
+      'mediapartners-google',
       'yandex',
       'duckduckbot',
       'baiduspider',
@@ -243,11 +276,14 @@ export function isAutomatedTraffic(): boolean {
       'curl',
       'wget',
       'python',
+      'urllib',
       'node-fetch',
       'axios',
       'go-http',
       'postman',
+      'insomnia',
       'preview',
+      'bingpreview',
       'uptimerobot',
       'pingdom',
       'feedfetcher',
@@ -255,6 +291,10 @@ export function isAutomatedTraffic(): boolean {
       'probe',
       'censys',
       'shodan',
+      'zoomeye',
+      'binaryedge',
+      'netcraft',
+      'virustotal',
       'nessus',
       'nmap',
       'sqlmap',
@@ -267,12 +307,27 @@ export function isAutomatedTraffic(): boolean {
       'selenium',
       'puppeteer',
       'playwright',
+      'cypress',
       'slurp',
       'mediapartners',
-      'adsbot'
+      'adsbot',
+      'archive.org_bot',
+      'ia_archiver',
+      'siteaudit',
+      'dotbot',
+      'hubspot',
+      'datadog',
+      'newrelic',
+      'sentry'
     ];
 
     if (botPatterns.some((pattern) => ua.includes(pattern))) {
+      return true;
+    }
+
+    // 7. Headless Chrome fingerprinting: On desktop, headless Chrome has 0 plugins
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+    if (!isMobile && nav.plugins && nav.plugins.length === 0) {
       return true;
     }
 
@@ -314,15 +369,24 @@ export async function resetTodayStats(): Promise<void> {
 export async function recordVisit(pathname: string): Promise<void> {
   if (typeof window === 'undefined' || isDummyFirebase) return;
 
-  // 1. Exclude bots, admin routes & authenticated admin visits
+  // 1. Exclude bots, admin routes, authenticated admin visits & dev environments
   if (
     isAutomatedTraffic() ||
     pathname.startsWith('/sec-89412') ||
-    pathname.startsWith('/api') ||
-    localStorage.getItem('xpower_is_admin') === '1'
+    pathname.startsWith('/api')
   ) {
     return;
   }
+
+  try {
+    if (
+      localStorage.getItem('xpower_is_admin') === '1' ||
+      sessionStorage.getItem('xpower_is_admin') === '1' ||
+      auth.currentUser !== null
+    ) {
+      return;
+    }
+  } catch {}
 
   try {
     const todayStr = getCairoDateString();

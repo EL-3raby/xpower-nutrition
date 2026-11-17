@@ -150,7 +150,7 @@ function AdminAnalyticsContent() {
   };
 
   const handleResetTodayStats = async () => {
-    if (!window.confirm('هل تريد تصفير عداد زوار ومشاهدات اليوم لإزالة الأرقام الناتجة عن البوتات والبدء من الصفر مع نظام الحماية الجديد؟')) {
+    if (!window.confirm('هل تريد تصفير عداد زيارات اليوم فقط؟ (ملاحظة: هذا التصفير يخص اليوم الحالي فقط ولا يمس إحصائيات الأيام السابقة أو الشهر).')) {
       return;
     }
     setResettingStats(true);
@@ -222,6 +222,36 @@ function AdminAnalyticsContent() {
       .filter((s) => s.date.startsWith(currentMonthPrefix))
       .reduce((sum, s) => sum + (s.visitors || 0), 0);
   }, [mergedDailyStats, currentMonthPrefix]);
+
+  // Range-aware Visitors and PageViews for KPI Cards (dynamically reflects Today / 7d / 30d / all)
+  const { rangeVisitors, rangePageViews, isRangeToday, rangeAvgPagesPerVisitor } = useMemo(() => {
+    let filtered = [...mergedDailyStats];
+    const isToday = currentRange === 'today';
+
+    if (isToday) {
+      filtered = filtered.filter((s) => s.date === todayStr);
+    } else if (currentRange === '7d') {
+      filtered = filtered.slice(-7);
+    } else if (currentRange === '30d') {
+      filtered = filtered.slice(-30);
+    }
+
+    const visitors = isToday
+      ? todayVisitors
+      : filtered.reduce((sum, s) => sum + (Number(s.visitors) || 0), 0);
+    const pageViews = isToday
+      ? todayPageViews
+      : filtered.reduce((sum, s) => sum + (Number(s.pageViews) || 0), 0);
+
+    const avgPages = visitors > 0 ? (pageViews / visitors).toFixed(1) : '0';
+
+    return {
+      rangeVisitors: visitors,
+      rangePageViews: pageViews,
+      isRangeToday: isToday,
+      rangeAvgPagesPerVisitor: avgPages,
+    };
+  }, [mergedDailyStats, currentRange, todayStr, todayVisitors, todayPageViews]);
 
   // Active Orders & Revenue by current range
   const { activeOrders, totalSalesCount, totalRevenue, netProductsRevenue, shippingRevenue } = useMemo(() => {
@@ -685,19 +715,31 @@ function AdminAnalyticsContent() {
           </div>
         </div>
 
-        {/* Card 3: Today's Visitors + Growth vs Yesterday */}
+        {/* Card 3: Visitors (Current Range aware) */}
         <div className="relative bg-[#0a0a0a] border border-white/10 rounded-2xl p-5 flex flex-col justify-between h-36 hover:border-cyan-500/30 transition-all shadow-xl group overflow-hidden">
           <div className="absolute -left-6 -top-6 w-20 h-20 bg-cyan-500/10 rounded-full blur-2xl group-hover:bg-cyan-500/20 transition-colors pointer-events-none"></div>
           <div className="flex justify-between items-start relative z-10">
             <div className="flex flex-col">
               <div className="flex items-center gap-1.5">
-                <span className="font-body text-xs text-text-muted font-bold">زوار اليوم (الفريدين)</span>
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                  لحظي
+                <span className="font-body text-xs text-text-muted font-bold">
+                  {isRangeToday
+                    ? 'زوار اليوم (الفريدين)'
+                    : currentRange === '7d'
+                    ? 'الزوار الفريدين (7 أيام)'
+                    : currentRange === '30d'
+                    ? 'الزوار الفريدين (30 يوم)'
+                    : 'إجمالي الزوار (الكل)'}
                 </span>
+                {isRangeToday && (
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                    لحظي
+                  </span>
+                )}
               </div>
               <span className="text-[10px] text-text-muted/60 mt-0.5">
-                أمس: {yesterdayVisitors.toLocaleString()} زائر
+                {isRangeToday
+                  ? `أمس: ${yesterdayVisitors.toLocaleString()} زائر`
+                  : `الفترة المحددة (${currentRange === '7d' ? '7 أيام' : currentRange === '30d' ? '30 يوم' : 'الكل'})`}
               </span>
             </div>
             <div className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center group-hover:border-cyan-500/40 group-hover:bg-cyan-500/10 transition-all">
@@ -706,10 +748,10 @@ function AdminAnalyticsContent() {
           </div>
           <div className="relative z-10 mt-auto flex items-baseline justify-between">
             <div className="font-mono text-2xl sm:text-3xl font-black text-cyan-400 flex items-baseline gap-1.5">
-              {todayVisitors.toLocaleString()}{' '}
+              {rangeVisitors.toLocaleString()}{' '}
               <span className="text-xs font-body text-text-muted font-bold">زائر</span>
             </div>
-            {yesterdayVisitors > 0 && (
+            {isRangeToday && yesterdayVisitors > 0 && (
               <div
                 className={`flex items-center gap-0.5 text-xs font-mono font-bold px-2 py-0.5 rounded-lg ${
                   visitorsGrowth >= 0
@@ -726,14 +768,22 @@ function AdminAnalyticsContent() {
           </div>
         </div>
 
-        {/* Card 4: Today's Pageviews */}
+        {/* Card 4: Pageviews (Current Range aware) */}
         <div className="relative bg-[#0a0a0a] border border-white/10 rounded-2xl p-5 flex flex-col justify-between h-36 hover:border-amber-500/30 transition-all shadow-xl group overflow-hidden">
           <div className="absolute -left-6 -top-6 w-20 h-20 bg-amber-500/10 rounded-full blur-2xl group-hover:bg-amber-500/20 transition-colors pointer-events-none"></div>
           <div className="flex justify-between items-start relative z-10">
             <div className="flex flex-col">
-              <span className="font-body text-xs text-text-muted font-bold">مشاهدات الصفحات اليوم</span>
+              <span className="font-body text-xs text-text-muted font-bold">
+                {isRangeToday
+                  ? 'مشاهدات الصفحات اليوم'
+                  : currentRange === '7d'
+                  ? 'مشاهدات الصفحات (7 أيام)'
+                  : currentRange === '30d'
+                  ? 'مشاهدات الصفحات (30 يوم)'
+                  : 'إجمالي مشاهدات الصفحات'}
+              </span>
               <span className="text-[10px] text-text-muted/60 mt-0.5">
-                معدل {todayVisitors > 0 ? (todayPageViews / todayVisitors).toFixed(1) : 0} صفحة/زائر
+                معدل {rangeAvgPagesPerVisitor} صفحة/زائر
               </span>
             </div>
             <div className="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center group-hover:border-amber-500/40 group-hover:bg-amber-500/10 transition-all">
@@ -742,7 +792,7 @@ function AdminAnalyticsContent() {
           </div>
           <div className="relative z-10 mt-auto">
             <div className="font-mono text-2xl sm:text-3xl font-black text-amber-400 flex items-baseline gap-1.5">
-              {todayPageViews.toLocaleString()}{' '}
+              {rangePageViews.toLocaleString()}{' '}
               <span className="text-xs font-body text-text-muted font-bold">مشاهدة</span>
             </div>
           </div>
