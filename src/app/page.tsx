@@ -97,12 +97,25 @@ export default async function HomePage() {
     if (settings.bestSellers.productIds && settings.bestSellers.productIds.length > 0) {
       bestSellers = settings.bestSellers.productIds
         .map((id) => products.find((p) => p.id === id))
-        .filter((p): p is Product => Boolean(p));
+        .filter((p): p is Product => Boolean(p && p.isActive !== false));
     } else {
-      bestSellers = [...products]
-        .filter((p) => p.salesCount && p.salesCount > 0)
-        .sort((a, b) => (b.salesCount || 0) - (a.salesCount || 0))
-        .slice(0, 10);
+      const withSales = products
+        .filter((p) => p.isActive !== false && p.salesCount && p.salesCount > 0)
+        .sort((a, b) => (b.salesCount || 0) - (a.salesCount || 0));
+
+      if (withSales.length >= 3) {
+        bestSellers = withSales.slice(0, 10);
+      } else {
+        bestSellers = [...products]
+          .filter((p) => p.isActive !== false)
+          .sort((a, b) => {
+            const orderA = typeof a.order === 'number' && !isNaN(a.order) ? a.order : 999999;
+            const orderB = typeof b.order === 'number' && !isNaN(b.order) ? b.order : 999999;
+            if (orderA !== orderB) return orderA - orderB;
+            return (b.salesCount || 0) - (a.salesCount || 0);
+          })
+          .slice(0, 10);
+      }
     }
   }
 

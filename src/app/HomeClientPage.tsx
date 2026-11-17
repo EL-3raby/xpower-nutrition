@@ -235,6 +235,38 @@ function getBundleProducts(prods: Product[], cfg?: SiteConfig): Product[] {
     });
 }
 
+function getBestSellers(prods: Product[], cfg?: SiteConfig): Product[] {
+  if (!cfg?.bestSellers?.isActive) return [];
+
+  if (cfg.bestSellers.productIds && cfg.bestSellers.productIds.length > 0) {
+    const map = new Map<string, Product>();
+    prods.forEach((p) => { if (p.id) map.set(p.id, p); });
+    const selected = cfg.bestSellers.productIds
+      .map((id) => map.get(id))
+      .filter((p): p is Product => Boolean(p && p.isActive !== false));
+    if (selected.length > 0) return selected;
+  }
+
+  const withSales = prods
+    .filter((p) => p.isActive !== false && p.salesCount && p.salesCount > 0)
+    .sort((a, b) => (b.salesCount || 0) - (a.salesCount || 0));
+
+  if (withSales.length >= 3) {
+    return withSales.slice(0, 10);
+  }
+
+  // Fallback: If not enough products have sales recorded yet, use top active products
+  return [...prods]
+    .filter((p) => p.isActive !== false)
+    .sort((a, b) => {
+      const orderA = typeof a.order === 'number' && !isNaN(a.order) ? a.order : 999999;
+      const orderB = typeof b.order === 'number' && !isNaN(b.order) ? b.order : 999999;
+      if (orderA !== orderB) return orderA - orderB;
+      return (b.salesCount || 0) - (a.salesCount || 0);
+    })
+    .slice(0, 10);
+}
+
 interface HomeClientPageProps {
   initialSettings: SiteConfig;
   initialCategories: Category[];
@@ -278,7 +310,11 @@ export default function HomeClientPage({
     return [];
   });
   const [flashSaleProduct, setFlashSaleProduct] = useState<Product | null>(initialFlashSaleProduct || null);
-  const [bestSellers, setBestSellers] = useState<Product[]>(initialBestSellers || []);
+  const [bestSellers, setBestSellers] = useState<Product[]>(() =>
+    initialBestSellers && initialBestSellers.length > 0
+      ? initialBestSellers
+      : getBestSellers(initialProducts || [], initialSettings)
+  );
   const [hasMounted, setHasMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(!initialProducts || initialProducts.length === 0);
 
@@ -311,12 +347,14 @@ export default function HomeClientPage({
 
         const featured = getFeaturedProducts(prods, cfg);
         const bundles = getBundleProducts(prods, cfg);
+        const bSellers = getBestSellers(prods, cfg);
 
         setSettings(cfg);
         setActiveCategories(sortedCategories);
         setAllProducts(prods);
         setDisplayProducts(featured);
         setBundleProducts(bundles);
+        setBestSellers(bSellers);
 
         if (cfg.flashSale?.isActive) {
           const offers: FlashSaleOffer[] = [];
@@ -349,23 +387,6 @@ export default function HomeClientPage({
           setFlashSaleOffers([]);
           setFlashSaleProduct(null);
         }
-
-        if (cfg.bestSellers?.isActive) {
-          let sortedBestSellers: Product[] = [];
-          if (cfg.bestSellers.productIds && cfg.bestSellers.productIds.length > 0) {
-            sortedBestSellers = cfg.bestSellers.productIds
-              .map((id) => prods.find((p) => p.id === id))
-              .filter(Boolean) as Product[];
-          } else {
-            sortedBestSellers = [...prods]
-              .filter((p) => p.salesCount && p.salesCount > 0)
-              .sort((a, b) => (b.salesCount || 0) - (a.salesCount || 0))
-              .slice(0, 10);
-          }
-          setBestSellers(sortedBestSellers);
-        } else {
-          setBestSellers([]);
-        }
       } catch (err) {
         console.error('Error refreshing homepage data:', err);
       } finally {
@@ -386,6 +407,7 @@ export default function HomeClientPage({
       setSettings((currentCfg) => {
         setDisplayProducts(getFeaturedProducts(liveProds, currentCfg));
         setBundleProducts(getBundleProducts(liveProds, currentCfg));
+        setBestSellers(getBestSellers(liveProds, currentCfg));
         return currentCfg;
       });
     }, true);
@@ -396,6 +418,7 @@ export default function HomeClientPage({
       setAllProducts((currentProds) => {
         setDisplayProducts(getFeaturedProducts(currentProds, liveCfg));
         setBundleProducts(getBundleProducts(currentProds, liveCfg));
+        setBestSellers(getBestSellers(currentProds, liveCfg));
         return currentProds;
       });
     });
