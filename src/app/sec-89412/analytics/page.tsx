@@ -9,8 +9,7 @@ import { getSiteConfig, updateSiteConfig } from '@/lib/firebase/admin-actions';
 import { 
   getDailyStatsRange, 
   subscribeToTodayStats, 
-  getCairoDateString,
-  resetTodayStats 
+  getCairoDateString 
 } from '@/lib/firebase/analytics-stats';
 import { getStartOfDayEgypt, getStartOfDaysAgoEgypt } from '@/lib/date-utils';
 import { aggregateOrdersFinancials } from '@/lib/utils/order-calculations';
@@ -71,7 +70,6 @@ function AdminAnalyticsContent() {
   const [todayLiveStats, setTodayLiveStats] = useState<DailyStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [savingBestSellers, setSavingBestSellers] = useState(false);
-  const [resettingStats, setResettingStats] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
 
   // Initial Data Fetch
@@ -146,32 +144,6 @@ function AdminAnalyticsContent() {
         url.searchParams.set('range', range);
         window.history.replaceState(null, '', url.pathname + url.search);
       } catch {}
-    }
-  };
-
-  const handleResetTodayStats = async () => {
-    if (!window.confirm('هل تريد تصفير عداد زيارات اليوم فقط؟ (ملاحظة: هذا التصفير يخص اليوم الحالي فقط ولا يمس إحصائيات الأيام السابقة أو الشهر).')) {
-      return;
-    }
-    setResettingStats(true);
-    try {
-      await resetTodayStats();
-      setTodayLiveStats((prev) => prev ? {
-        ...prev,
-        visitors: 0,
-        pageViews: 0,
-        mobileCount: 0,
-        desktopCount: 0,
-        sources: {},
-        topPages: {}
-      } : null);
-      setSaveMsg('تم تصفير زيارات اليوم بنجاح وإزالة أثر البوتات!');
-    } catch (err) {
-      console.error(err);
-      setSaveMsg('حدث خطأ أثناء تصفير الإحصائيات.');
-    } finally {
-      setResettingStats(false);
-      setTimeout(() => setSaveMsg(''), 4000);
     }
   };
 
@@ -820,7 +792,7 @@ function AdminAnalyticsContent() {
 
         {currentTab === 'visitors' && (
           <div className="space-y-8">
-            {/* Visitors Header with Anti-Bot Status & Reset Action */}
+            {/* Visitors Header with Anti-Bot Status */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-white/10 pb-4 gap-3">
               <div>
                 <h2 className="font-product-title text-lg sm:text-xl font-bold text-white flex items-center gap-2">
@@ -835,27 +807,13 @@ function AdminAnalyticsContent() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2.5">
-                {saveMsg && (
+              {saveMsg && (
+                <div className="flex items-center gap-2.5">
                   <span className="text-xs text-emerald-400 font-body font-bold animate-fade-in">
                     {saveMsg}
                   </span>
-                )}
-                <button
-                  type="button"
-                  onClick={handleResetTodayStats}
-                  disabled={resettingStats}
-                  title="تصفير أرقام زيارات اليوم لحذف أي أرقام مسجلة من البوتات والبدء من الصفر مع نظام الحماية الجديد"
-                  className="flex items-center gap-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 px-3.5 py-2 rounded-xl text-xs font-product-title font-bold transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
-                >
-                  {resettingStats ? (
-                    <Spinner className="inline-block animate-spin w-3.5 h-3.5" />
-                  ) : (
-                    <span className="material-symbols-outlined text-[16px]">delete_sweep</span>
-                  )}
-                  <span>تصفير زيارات اليوم (إزالة أثر البوتات)</span>
-                </button>
-              </div>
+                </div>
+              )}
             </div>
 
             {/* Additional Quick Stats Row */}
