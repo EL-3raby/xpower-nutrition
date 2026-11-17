@@ -164,6 +164,29 @@ export interface FlashSaleOffer {
   badgeText?: string;
 }
 
+function sortProductsForHome(prods: Product[]): Product[] {
+  const isAccessory = (val?: string) => {
+    if (!val) return false;
+    const lower = val.toLowerCase().trim();
+    return lower === 'اكسسوارات' || lower.includes('access') || lower === 'accessories';
+  };
+
+  return [...prods].sort((a, b) => {
+    const aAcc = isAccessory(a.category);
+    const bAcc = isAccessory(b.category);
+    if (aAcc && !bAcc) return 1;
+    if (!aAcc && bAcc) return -1;
+
+    const orderA = typeof a.order === 'number' && !isNaN(a.order) ? a.order : 999999;
+    const orderB = typeof b.order === 'number' && !isNaN(b.order) ? b.order : 999999;
+    if (orderA !== orderB) return orderA - orderB;
+
+    const timeA = a.createdAt instanceof Date ? a.createdAt.getTime() : 0;
+    const timeB = b.createdAt instanceof Date ? b.createdAt.getTime() : 0;
+    return timeB - timeA;
+  });
+}
+
 interface HomeClientPageProps {
   initialSettings: SiteConfig;
   initialCategories: Category[];
@@ -183,7 +206,7 @@ export default function HomeClientPage({
 }: HomeClientPageProps) {
   const [settings, setSettings] = useState<SiteConfig>(initialSettings);
   const [activeCategories, setActiveCategories] = useState<Category[]>(initialCategories || []);
-  const [displayProducts, setDisplayProducts] = useState<Product[]>(initialProducts || []);
+  const [displayProducts, setDisplayProducts] = useState<Product[]>(() => sortProductsForHome(initialProducts || []));
   const [allProducts, setAllProducts] = useState<Product[]>(initialProducts || []);
   const [flashSaleOffers, setFlashSaleOffers] = useState<FlashSaleOffer[]>(() => {
     if (initialFlashSaleOffers && initialFlashSaleOffers.length > 0) {
@@ -233,13 +256,7 @@ export default function HomeClientPage({
             return 0;
           });
 
-        const sortedProducts = [...prods].sort((a, b) => {
-          const aAcc = isAccessory(a.category);
-          const bAcc = isAccessory(b.category);
-          if (aAcc && !bAcc) return 1;
-          if (!aAcc && bAcc) return -1;
-          return 0;
-        });
+        const sortedProducts = sortProductsForHome(prods);
 
         setSettings(cfg);
         setActiveCategories(sortedCategories);
@@ -310,19 +327,7 @@ export default function HomeClientPage({
 
     // 2. Real-time multi-device Firestore products listener
     const unsubProducts = subscribeToLiveProducts((liveProds) => {
-      const isAccessory = (val?: string) => {
-        if (!val) return false;
-        const lower = val.toLowerCase().trim();
-        return lower === 'اكسسوارات' || lower.includes('access') || lower === 'accessories';
-      };
-
-      const sortedProducts = [...liveProds].sort((a, b) => {
-        const aAcc = isAccessory(a.category);
-        const bAcc = isAccessory(b.category);
-        if (aAcc && !bAcc) return 1;
-        if (!aAcc && bAcc) return -1;
-        return 0;
-      });
+      const sortedProducts = sortProductsForHome(liveProds);
 
       setAllProducts(liveProds);
       setDisplayProducts(sortedProducts);

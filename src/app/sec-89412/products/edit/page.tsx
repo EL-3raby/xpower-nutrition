@@ -30,6 +30,7 @@ const productSchema = z.object({
   flavorsRaw: z.string().optional(),
   images: z.array(z.string()).min(1, { message: 'يرجى رفع صورة واحدة على الأقل للمنتج.' }),
   stock: z.number({ message: 'الرجاء إدخال قيمة رقمية صحيحة.' }).min(0, { message: 'المخزون لا يمكن أن يكون سالباً.' }),
+  order: z.number().min(1, { message: 'الترتيب يجب أن يكون 1 أو أكثر.' }).optional().or(z.nan()),
   isActive: z.boolean(),
   isFreeShipping: z.boolean().optional(),
   usage: z.string().optional()
@@ -68,7 +69,8 @@ function EditProductContent() {
       servings: 0,
       weight: '',
       flavorsRaw: '',
-      images: []
+      images: [],
+      order: undefined
     }
   });
 
@@ -249,6 +251,7 @@ function EditProductContent() {
           setValue('images', fetchedProduct.images, { shouldValidate: true });
           setUploadedImages(fetchedProduct.images);
           setValue('stock', fetchedProduct.stock);
+          setValue('order', fetchedProduct.order);
           setValue('isActive', fetchedProduct.isActive);
           setValue('isFreeShipping', Boolean(fetchedProduct.isFreeShipping));
           setValue('usage', fetchedProduct.usage || '');
@@ -560,6 +563,7 @@ function EditProductContent() {
         flavors,
         images: values.images,
         stock: values.stock,
+        order: typeof values.order === 'number' && !isNaN(values.order) ? values.order : undefined,
         isActive: values.isActive,
         isFreeShipping: values.isFreeShipping ?? false,
         usage: values.usage?.trim() || undefined,
@@ -1078,6 +1082,33 @@ function EditProductContent() {
                     عند تفعيل هذا الخيار، سيتم إعفاء العميل من أي مصاريف شحن عند وجود هذا المنتج في السلة.
                   </p>
                 </div>
+              </div>
+
+              {/* Product Display Order */}
+              <div className="flex flex-col gap-2 p-4 border border-amber-500/25 bg-amber-500/5 mb-3">
+                <div className="flex items-center justify-between">
+                  <label htmlFor="order" className="font-product-title font-bold text-sm text-amber-300 flex items-center gap-1.5 cursor-pointer">
+                    <span className="material-symbols-outlined text-[16px]">format_list_numbered</span>
+                    ترتيب الظهور في المتجر (اختياري)
+                  </label>
+                  <span className="text-[10px] text-amber-400 font-bold">1 = يظهر أولاً</span>
+                </div>
+                <div className="relative mt-1">
+                  <input 
+                    type="number" 
+                    id="order"
+                    min="1"
+                    placeholder="اتركه فارغاً للترتيب التلقائي"
+                    {...register('order', { valueAsNumber: true })}
+                    className="w-full bg-bg-primary text-white border border-amber-500/30 px-4 py-2.5 font-body text-sm focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400 transition-all pl-12 text-left font-bold"
+                    dir="ltr"
+                  />
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted material-symbols-outlined text-[18px] pointer-events-none">tag</span>
+                </div>
+                {errors.order?.message && <p className="text-accent-red text-xs mt-1">{String(errors.order.message)}</p>}
+                <p className="text-xs text-text-muted font-body">
+                  يمكنك أيضاً تعديل الترتيب بالأسهم مباشرة وبضغطة واحدة من جدول المنتجات.
+                </p>
               </div>
 
               <div className="flex items-start gap-3 p-4 border border-text-muted/20 bg-bg-primary/50">

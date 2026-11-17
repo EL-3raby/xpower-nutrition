@@ -46,6 +46,7 @@ export interface Product {
   isBundle?: boolean;
   bundleItems?: BundleItem[];
   usage?: string;
+  order?: number;                     // ترتيب أولوية الظهور في المتجر (1 = يظهر أولاً)
 }
 
 export interface Review {

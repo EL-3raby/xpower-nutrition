@@ -9,7 +9,9 @@ import {
   revertBulkDiscount, 
   toggleProductFreeShipping,
   updateProductStock,
-  toggleProductActive
+  toggleProductActive,
+  updateProductOrder,
+  swapProductOrders
 } from '@/lib/firebase/products';
 import { getCategories, getSiteConfig } from '@/lib/firebase/admin-actions';
 import { Product, SiteConfig, Category } from '@/lib/types';
@@ -47,6 +49,11 @@ function AdminProductsContent() {
   const [editingStockVal, setEditingStockVal] = useState<string>('');
   const [togglingActiveId, setTogglingActiveId] = useState<string | null>(null);
 
+  // Display Order States
+  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+  const [editingOrderVal, setEditingOrderVal] = useState<string>('');
+
   const loadData = async () => {
     try {
       const [fetchedProducts, fetchedCategories, fetchedConfig] = await Promise.all([
@@ -69,10 +76,15 @@ function AdminProductsContent() {
   }, []);
 
   const displayedProducts = useMemo(() => {
-    if (filter === 'active') {
-      return products.filter((p) => p.isActive);
-    }
-    return products;
+    const list = filter === 'active' ? products.filter((p) => p.isActive) : [...products];
+    return list.sort((a, b) => {
+      const orderA = typeof a.order === 'number' && !isNaN(a.order) ? a.order : 999999;
+      const orderB = typeof b.order === 'number' && !isNaN(b.order) ? b.order : 999999;
+      if (orderA !== orderB) return orderA - orderB;
+      const timeA = a.createdAt instanceof Date ? a.createdAt.getTime() : 0;
+      const timeB = b.createdAt instanceof Date ? b.createdAt.getTime() : 0;
+      return timeB - timeA;
+    });
   }, [products, filter]);
 
   // Count products currently having a discount
@@ -218,6 +230,104 @@ function AdminProductsContent() {
     } finally {
       setTogglingActiveId(null);
       setTimeout(() => setToastMessage(null), 4000);
+    }
+  };
+
+  const handleMoveProduct = async (product: Product, direction: 'up' | 'down') => {
+    const currentIndex = displayedProducts.findIndex((p) => p.id === product.id);
+    if (currentIndex === -1) return;
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= displayedProducts.length) return;
+
+    const targetProduct = displayedProducts[targetIndex];
+    if (!product.id || !targetProduct.id) return;
+
+    // Calculate effective sequential orders
+    const currentOrder = typeof product.order === 'number' && !isNaN(product.order) ? product.order : currentIndex + 1;
+    const targetOrder = typeof targetProduct.order === 'number' && !isNaN(targetProduct.order) ? targetProduct.order : targetIndex + 1;
+
+    let newCurrentOrder = targetOrder;
+    let newTargetOrder = currentOrder;
+    if (newCurrentOrder === newTargetOrder) {
+      newCurrentOrder = direction === 'up' ? Math.max(1, targetOrder - 1) : targetOrder + 1;
+      newTargetOrder = targetOrder;
+    }
+
+    setUpdatingOrderId(product.id);
+    const prevProducts = [...products];
+
+    // Optimistic reorder
+    setProducts((prev) => {
+      const updated = prev.map((p) => {
+        if (p.id === product.id) return { ...p, order: newCurrentOrder };
+        if (p.id === targetProduct.id) return { ...p, order: newTargetOrder };
+        return p;
+      });
+      return updated.sort((a, b) => {
+        const orderA = typeof a.order === 'number' && !isNaN(a.order) ? a.order : 999999;
+        const orderB = typeof b.order === 'number' && !isNaN(b.order) ? b.order : 999999;
+        if (orderA !== orderB) return orderA - orderB;
+        const timeA = a.createdAt instanceof Date ? a.createdAt.getTime() : 0;
+        const timeB = b.createdAt instanceof Date ? b.createdAt.getTime() : 0;
+        return timeB - timeA;
+      });
+    });
+
+    try {
+      await swapProductOrders(
+        { id: product.id, order: newCurrentOrder },
+        { id: targetProduct.id, order: newTargetOrder }
+      );
+      setToastMessage('تم تعديل ترتيب المنتجات بنجاح!');
+    } catch (err) {
+      console.error('Error swapping product orders:', err);
+      setProducts(prevProducts);
+      setToastMessage('فشل تعديل الترتيب، تم استعادة الترتيب السابق.');
+    } finally {
+      setUpdatingOrderId(null);
+      setTimeout(() => setToastMessage(null), 3000);
+    }
+  };
+
+  const handleStartEditOrder = (id: string, currentOrder?: number, index?: number) => {
+    setEditingOrderId(id);
+    const val = typeof currentOrder === 'number' && !isNaN(currentOrder) ? currentOrder : (index !== undefined ? index + 1 : 1);
+    setEditingOrderVal(String(val));
+  };
+
+  const handleSaveInlineOrder = async (id: string) => {
+    if (editingOrderId !== id) return;
+    const num = parseInt(editingOrderVal.trim(), 10);
+    setEditingOrderId(null);
+
+    if (isNaN(num) || num < 1) return;
+
+    setUpdatingOrderId(id);
+    const prevProducts = [...products];
+
+    // Optimistic update
+    setProducts((prev) => {
+      const updated = prev.map((p) => (p.id === id ? { ...p, order: num } : p));
+      return updated.sort((a, b) => {
+        const orderA = typeof a.order === 'number' && !isNaN(a.order) ? a.order : 999999;
+        const orderB = typeof b.order === 'number' && !isNaN(b.order) ? b.order : 999999;
+        if (orderA !== orderB) return orderA - orderB;
+        const timeA = a.createdAt instanceof Date ? a.createdAt.getTime() : 0;
+        const timeB = b.createdAt instanceof Date ? b.createdAt.getTime() : 0;
+        return timeB - timeA;
+      });
+    });
+
+    try {
+      await updateProductOrder(id, num);
+      setToastMessage(`تم تثبيت ترتيب المنتج في المركز #${num}!`);
+    } catch (err) {
+      console.error('Error updating product order:', err);
+      setProducts(prevProducts);
+      setToastMessage('حدث خطأ أثناء تعديل ترتيب المنتج.');
+    } finally {
+      setUpdatingOrderId(null);
+      setTimeout(() => setToastMessage(null), 3000);
     }
   };
 
@@ -374,6 +484,7 @@ function AdminProductsContent() {
                 <thead>
                   <tr className="border-b border-text-muted/10 text-xs text-text-muted font-bold uppercase tracking-wider">
                     <th className="pb-3 pr-4 text-right">المنتج</th>
+                    <th className="pb-3 text-center">الترتيب</th>
                     <th className="pb-3 text-right">القسم</th>
                     <th className="pb-3 text-center">السعر</th>
                     <th className="pb-3 text-center">الشحن</th>
@@ -383,7 +494,7 @@ function AdminProductsContent() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-text-muted/5 font-body text-sm">
-                  {displayedProducts.map((p) => {
+                  {displayedProducts.map((p, index) => {
                     const hasDiscount = Boolean(p.oldPrice && p.oldPrice > p.price);
                     const discountPercent = hasDiscount
                       ? Math.round(((p.oldPrice! - p.price) / p.oldPrice!) * 100)
@@ -409,6 +520,84 @@ function AdminProductsContent() {
                               </span>
                             )}
                           </div>
+                        </td>
+
+                        {/* Order Controls */}
+                        <td className="py-4 text-center">
+                          {editingOrderId === p.id ? (
+                            <div className="flex items-center justify-center">
+                              <div className="inline-flex items-center gap-1.5 bg-[#141414] border border-accent-red rounded-xl px-2 py-1 shadow-[0_0_15px_rgba(227,30,36,0.3)]">
+                                <input
+                                  type="number"
+                                  min="1"
+                                  autoFocus
+                                  value={editingOrderVal}
+                                  onChange={(e) => setEditingOrderVal(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleSaveInlineOrder(p.id!);
+                                    if (e.key === 'Escape') setEditingOrderId(null);
+                                  }}
+                                  onBlur={() => handleSaveInlineOrder(p.id!)}
+                                  className="w-12 bg-transparent text-white font-product-title font-black text-center text-xs outline-none"
+                                  dir="ltr"
+                                />
+                                <button
+                                  type="button"
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    handleSaveInlineOrder(p.id!);
+                                  }}
+                                  title="حفظ الترتيب"
+                                  className="w-5 h-5 rounded-lg bg-accent-red hover:bg-[#ff1a22] text-white flex items-center justify-center transition-colors shadow-sm"
+                                >
+                                  <span className="material-symbols-outlined text-[13px]">check</span>
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-center">
+                              <div className="inline-flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl p-1 shadow-sm hover:border-white/20 transition-all">
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveProduct(p, 'up')}
+                                  disabled={index === 0 || updatingOrderId === p.id}
+                                  title="تقديم للأمام (يظهر أولاً)"
+                                  className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/15 disabled:opacity-20 disabled:hover:bg-white/5 text-text-muted hover:text-white flex items-center justify-center transition-all active:scale-90"
+                                >
+                                  <span className="material-symbols-outlined text-[15px]">arrow_upward</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleStartEditOrder(p.id!, p.order, index)}
+                                  disabled={updatingOrderId === p.id}
+                                  title="اضغط لتعديل رقم الترتيب مباشرة"
+                                  className="min-w-[44px] px-1.5 py-1 rounded-lg hover:bg-white/10 transition-colors font-product-title font-black text-xs flex items-center justify-center gap-0.5 cursor-pointer group text-amber-400"
+                                >
+                                  {updatingOrderId === p.id ? (
+                                    <span className="w-3.5 h-3.5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin inline-block" />
+                                  ) : (
+                                    <>
+                                      <span className="font-mono">#{typeof p.order === 'number' && !isNaN(p.order) ? p.order : index + 1}</span>
+                                      <span className="material-symbols-outlined text-[10px] text-text-muted/30 group-hover:text-amber-400 transition-colors">
+                                        edit
+                                      </span>
+                                    </>
+                                  )}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveProduct(p, 'down')}
+                                  disabled={index === displayedProducts.length - 1 || updatingOrderId === p.id}
+                                  title="تأخير للخلف"
+                                  className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/15 disabled:opacity-20 disabled:hover:bg-white/5 text-text-muted hover:text-white flex items-center justify-center transition-all active:scale-90"
+                                >
+                                  <span className="material-symbols-outlined text-[15px]">arrow_downward</span>
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </td>
 
                         {/* Category */}
@@ -630,7 +819,7 @@ function AdminProductsContent() {
 
             {/* Mobile Cards */}
             <div className="flex flex-col md:hidden divide-y divide-white/5">
-              {displayedProducts.map((p) => {
+              {displayedProducts.map((p, index) => {
                 const hasDiscount = Boolean(p.oldPrice && p.oldPrice > p.price);
                 const discountPercent = hasDiscount
                   ? Math.round(((p.oldPrice! - p.price) / p.oldPrice!) * 100)
@@ -692,6 +881,72 @@ function AdminProductsContent() {
                         )}
                         <span>{p.isActive ? 'نشط' : 'معطل'}</span>
                       </button>
+                    </div>
+
+                    {/* Mobile Order Controls */}
+                    <div className="flex items-center justify-between bg-white/[0.03] border border-white/5 px-3 py-1.5 rounded-xl">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] text-text-muted font-bold">ترتيب الظهور:</span>
+                        {editingOrderId === p.id ? (
+                          <div className="inline-flex items-center gap-1 bg-[#141414] border border-accent-red rounded-lg px-1.5 py-0.5 shadow-sm">
+                            <input
+                              type="number"
+                              min="1"
+                              autoFocus
+                              value={editingOrderVal}
+                              onChange={(e) => setEditingOrderVal(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleSaveInlineOrder(p.id!);
+                                if (e.key === 'Escape') setEditingOrderId(null);
+                              }}
+                              onBlur={() => handleSaveInlineOrder(p.id!)}
+                              className="w-10 bg-transparent text-white font-product-title font-black text-center text-xs outline-none"
+                              dir="ltr"
+                            />
+                            <button
+                              type="button"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                handleSaveInlineOrder(p.id!);
+                              }}
+                              className="w-4 h-4 rounded bg-accent-red text-white flex items-center justify-center shadow-sm"
+                            >
+                              <span className="material-symbols-outlined text-[10px]">check</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleStartEditOrder(p.id!, p.order, index)}
+                            disabled={updatingOrderId === p.id}
+                            className="font-product-title font-black text-amber-400 text-xs font-mono px-2 py-0.5 rounded bg-white/5 border border-white/10 flex items-center gap-1"
+                          >
+                            <span>#{typeof p.order === 'number' && !isNaN(p.order) ? p.order : index + 1}</span>
+                            <span className="material-symbols-outlined text-[11px] text-text-muted">edit</span>
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleMoveProduct(p, 'up')}
+                          disabled={index === 0 || updatingOrderId === p.id}
+                          title="تقديم للأمام"
+                          className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/15 disabled:opacity-20 text-text-muted hover:text-white flex items-center justify-center transition-all active:scale-90"
+                        >
+                          <span className="material-symbols-outlined text-[15px]">arrow_upward</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleMoveProduct(p, 'down')}
+                          disabled={index === displayedProducts.length - 1 || updatingOrderId === p.id}
+                          title="تأخير للخلف"
+                          className="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/15 disabled:opacity-20 text-text-muted hover:text-white flex items-center justify-center transition-all active:scale-90"
+                        >
+                          <span className="material-symbols-outlined text-[15px]">arrow_downward</span>
+                        </button>
+                      </div>
                     </div>
 
                     <div className="flex justify-between items-center bg-white/5 p-2.5 rounded-xl mt-1">

@@ -131,6 +131,16 @@ export async function getProducts(categorySlug?: string, activeOnly = false, opt
         });
       }
 
+      // Sort products primarily by custom order (1, 2, 3...), fallback to createdAt desc
+      list.sort((a, b) => {
+        const orderA = typeof a.order === 'number' && !isNaN(a.order) ? a.order : 999999;
+        const orderB = typeof b.order === 'number' && !isNaN(b.order) ? b.order : 999999;
+        if (orderA !== orderB) return orderA - orderB;
+        const timeA = a.createdAt instanceof Date ? a.createdAt.getTime() : 0;
+        const timeB = b.createdAt instanceof Date ? b.createdAt.getTime() : 0;
+        return timeB - timeA;
+      });
+
       return list;
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -167,6 +177,14 @@ export function subscribeToLiveProducts(
             ...data,
             createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt,
           } as Product;
+        });
+        products.sort((a, b) => {
+          const orderA = typeof a.order === 'number' && !isNaN(a.order) ? a.order : 999999;
+          const orderB = typeof b.order === 'number' && !isNaN(b.order) ? b.order : 999999;
+          if (orderA !== orderB) return orderA - orderB;
+          const timeA = a.createdAt instanceof Date ? a.createdAt.getTime() : 0;
+          const timeB = b.createdAt instanceof Date ? b.createdAt.getTime() : 0;
+          return timeB - timeA;
         });
         invalidateCache('product');
         callback(products);
@@ -464,6 +482,50 @@ export async function toggleProductActive(id: string, isActive: boolean): Promis
   invalidateCache('product');
   notifyAdminUpdate('products');
   await logAdminActivity(`${isActive ? 'تفعيل' : 'تعطيل'} المنتج (${id})`, 'products');
+}
+
+// Quick update for product display order
+export async function updateProductOrder(id: string, newOrder: number): Promise<void> {
+  const sanitizedOrder = Math.max(1, Math.floor(newOrder));
+
+  if (isDummyFirebase) {
+    const p = DEFAULT_PRODUCTS.find(x => x.id === id);
+    if (p) p.order = sanitizedOrder;
+    return;
+  }
+
+  const docRef = doc(db, 'products', id);
+  await updateDoc(docRef, { order: sanitizedOrder });
+
+  invalidateCache('product');
+  notifyAdminUpdate('products');
+  await logAdminActivity(`تعديل ترتيب المنتج (${id}) إلى #${sanitizedOrder}`, 'products');
+}
+
+// Atomically swap display order between two products
+export async function swapProductOrders(
+  prodA: { id: string; order: number },
+  prodB: { id: string; order: number }
+): Promise<void> {
+  const orderA = Math.max(1, Math.floor(prodA.order));
+  const orderB = Math.max(1, Math.floor(prodB.order));
+
+  if (isDummyFirebase) {
+    const pA = DEFAULT_PRODUCTS.find(x => x.id === prodA.id);
+    const pB = DEFAULT_PRODUCTS.find(x => x.id === prodB.id);
+    if (pA) pA.order = orderA;
+    if (pB) pB.order = orderB;
+    return;
+  }
+
+  const batch = writeBatch(db);
+  batch.update(doc(db, 'products', prodA.id), { order: orderA });
+  batch.update(doc(db, 'products', prodB.id), { order: orderB });
+  await batch.commit();
+
+  invalidateCache('product');
+  notifyAdminUpdate('products');
+  await logAdminActivity(`تبديل ترتيب المنتجات: (${prodA.id} -> #${orderA}) مع (${prodB.id} -> #${orderB})`, 'products');
 }
 
 // Automatically synchronize all bundles that include a given product

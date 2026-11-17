@@ -226,7 +226,7 @@ function ProductsContent() {
         return (b.reviewCount || 0) - (a.reviewCount || 0);
       }
 
-      // 'latest' default: keep main supplements first, accessories at the end
+      // 'latest' default: keep main supplements first, accessories at the end, then sort by custom order (1, 2, 3...)
       if (selectedCategory === 'all') {
         const isAcc = (cat?: string) => {
           if (!cat) return false;
@@ -238,7 +238,14 @@ function ProductsContent() {
         if (aAcc && !bAcc) return 1;
         if (!aAcc && bAcc) return -1;
       }
-      return 0;
+
+      const orderA = typeof a.order === 'number' && !isNaN(a.order) ? a.order : 999999;
+      const orderB = typeof b.order === 'number' && !isNaN(b.order) ? b.order : 999999;
+      if (orderA !== orderB) return orderA - orderB;
+
+      const timeA = a.createdAt instanceof Date ? a.createdAt.getTime() : 0;
+      const timeB = b.createdAt instanceof Date ? b.createdAt.getTime() : 0;
+      return timeB - timeA;
     });
   }, [products, categoriesMap, searchQuery, selectedCategory, onlyDiscounted, onlyInStock, sortBy, bestSellerIds]);
 
