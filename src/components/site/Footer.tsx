@@ -180,9 +180,25 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* Copyright */}
-        <div className="relative z-10 text-center py-6 border-t border-white/5 text-text-muted/60 text-xs font-body bg-black">
-          © {currentYear} Xpower Nutrition. كل الحقوق محفوظة. 
+        {/* Copyright & Developer Credit */}
+        <div className="relative z-10 py-6 border-t border-white/5 text-text-muted/60 text-xs font-body bg-black px-4">
+          <div className="max-w-7xl mx-auto flex flex-col items-center justify-center gap-2 text-center">
+            <div>
+              © {currentYear} Xpower Nutrition. كل الحقوق محفوظة. 
+            </div>
+            <div className="font-mono text-[11px] tracking-wider text-text-muted/60" dir="ltr">
+              <span>POWERED BY </span>
+              <a 
+                href={`https://wa.me/201145333606?text=${encodeURIComponent('مساء الخير يا بشمهندس أحمد، شفت متجر X-Power وعايز اعمل متجر زيه')}`}
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-white hover:text-accent-red font-bold transition-colors"
+                title="تواصل مع المطور م. أحمد العربي عبر واتساب"
+              >
+                AHMED ELARABY
+              </a>
+            </div>
+          </div>
         </div>
       </footer>
 

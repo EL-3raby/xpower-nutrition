@@ -7,28 +7,45 @@ import {
   deleteSecurityLog, 
   clearAllSecurityLogs, 
   runAutomatedSecurityAudit,
-  subscribeToSecurityLogs
+  subscribeToSecurityLogs,
+  banIP,
+  unbanIP,
+  subscribeToBannedIPs,
+  simulateSecurityThreat
 } from '@/lib/firebase/security';
-import { SecurityLog, SecurityAuditResult, SecurityThreatType } from '@/lib/types';
+import { SecurityLog, SecurityAuditResult, SecurityThreatType, BannedIP } from '@/lib/types';
 import { parseUserAgent } from '@/lib/utils/device-parser';
 import Spinner from '@/components/ui/Spinner';
 
 export default function AdminSecurityPage() {
   const [logs, setLogs] = useState<SecurityLog[]>([]);
+  const [bannedIPs, setBannedIPs] = useState<BannedIP[]>([]);
   const [loading, setLoading] = useState(true);
   const [auditResult, setAuditResult] = useState<SecurityAuditResult | null>(null);
   const [isAuditing, setIsAuditing] = useState(false);
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [banningIpKey, setBanningIpKey] = useState<string | null>(null);
+  const [showBannedModal, setShowBannedModal] = useState(false);
+  const [manualIpToBan, setManualIpToBan] = useState('');
+  const [manualReason, setManualReason] = useState('');
+  const [isManualBanning, setIsManualBanning] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<'all' | SecurityThreatType>('all');
   const [actionMsg, setActionMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [selectedMapLog, setSelectedMapLog] = useState<SecurityLog | null>(null);
 
-  // Subscribe to real-time security threats
+  // Subscribe to real-time security threats and banned IPs
   useEffect(() => {
-    const unsubscribe = subscribeToSecurityLogs((fetchedLogs) => {
+    const unsubLogs = subscribeToSecurityLogs((fetchedLogs) => {
       setLogs(fetchedLogs);
       setLoading(false);
     });
-    return () => unsubscribe();
+    const unsubBanned = subscribeToBannedIPs((fetchedBanned) => {
+      setBannedIPs(fetchedBanned);
+    });
+    return () => {
+      unsubLogs();
+      unsubBanned();
+    };
   }, []);
 
   const handleRunAudit = async () => {
@@ -43,6 +60,100 @@ export default function AdminSecurityPage() {
     } finally {
       setIsAuditing(false);
     }
+  };
+
+  const handleSimulateAttack = async () => {
+    setIsSimulating(true);
+    setActionMsg(null);
+    try {
+      const newThreat = await simulateSecurityThreat();
+      setActionMsg({
+        text: `🎯 تم تنفيذ محاكاة الهجوم الآمن بنجاح! تم رصد جهازك وتسجيل الـ IP (${newThreat.ip || 'محلي'}) وإسقاطه في رادار الأمان.`,
+        type: 'success'
+      });
+      if (typeof newThreat.latitude === 'number' && typeof newThreat.longitude === 'number') {
+        setSelectedMapLog(newThreat);
+      }
+    } catch (err: any) {
+      setActionMsg({
+        text: err?.message || 'تعذر إتمام محاكاة الهجوم التجريبي.',
+        type: 'error'
+      });
+    } finally {
+      setIsSimulating(false);
+    }
+  };
+
+  const handleBanIP = async (
+    ip: string, 
+    reason?: string, 
+    details?: { country?: string; city?: string; threatType?: string }
+  ) => {
+    if (!ip) return;
+    const confirmBan = confirm(`هل أنت متأكد من حظر عنوان الـ IP التالي ومنعه من تصفح ودخول المتجر نهائياً؟\n\nIP: ${ip}`);
+    if (!confirmBan) return;
+
+    setBanningIpKey(ip);
+    try {
+      await banIP(ip, reason || 'تم الحظر يدوياً من رادار الأمان', details);
+      setActionMsg({
+        text: `🚫 تم حظر عنوان الـ IP (${ip}) بنجاح وإضافته إلى القائمة السوداء للمتجر.`,
+        type: 'success'
+      });
+    } catch {
+      setActionMsg({
+        text: `تعذر حظر عنوان الـ IP (${ip}).`,
+        type: 'error'
+      });
+    } finally {
+      setBanningIpKey(null);
+    }
+  };
+
+  const handleUnbanIP = async (ip: string) => {
+    if (!ip) return;
+    const confirmUnban = confirm(`هل أنت متأكد من إلغاء حظر الـ IP (${ip}) والسماح له بتصفح المتجر مجدداً؟`);
+    if (!confirmUnban) return;
+
+    try {
+      await unbanIP(ip);
+      setActionMsg({
+        text: `✅ تم إلغاء حظر الـ IP (${ip}) بنجاح.`,
+        type: 'success'
+      });
+    } catch {
+      setActionMsg({
+        text: `تعذر فك حظر الـ IP (${ip}).`,
+        type: 'error'
+      });
+    }
+  };
+
+  const handleManualBan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!manualIpToBan.trim()) return;
+    setIsManualBanning(true);
+    try {
+      await banIP(manualIpToBan.trim(), manualReason.trim() || 'حظر يدوي مباشر بواسطة الأدمن');
+      setManualIpToBan('');
+      setManualReason('');
+      setActionMsg({
+        text: `🚫 تم حظر الـ IP (${manualIpToBan}) وإضافته للقائمة بنجاح.`,
+        type: 'success'
+      });
+    } catch {
+      setActionMsg({
+        text: 'تعذر إضافة الـ IP إلى قائمة الحظر.',
+        type: 'error'
+      });
+    } finally {
+      setIsManualBanning(false);
+    }
+  };
+
+  const isIPBanned = (ip?: string) => {
+    if (!ip) return false;
+    return bannedIPs.some((b) => b.ip.trim() === ip.trim());
   };
 
   const handleResolve = async (logId?: string) => {
@@ -81,6 +192,7 @@ export default function AdminSecurityPage() {
   const honeypotCount = logs.filter((l) => l.type === 'honeypot').length;
   const loginFailures = logs.filter((l) => l.type === 'login_failure').length;
   const injectionAttempts = logs.filter((l) => l.type === 'injection_attempt').length;
+  const probeCount = logs.filter((l) => l.type === 'probe').length;
 
   const filteredLogs = logs.filter((l) => {
     if (selectedFilter === 'all') return true;
@@ -130,6 +242,8 @@ export default function AdminSecurityPage() {
         return { label: 'تجاوز معدل الطلبات', icon: 'speed', color: 'text-blue-400' };
       case 'price_tamper':
         return { label: 'محاولة تلاعب بالسعر', icon: 'price_check', color: 'text-purple-400' };
+      case 'probe':
+        return { label: 'هجوم تجريبي (Test)', icon: 'my_location', color: 'text-cyan-400' };
       default:
         return { label: 'فحص استكشافي', icon: 'search', color: 'text-text-muted' };
     }
@@ -158,6 +272,34 @@ export default function AdminSecurityPage() {
 
         {/* Header Actions */}
         <div className="flex flex-wrap items-center gap-2.5">
+          {/* Simulate Test Attack */}
+          <button
+            type="button"
+            onClick={handleSimulateAttack}
+            disabled={isSimulating}
+            className="px-3.5 py-2.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-bold flex items-center gap-2 transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+            title="محاكاة هجوم آمن لتسجيل بصمة جهازك وإحداثياته الجغرافية وإسقاطه في الرادار والخريطة"
+          >
+            {isSimulating ? (
+              <Spinner className="w-4 h-4 text-cyan-300" />
+            ) : (
+              <span className="material-symbols-outlined text-base">my_location</span>
+            )}
+            <span>{isSimulating ? 'جاري المحاكاة...' : 'محاكاة هجوم تجريبي 🎯'}</span>
+          </button>
+
+          {/* Banned IPs Modal Trigger */}
+          <button
+            type="button"
+            onClick={() => setShowBannedModal(true)}
+            className="px-3.5 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/30 text-xs font-bold flex items-center gap-2 transition-all cursor-pointer active:scale-95"
+            title="إدارة القائمة السوداء، حظر وفك حظر عناوين الـ IP"
+          >
+            <span className="material-symbols-outlined text-base">block</span>
+            <span>قائمة المحظورين ({bannedIPs.length}) 🛡️</span>
+          </button>
+
+          {/* Automated Audit */}
           <button
             type="button"
             onClick={handleRunAudit}
@@ -380,6 +522,19 @@ export default function AdminSecurityPage() {
             >
               محاولات حقن ({injectionAttempts})
             </button>
+            {probeCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setSelectedFilter('probe')}
+                className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                  selectedFilter === 'probe'
+                    ? 'bg-accent-red text-white'
+                    : 'bg-white/5 text-text-muted hover:text-white'
+                }`}
+              >
+                هجمات تجريبية ({probeCount})
+              </button>
+            )}
           </div>
         </div>
 
@@ -548,12 +703,40 @@ export default function AdminSecurityPage() {
 
                       {/* Actions */}
                       <td className="py-3 px-3 text-center whitespace-nowrap">
-                        <div className="flex items-center justify-center gap-2">
+                        <div className="flex items-center justify-center gap-1.5">
+                          {log.ip && (
+                            isIPBanned(log.ip) ? (
+                              <button
+                                type="button"
+                                onClick={() => handleUnbanIP(log.ip!)}
+                                className="px-2 py-1 rounded-lg bg-red-500/20 hover:bg-red-500 text-red-300 hover:text-white text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1 active:scale-95"
+                                title="إلغاء حظر هذا الـ IP والسماح له بالدخول"
+                              >
+                                <span className="material-symbols-outlined text-[13px]">lock_open</span>
+                                <span>فك الحظر</span>
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleBanIP(log.ip!, log.details, { country: log.country, city: log.city, threatType: log.type })}
+                                disabled={banningIpKey === log.ip}
+                                className="px-2 py-1 rounded-lg bg-red-500/10 hover:bg-accent-red text-red-400 hover:text-white border border-red-500/30 text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1 active:scale-95 disabled:opacity-50"
+                                title="حظر هذا الـ IP ومنعه من دخول المتجر"
+                              >
+                                {banningIpKey === log.ip ? (
+                                  <Spinner className="w-3 h-3 text-red-400" />
+                                ) : (
+                                  <span className="material-symbols-outlined text-[13px]">block</span>
+                                )}
+                                <span>حظر IP</span>
+                              </button>
+                            )
+                          )}
                           {!log.isResolved ? (
                             <button
                               type="button"
                               onClick={() => handleResolve(log.id)}
-                              className="px-2.5 py-1 rounded bg-emerald-500/20 hover:bg-emerald-500 text-emerald-300 hover:text-white text-[10px] font-bold transition-colors cursor-pointer active:scale-95"
+                              className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500 text-emerald-300 hover:text-white text-[10px] font-bold transition-colors cursor-pointer active:scale-95"
                               title="تحديد كمحلول"
                             >
                               تم الحل ✓
@@ -658,12 +841,38 @@ export default function AdminSecurityPage() {
             </div>
 
             {/* Modal Footer with External Direct Link */}
-            <div className="flex items-center justify-between pt-2">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
               <div className="text-[11px] font-mono text-text-muted flex items-center gap-1.5" dir="ltr">
                 <span className="material-symbols-outlined text-sm text-cyan-400">pin_drop</span>
                 <span>Lat: {selectedMapLog.latitude.toFixed(5)}, Lon: {selectedMapLog.longitude.toFixed(5)}</span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                {selectedMapLog.ip && (
+                  isIPBanned(selectedMapLog.ip) ? (
+                    <button
+                      type="button"
+                      onClick={() => handleUnbanIP(selectedMapLog.ip!)}
+                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-red-500/20 hover:bg-red-500 text-red-300 hover:text-white text-xs font-bold transition-all active:scale-95 cursor-pointer"
+                    >
+                      <span className="material-symbols-outlined text-sm">lock_open</span>
+                      <span>فك حظر {selectedMapLog.ip}</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleBanIP(selectedMapLog.ip!, selectedMapLog.details, { country: selectedMapLog.country, city: selectedMapLog.city, threatType: selectedMapLog.type })}
+                      disabled={banningIpKey === selectedMapLog.ip}
+                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-accent-red hover:bg-accent-red-hover text-white text-xs font-bold transition-all active:scale-95 cursor-pointer shadow-lg shadow-accent-red/20 disabled:opacity-50"
+                    >
+                      {banningIpKey === selectedMapLog.ip ? (
+                        <Spinner className="w-3.5 h-3.5 text-white" />
+                      ) : (
+                        <span className="material-symbols-outlined text-sm">block</span>
+                      )}
+                      <span>حظر هذا الـ IP ({selectedMapLog.ip}) 🚫</span>
+                    </button>
+                  )
+                )}
                 <a
                   href={`https://www.google.com/maps?q=${selectedMapLog.latitude},${selectedMapLog.longitude}`}
                   target="_blank"
@@ -681,6 +890,148 @@ export default function AdminSecurityPage() {
                   إغلاق
                 </button>
               </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* Banned IPs Management Modal */}
+      {showBannedModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200" dir="rtl">
+          <div className="relative w-full max-w-3xl bg-[#0d0d0d] border border-white/15 rounded-3xl p-6 shadow-2xl space-y-5 max-h-[90vh] flex flex-col">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-white/10 pb-4 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400">
+                  <span className="material-symbols-outlined text-2xl">block</span>
+                </div>
+                <div>
+                  <h3 className="font-product-title font-bold text-white text-base flex items-center gap-2">
+                    <span>القائمة السوداء وعناوين الـ IP المحظورة</span>
+                    <span className="text-[11px] px-2 py-0.5 rounded-full font-mono bg-red-500/20 text-red-300 border border-red-500/30 font-bold">
+                      {bannedIPs.length} محظور
+                    </span>
+                  </h3>
+                  <p className="text-xs text-text-muted mt-0.5 font-body">
+                    أي عنوان IP مدرج هنا يُمنع تلقائياً من تصفح المتجر، إضافة منتجات، أو إرسال طلبات.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBannedModal(false)}
+                className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 text-text-muted hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Manual Quick Add Ban Form */}
+            <form onSubmit={handleManualBan} className="bg-black/40 border border-white/10 p-3.5 rounded-2xl flex flex-col sm:flex-row items-center gap-2.5 shrink-0">
+              <div className="w-full sm:flex-1 relative">
+                <input
+                  type="text"
+                  placeholder="أدخل عنوان IP لحظر فوري (مثال: 197.35.12.8)"
+                  value={manualIpToBan}
+                  onChange={(e) => setManualIpToBan(e.target.value)}
+                  dir="ltr"
+                  className="w-full px-3.5 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-xs font-mono placeholder:text-text-muted/60 focus:outline-none focus:border-accent-red"
+                  required
+                />
+              </div>
+              <div className="w-full sm:flex-1">
+                <input
+                  type="text"
+                  placeholder="سبب الحظر (اختياري: سبام، زحف مريب...)"
+                  value={manualReason}
+                  onChange={(e) => setManualReason(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl bg-white/5 border border-white/10 text-white text-xs placeholder:text-text-muted/60 focus:outline-none focus:border-accent-red"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={isManualBanning || !manualIpToBan.trim()}
+                className="w-full sm:w-auto px-4 py-2 rounded-xl bg-accent-red hover:bg-accent-red-hover text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-95 disabled:opacity-50 shrink-0"
+              >
+                {isManualBanning ? <Spinner className="w-3.5 h-3.5 text-white" /> : <span className="material-symbols-outlined text-base">add_moderator</span>}
+                <span>حظر الـ IP</span>
+              </button>
+            </form>
+
+            {/* Banned List Body */}
+            <div className="overflow-y-auto custom-scrollbar flex-1 -mx-2 px-2">
+              {bannedIPs.length === 0 ? (
+                <div className="py-12 text-center space-y-2">
+                  <div className="w-12 h-12 rounded-2xl bg-white/5 text-text-muted flex items-center justify-center mx-auto">
+                    <span className="material-symbols-outlined text-2xl">verified_user</span>
+                  </div>
+                  <h4 className="text-white text-sm font-bold">لا توجد عناوين IP محظورة حالياً</h4>
+                  <p className="text-xs text-text-muted">
+                    يمكنك حظر أي IP مريب بنقرة واحدة مباشرة من جدول الرادار الأمني.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {bannedIPs.map((b) => (
+                    <div
+                      key={b.ip}
+                      className="p-3 rounded-2xl bg-white/[0.02] hover:bg-white/[0.04] border border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="px-2 py-0.5 rounded-lg bg-red-500/20 text-red-300 font-mono text-xs font-bold" dir="ltr">
+                            {b.ip}
+                          </span>
+                          {(b.city || b.country) && (
+                            <span className="text-[11px] text-text-muted flex items-center gap-0.5 font-bold">
+                              <span className="material-symbols-outlined text-xs text-rose-400">location_on</span>
+                              {[b.city, b.country].filter(Boolean).join('، ')}
+                            </span>
+                          )}
+                          <span className="text-[10px] text-text-muted/60 font-mono">
+                            {b.bannedAt instanceof Date
+                              ? b.bannedAt.toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })
+                              : typeof (b.bannedAt as any)?.toDate === 'function'
+                              ? (b.bannedAt as any).toDate().toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' })
+                              : String(b.bannedAt)}
+                          </span>
+                        </div>
+                        <p className="text-xs text-white/80 font-body">
+                          {b.reason || 'حظر أمني بواسطة مدير النظام'}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2 self-end sm:self-center">
+                        <button
+                          type="button"
+                          onClick={() => handleUnbanIP(b.ip)}
+                          className="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-red-500/20 text-text-muted hover:text-red-300 border border-white/10 hover:border-red-500/30 text-xs font-bold transition-all cursor-pointer flex items-center gap-1 active:scale-95"
+                          title="إلغاء حظر هذا الـ IP والسماح له بالدخول"
+                        >
+                          <span className="material-symbols-outlined text-sm">lock_open</span>
+                          <span>فك الحظر (Unban)</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="border-t border-white/10 pt-3 flex items-center justify-between shrink-0">
+              <span className="text-[11px] text-text-muted font-body">
+                🛡️ الحظر فوري ومباشر على مستوى قواعد المتجر وقاعدة البيانات.
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowBannedModal(false)}
+                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-bold transition-colors cursor-pointer"
+              >
+                إغلاق
+              </button>
             </div>
 
           </div>

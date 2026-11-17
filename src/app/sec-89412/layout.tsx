@@ -300,6 +300,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <span className="material-symbols-outlined text-lg">logout</span>
             <span>تسجيل خروج</span>
           </button>
+          <div className="pt-1 text-center text-[10px] text-text-muted/50 font-mono tracking-wider" dir="ltr">
+            <span>POWERED BY </span>
+            <a
+              href={`https://wa.me/201145333606?text=${encodeURIComponent('مساء الخير يا بشمهندس أحمد، شفت متجر X-Power وعايز اعمل متجر زيه')}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-white/80 hover:text-accent-red font-bold transition-colors"
+              title="م. أحمد العربي"
+            >
+              AHMED ELARABY
+            </a>
+          </div>
         </div>
 
       </aside>

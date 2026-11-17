@@ -139,5 +139,11 @@ service cloud.firestore {
                     && request.resource.data.isResolved == false;
       allow read, update, delete: if isAdmin();
     }
+
+    // IP Blacklist & Threat Banning: Public read to enforce access block, Admin manage/write
+    match /bannedIPs/{ipKey} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
   }
 }

@@ -63,6 +63,16 @@ export default function SiteLayoutWrapper({ children }: { children: React.ReactN
     }
   });
 
+  const [isBanned, setIsBanned] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      if (localStorage.getItem('xpower_is_admin') === '1') return false;
+      return sessionStorage.getItem('xpower_ip_banned') === '1';
+    } catch {
+      return false;
+    }
+  });
+
   // Admin routes and Links page do not have the site layout
   const isAdminOrLinks = pathname?.startsWith('/sec-89412') || pathname?.startsWith('/links');
 
@@ -123,8 +133,74 @@ export default function SiteLayoutWrapper({ children }: { children: React.ReactN
     return () => unsubscribe();
   }, [isAdminOrLinks]);
 
+  // Check client IP ban status in background (non-blocking)
+  useEffect(() => {
+    if (isAdminOrLinks || isLocalHost || isAdminUser) return;
+
+    try {
+      if (sessionStorage.getItem('xpower_ip_banned') === '0') return;
+      if (sessionStorage.getItem('xpower_ip_banned') === '1') {
+        setIsBanned(true);
+        return;
+      }
+    } catch {}
+
+    let isCancelled = false;
+    import('@/lib/firebase/security').then(async ({ fetchClientGeoInfo, isClientIPBanned }) => {
+      try {
+        const geo = await fetchClientGeoInfo();
+        if (isCancelled || !geo?.ip) return;
+        const banned = await isClientIPBanned(geo.ip);
+        if (banned) {
+          try { sessionStorage.setItem('xpower_ip_banned', '1'); } catch {}
+          if (!isCancelled) setIsBanned(true);
+        } else {
+          try { sessionStorage.setItem('xpower_ip_banned', '0'); } catch {}
+        }
+      } catch {
+        // Fail-safe: never block users if geo check fails
+      }
+    });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isAdminOrLinks, isLocalHost, isAdminUser]);
+
   if (isAdminOrLinks) {
     return <>{children}</>;
+  }
+
+  // Determine if IP ban applies
+  if (!isLocalHost && !isAdminUser && isBanned) {
+    const rawWa = siteConfig?.contactInfo?.whatsapp || '';
+    const supportWhatsApp = rawWa ? `https://wa.me/${rawWa.replace(/[^0-9]/g, '')}` : 'https://wa.me/201000000000';
+
+    return (
+      <div className="min-h-screen bg-[#050505] flex items-center justify-center p-4 text-center font-body" dir="rtl">
+        <div className="max-w-md w-full bg-[#0a0a0a] border border-red-500/20 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-1/2 translate-x-1/2 w-48 h-48 bg-accent-red/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="w-16 h-16 rounded-2xl bg-accent-red/10 border border-accent-red/30 text-accent-red flex items-center justify-center mx-auto mb-5 shadow-lg shadow-accent-red/20">
+            <span className="material-symbols-outlined text-4xl">gpp_bad</span>
+          </div>
+          <h1 className="font-product-title text-2xl font-black text-white mb-2">تم تقييد الوصول إلى المتجر</h1>
+          <p className="text-xs text-text-muted leading-relaxed mb-6 font-body">
+            تم حظر عنوان الـ IP الخاص بجهازك تلقائياً بواسطة منظومة رادار الأمان والحماية لحماية استقرار وأمان متجر X-Power Nutrition.
+          </p>
+          <div className="p-3.5 rounded-xl bg-black/60 border border-white/5 text-[11px] text-text-muted font-mono mb-6">
+            Security Threat Protection • Access Restricted
+          </div>
+          <a
+            href={supportWhatsApp}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl bg-white/5 hover:bg-white/10 text-white text-xs font-bold border border-white/10 transition-colors"
+          >
+            <span>تواصل مع الدعم الفني عبر واتساب</span>
+          </a>
+        </div>
+      </div>
+    );
   }
 
   // Determine if maintenance mode applies:

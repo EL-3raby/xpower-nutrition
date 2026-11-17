@@ -1,8 +1,10 @@
-import { db, isDummyFirebase } from './client';
+import { db, auth, isDummyFirebase } from './client';
 import {
   collection,
   addDoc,
   getDocs,
+  getDoc,
+  setDoc,
   doc,
   updateDoc,
   deleteDoc,
@@ -19,7 +21,8 @@ import {
   SecurityThreatType, 
   SecurityThreatSeverity,
   SecurityAuditResult,
-  SecurityAuditFinding 
+  SecurityAuditFinding,
+  BannedIP 
 } from '../types';
 import { parseUserAgent } from '../utils/device-parser';
 
@@ -33,7 +36,7 @@ const recentLogsDebounce = new Map<string, number>();
  * Fast, lightweight geo-lookup for threat source tracing.
  * Uses high-speed CORS-enabled endpoint with 2-second strict timeout.
  */
-async function fetchClientGeoInfo(): Promise<{
+export async function fetchClientGeoInfo(): Promise<{
   ip?: string;
   country?: string;
   city?: string;
@@ -276,6 +279,202 @@ export async function clearAllSecurityLogs(onlyResolved = true): Promise<number>
   }
 
   return deletedCount;
+}
+
+/**
+ * Normalizes an IP string into a safe Firestore document ID.
+ */
+export function sanitizeIPDocId(ip: string): string {
+  return (ip || '').trim().replace(/[\.\:\s\/]/g, '_');
+}
+
+/**
+ * Bans an IP address, preventing access to the store.
+ */
+export async function banIP(
+  ip: string,
+  reason = 'حظر يدوي بواسطة مدير النظام',
+  details?: { country?: string; city?: string; threatType?: string }
+): Promise<void> {
+  if (!ip || isDummyFirebase) return;
+
+  const docId = sanitizeIPDocId(ip);
+  const docRef = doc(db, 'bannedIPs', docId);
+
+  await setDoc(docRef, {
+    ip: ip.trim(),
+    reason,
+    country: details?.country || '',
+    city: details?.city || '',
+    threatType: details?.threatType || 'manual',
+    bannedAt: serverTimestamp(),
+    bannedBy: auth.currentUser?.email || 'admin'
+  });
+}
+
+/**
+ * Unbans an IP address.
+ */
+export async function unbanIP(ip: string): Promise<void> {
+  if (!ip || isDummyFirebase) return;
+
+  const docId = sanitizeIPDocId(ip);
+  const docRef = doc(db, 'bannedIPs', docId);
+  await deleteDoc(docRef);
+}
+
+/**
+ * Fetches all currently banned IPs.
+ */
+export async function getBannedIPs(): Promise<BannedIP[]> {
+  if (isDummyFirebase) return [];
+
+  try {
+    const colRef = collection(db, 'bannedIPs');
+    const q = query(colRef, orderBy('bannedAt', 'desc'));
+    const snapshot = await getDocs(q);
+
+    const list: BannedIP[] = [];
+    snapshot.forEach((d) => {
+      const data = d.data();
+      list.push({
+        id: d.id,
+        ip: data.ip || d.id.replace(/_/g, '.'),
+        reason: data.reason || '',
+        country: data.country,
+        city: data.city,
+        threatType: data.threatType,
+        bannedBy: data.bannedBy,
+        bannedAt: data.bannedAt instanceof Timestamp ? data.bannedAt.toDate() : new Date()
+      });
+    });
+
+    return list;
+  } catch (error) {
+    console.error('Error fetching banned IPs:', error);
+    return [];
+  }
+}
+
+/**
+ * Real-time subscription to banned IPs list.
+ */
+export function subscribeToBannedIPs(
+  callback: (banned: BannedIP[]) => void
+): () => void {
+  if (typeof window === 'undefined' || isDummyFirebase) {
+    callback([]);
+    return () => {};
+  }
+
+  try {
+    const colRef = collection(db, 'bannedIPs');
+    const q = query(colRef, orderBy('bannedAt', 'desc'));
+
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        const list: BannedIP[] = [];
+        snapshot.forEach((d) => {
+          const data = d.data();
+          list.push({
+            id: d.id,
+            ip: data.ip || d.id.replace(/_/g, '.'),
+            reason: data.reason || '',
+            country: data.country,
+            city: data.city,
+            threatType: data.threatType,
+            bannedBy: data.bannedBy,
+            bannedAt: data.bannedAt instanceof Timestamp ? data.bannedAt.toDate() : new Date()
+          });
+        });
+        callback(list);
+      },
+      (error) => {
+        console.warn('Banned IPs subscription notice:', error);
+        callback([]);
+      }
+    );
+  } catch {
+    return () => {};
+  }
+}
+
+/**
+ * Checks if a specific client IP is currently in the banned list.
+ */
+export async function isClientIPBanned(ip: string): Promise<boolean> {
+  if (!ip || isDummyFirebase) return false;
+
+  try {
+    const docId = sanitizeIPDocId(ip);
+    const docRef = doc(db, 'bannedIPs', docId);
+    const snap = await getDoc(docRef);
+    return snap.exists();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Simulates a safe, controlled security test attack.
+ * Captures live browser fingerprint, real IP, and geo-coordinates,
+ * and creates a verified test threat log in Firestore for testing the radar & map.
+ */
+export async function simulateSecurityThreat(): Promise<SecurityLog> {
+  if (typeof window === 'undefined') {
+    throw new Error('محاكاة الهجوم التجريبي تتطلب متصفحاً نشطاً');
+  }
+
+  const userAgent = navigator.userAgent || 'unknown';
+  const parsedDevice = parseUserAgent(userAgent);
+
+  let geo: any = {};
+  try {
+    geo = await fetchClientGeoInfo();
+  } catch {}
+
+  const payload: Record<string, any> = {
+    type: 'probe',
+    severity: 'medium',
+    path: '/.env.test-simulation',
+    details: 'محاكاة اختبار أمني ناجحة: تم رصد بصمة المتصفح واختبار فخ الاصطياد والتقاط الإحداثيات الجغرافية لايف بنجاح 🎯',
+    userAgent,
+    deviceInfo: {
+      os: parsedDevice.os,
+      browser: parsedDevice.browser,
+      deviceType: parsedDevice.deviceType
+    },
+    ip: geo.ip || '127.0.0.1 (محلي)',
+    country: geo.country || 'مصر',
+    city: geo.city || 'القاهرة',
+    latitude: typeof geo.latitude === 'number' ? geo.latitude : 30.0444,
+    longitude: typeof geo.longitude === 'number' ? geo.longitude : 31.2357,
+    isp: geo.isp || 'مزود خدمة الإنترنت',
+    isResolved: false,
+    timestamp: serverTimestamp()
+  };
+
+  const colRef = collection(db, 'securityLogs');
+  const docRef = await addDoc(colRef, payload);
+
+  return {
+    id: docRef.id,
+    type: 'probe',
+    severity: 'medium',
+    path: '/.env.test-simulation',
+    details: payload.details,
+    userAgent,
+    deviceInfo: payload.deviceInfo,
+    ip: payload.ip,
+    country: payload.country,
+    city: payload.city,
+    latitude: payload.latitude,
+    longitude: payload.longitude,
+    isp: payload.isp,
+    isResolved: false,
+    timestamp: new Date()
+  };
 }
 
 /**

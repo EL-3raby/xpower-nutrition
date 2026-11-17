@@ -308,6 +308,17 @@ export interface SecurityLog {
   };
 }
 
+export interface BannedIP {
+  id?: string;
+  ip: string;
+  reason?: string;
+  bannedAt: Timestamp | Date;
+  bannedBy?: string;
+  threatType?: string;
+  country?: string;
+  city?: string;
+}
+
 export interface SecurityAuditFinding {
   id: string;
   title: string;
