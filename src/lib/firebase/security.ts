@@ -21,6 +21,7 @@ import {
   SecurityAuditResult,
   SecurityAuditFinding 
 } from '../types';
+import { parseUserAgent } from '../utils/device-parser';
 
 /**
  * In-memory debounce cache to prevent log-flooding from a single client session.
@@ -29,8 +30,44 @@ import {
 const recentLogsDebounce = new Map<string, number>();
 
 /**
+ * Fast, lightweight geo-lookup for threat source tracing.
+ * Uses high-speed CORS-enabled endpoint with 2-second strict timeout.
+ */
+async function fetchClientGeoInfo(): Promise<{
+  ip?: string;
+  country?: string;
+  city?: string;
+  latitude?: number;
+  longitude?: number;
+  isp?: string;
+}> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    const res = await fetch('https://ipwho.is/', {
+      signal: controller.signal,
+      cache: 'no-store'
+    });
+    clearTimeout(timeoutId);
+    if (!res.ok) return {};
+    const d = await res.json();
+    if (d && d.success !== false) {
+      return {
+        ip: d.ip,
+        country: d.country,
+        city: d.city,
+        latitude: d.latitude,
+        longitude: d.longitude,
+        isp: d.connection?.isp || d.connection?.org,
+      };
+    }
+  } catch {}
+  return {};
+}
+
+/**
  * Logs a suspicious activity, honeypot trigger, or potential attack to Firestore.
- * Automatically handles debouncing, sanitization, and environment detection.
+ * Automatically captures device fingerprint, IP, and geo-coordinates when available.
  */
 export async function logSecurityThreat(entry: {
   type: SecurityThreatType;
@@ -56,7 +93,8 @@ export async function logSecurityThreat(entry: {
     const safePath = (entry.path || '/').slice(0, 200);
     const safeDetails = (entry.details || '').slice(0, 1000);
     const safePayload = entry.payload ? entry.payload.slice(0, 500) : undefined;
-    const userAgent = (navigator.userAgent || 'unknown').slice(0, 200);
+    const userAgent = (navigator.userAgent || 'unknown').slice(0, 300);
+    const parsedDevice = parseUserAgent(userAgent);
 
     const docPayload: Record<string, any> = {
       type: entry.type,
@@ -64,6 +102,11 @@ export async function logSecurityThreat(entry: {
       path: safePath,
       details: safeDetails,
       userAgent,
+      deviceInfo: {
+        os: parsedDevice.os,
+        browser: parsedDevice.browser,
+        deviceType: parsedDevice.deviceType,
+      },
       isResolved: false,
       timestamp: serverTimestamp()
     };
@@ -71,6 +114,17 @@ export async function logSecurityThreat(entry: {
     if (safePayload) {
       docPayload.payload = safePayload;
     }
+
+    // Attempt fast geo-lookup
+    try {
+      const geo = await fetchClientGeoInfo();
+      if (geo.ip) docPayload.ip = String(geo.ip).slice(0, 50);
+      if (geo.country) docPayload.country = String(geo.country).slice(0, 50);
+      if (geo.city) docPayload.city = String(geo.city).slice(0, 50);
+      if (typeof geo.latitude === 'number') docPayload.latitude = geo.latitude;
+      if (typeof geo.longitude === 'number') docPayload.longitude = geo.longitude;
+      if (geo.isp) docPayload.isp = String(geo.isp).slice(0, 80);
+    } catch {}
 
     const colRef = collection(db, 'securityLogs');
     await addDoc(colRef, docPayload);
@@ -104,6 +158,13 @@ export async function getSecurityLogs(limitCount = 100): Promise<SecurityLog[]> 
         details: data.details || '',
         payload: data.payload,
         userAgent: data.userAgent,
+        ip: data.ip,
+        country: data.country,
+        city: data.city,
+        latitude: typeof data.latitude === 'number' ? data.latitude : undefined,
+        longitude: typeof data.longitude === 'number' ? data.longitude : undefined,
+        isp: data.isp,
+        deviceInfo: data.deviceInfo,
         timestamp: data.timestamp instanceof Timestamp ? data.timestamp.toDate() : new Date(),
         isResolved: Boolean(data.isResolved)
       });
@@ -146,6 +207,13 @@ export function subscribeToSecurityLogs(
             details: data.details || '',
             payload: data.payload,
             userAgent: data.userAgent,
+            ip: data.ip,
+            country: data.country,
+            city: data.city,
+            latitude: typeof data.latitude === 'number' ? data.latitude : undefined,
+            longitude: typeof data.longitude === 'number' ? data.longitude : undefined,
+            isp: data.isp,
+            deviceInfo: data.deviceInfo,
             timestamp: data.timestamp instanceof Timestamp ? data.timestamp.toDate() : new Date(),
             isResolved: Boolean(data.isResolved)
           });

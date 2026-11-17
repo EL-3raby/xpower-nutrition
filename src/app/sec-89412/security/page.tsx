@@ -10,6 +10,7 @@ import {
   subscribeToSecurityLogs
 } from '@/lib/firebase/security';
 import { SecurityLog, SecurityAuditResult, SecurityThreatType } from '@/lib/types';
+import { parseUserAgent } from '@/lib/utils/device-parser';
 import Spinner from '@/components/ui/Spinner';
 
 export default function AdminSecurityPage() {
@@ -19,6 +20,7 @@ export default function AdminSecurityPage() {
   const [isAuditing, setIsAuditing] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<'all' | SecurityThreatType>('all');
   const [actionMsg, setActionMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [selectedMapLog, setSelectedMapLog] = useState<SecurityLog | null>(null);
 
   // Subscribe to real-time security threats
   useEffect(() => {
@@ -407,6 +409,7 @@ export default function AdminSecurityPage() {
                   <th className="py-3 px-3">المسار المستهدف (Path)</th>
                   <th className="py-3 px-3">التفاصيل / الحمولة</th>
                   <th className="py-3 px-3">الجهاز والبيئة</th>
+                  <th className="py-3 px-3">الموقع والخريطة</th>
                   <th className="py-3 px-3">التوقيت</th>
                   <th className="py-3 px-3 text-center">الإجراء</th>
                 </tr>
@@ -414,6 +417,9 @@ export default function AdminSecurityPage() {
               <tbody className="divide-y divide-white/5 font-body">
                 {filteredLogs.map((log) => {
                   const typeInfo = getTypeLabel(log.type);
+                  const dev = log.deviceInfo || parseUserAgent(log.userAgent);
+                  const hasCoordinates = typeof log.latitude === 'number' && typeof log.longitude === 'number';
+
                   return (
                     <tr
                       key={log.id}
@@ -451,11 +457,82 @@ export default function AdminSecurityPage() {
                         )}
                       </td>
 
-                      {/* User Agent */}
-                      <td className="py-3 px-3 max-w-[180px]">
-                        <span className="block truncate font-mono text-[10px] text-text-muted" title={log.userAgent}>
-                          {log.userAgent || 'Unknown'}
-                        </span>
+                      {/* Device & Environment */}
+                      <td className="py-3 px-3 min-w-[170px] max-w-[210px]">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5 font-bold text-white text-[11px]">
+                            <span className="material-symbols-outlined text-[15px] text-cyan-400">
+                              {dev.deviceType === 'mobile'
+                                ? 'smartphone'
+                                : dev.deviceType === 'tablet'
+                                ? 'tablet_mac'
+                                : dev.deviceType === 'bot'
+                                ? 'smart_toy'
+                                : 'desktop_windows'}
+                            </span>
+                            <span className="truncate" title={log.userAgent}>
+                              {dev.browser || 'متصفح غير معروف'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] text-text-muted font-mono truncate max-w-[110px]" title={dev.os}>
+                              {dev.os || 'نظام غير معروف'}
+                            </span>
+                            {dev.deviceType === 'bot' || log.type === 'honeypot' ? (
+                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold shrink-0">
+                                أداة فحص آلي
+                              </span>
+                            ) : (
+                              <span className="text-[9px] px-1.5 py-0.2 rounded bg-white/5 text-text-muted border border-white/10 shrink-0">
+                                {dev.deviceType === 'mobile' ? 'موبايل' : 'كمبيوتر'}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Location & Map */}
+                      <td className="py-3 px-3 min-w-[160px]">
+                        {log.country || log.city ? (
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-1 text-[11px] font-bold text-white">
+                              <span className="material-symbols-outlined text-sm text-rose-400">location_on</span>
+                              <span>{[log.city, log.country].filter(Boolean).join('، ')}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {log.ip && (
+                                <span className="text-[10px] font-mono text-text-muted bg-white/5 px-1.5 py-0.5 rounded border border-white/5" dir="ltr">
+                                  {log.ip}
+                                </span>
+                              )}
+                              {hasCoordinates && (
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedMapLog(log)}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-[10px] font-bold transition-all active:scale-95 cursor-pointer"
+                                  title="فتح موقع التهديد على الخريطة"
+                                >
+                                  <span className="material-symbols-outlined text-[13px]">map</span>
+                                  <span>الخريطة 🗺️</span>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ) : log.ip ? (
+                          <div className="space-y-1">
+                            <span className="font-mono text-[10px] text-text-muted bg-white/5 px-1.5 py-0.5 rounded" dir="ltr">
+                              {log.ip}
+                            </span>
+                            <span className="block text-[10px] text-text-muted/60">
+                              (لم تلتقط الإحداثيات)
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5 text-[11px] text-text-muted/80">
+                            <span className="material-symbols-outlined text-[15px] text-amber-400/80">cloud_sync</span>
+                            <span>سيرفر سحابي خارجي</span>
+                          </div>
+                        )}
                       </td>
 
                       {/* Timestamp */}
@@ -534,6 +611,81 @@ export default function AdminSecurityPage() {
           </div>
         </div>
       </div>
+
+      {/* Interactive Map Modal */}
+      {selectedMapLog && typeof selectedMapLog.latitude === 'number' && typeof selectedMapLog.longitude === 'number' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="relative w-full max-w-2xl bg-[#0d0d0d] border border-white/15 rounded-3xl p-6 shadow-2xl space-y-4">
+            
+            {/* Modal Header */}
+            <div className="flex items-start justify-between border-b border-white/10 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                  <span className="material-symbols-outlined text-2xl">location_searching</span>
+                </div>
+                <div>
+                  <h3 className="font-product-title font-bold text-white text-base flex items-center gap-2">
+                    <span>موقع التهديد الجغرافي على الخريطة</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full font-mono bg-red-500/20 text-red-300 border border-red-500/30">
+                      {selectedMapLog.path}
+                    </span>
+                  </h3>
+                  <p className="text-xs text-text-muted mt-0.5 font-body">
+                    {[selectedMapLog.city, selectedMapLog.country].filter(Boolean).join('، ')} • IP: {selectedMapLog.ip || 'غير معروف'}
+                    {selectedMapLog.isp ? ` • المزود: ${selectedMapLog.isp}` : ''}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedMapLog(null)}
+                className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/10 text-text-muted hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Embedded Live Map */}
+            <div className="overflow-hidden rounded-2xl border border-white/10 shadow-inner bg-black/40 h-[360px] relative">
+              <iframe
+                title="Threat Geo Location Map"
+                width="100%"
+                height="100%"
+                style={{ border: 0, filter: 'contrast(1.05)' }}
+                loading="lazy"
+                src={`https://maps.google.com/maps?q=${selectedMapLog.latitude},${selectedMapLog.longitude}&z=13&output=embed`}
+              />
+            </div>
+
+            {/* Modal Footer with External Direct Link */}
+            <div className="flex items-center justify-between pt-2">
+              <div className="text-[11px] font-mono text-text-muted flex items-center gap-1.5" dir="ltr">
+                <span className="material-symbols-outlined text-sm text-cyan-400">pin_drop</span>
+                <span>Lat: {selectedMapLog.latitude.toFixed(5)}, Lon: {selectedMapLog.longitude.toFixed(5)}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <a
+                  href={`https://www.google.com/maps?q=${selectedMapLog.latitude},${selectedMapLog.longitude}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500 text-cyan-300 hover:text-black font-product-title text-xs font-bold transition-all cursor-pointer active:scale-95"
+                >
+                  <span>فتح في Google Maps</span>
+                  <span className="material-symbols-outlined text-sm">open_in_new</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setSelectedMapLog(null)}
+                  className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white font-product-title text-xs font-bold transition-colors cursor-pointer"
+                >
+                  إغلاق
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
 
     </div>
   );

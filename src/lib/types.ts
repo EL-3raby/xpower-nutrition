@@ -295,6 +295,17 @@ export interface SecurityLog {
   userAgent?: string;
   timestamp: Timestamp | Date;
   isResolved: boolean;
+  ip?: string;
+  country?: string;
+  city?: string;
+  latitude?: number;
+  longitude?: number;
+  isp?: string;
+  deviceInfo?: {
+    os?: string;
+    browser?: string;
+    deviceType?: 'desktop' | 'mobile' | 'tablet' | 'bot';
+  };
 }
 
 export interface SecurityAuditFinding {
