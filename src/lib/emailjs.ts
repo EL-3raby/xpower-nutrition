@@ -2,12 +2,18 @@ import emailjs from '@emailjs/browser';
 import { Order } from './types';
 import { getSiteUrl } from './utils/seo';
 import { getVariantTerminology } from './utils/product-variants';
+import { getLocalCachedSiteConfig } from './firebase/admin-actions';
 
-export async function sendNewOrderEmail(order: Order) {
+export async function sendNewOrderEmail(order: Order, recipientEmail?: string) {
   const serviceId = process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID || '';
   const templateId = process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID || '';
   const publicKey = process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY || '';
-  const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'admin@xpower.com';
+  
+  const cachedCfg = getLocalCachedSiteConfig();
+  const adminEmail = recipientEmail || 
+                     process.env.NEXT_PUBLIC_ADMIN_EMAIL || 
+                     cachedCfg?.contactInfo?.email || 
+                     'alitawfek464@gmail.com';
   const siteUrl = getSiteUrl();
 
   if (!serviceId || !templateId || !publicKey) {
@@ -47,8 +53,12 @@ export async function sendNewOrderEmail(order: Order) {
 
   const templateParams = {
     to_email: adminEmail,
-    order_id: order.id || 'N/A',
+    email: adminEmail,
+    recipient_email: adminEmail,
+    admin_email: adminEmail,
+    name: order.customerName,
     customer_name: order.customerName,
+    order_id: order.id || 'N/A',
     customer_phone: order.phone,
     customer_address: `${order.address}, ${order.city}`,
     payment_method: paymentMethodLabel,
