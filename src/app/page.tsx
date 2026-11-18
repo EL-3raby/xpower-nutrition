@@ -55,7 +55,18 @@ export default async function HomePage() {
     return 0;
   });
 
-  const displayProducts = sortedProducts;
+  let featuredProducts: Product[] = [];
+  if (settings.featuredProducts?.productIds && settings.featuredProducts.productIds.length > 0) {
+    const selected = settings.featuredProducts.productIds
+      .map((id) => sortedProducts.find((p) => p.id === id))
+      .filter((p): p is Product => Boolean(p && p.isActive !== false));
+    if (selected.length > 0) {
+      featuredProducts = selected.slice(0, 10);
+    }
+  }
+  if (featuredProducts.length === 0) {
+    featuredProducts = sortedProducts.slice(0, 10);
+  }
 
   // Flash sale offers (supports single and multiple offers)
   const flashSaleOffers: Array<{
@@ -153,7 +164,8 @@ export default async function HomePage() {
     <HomeClientPage
       initialSettings={toPlainObject(settings)}
       initialCategories={toPlainObject(activeCategories)}
-      initialProducts={toPlainObject(displayProducts)}
+      initialProducts={toPlainObject(sortedProducts)}
+      initialFeaturedProducts={toPlainObject(featuredProducts)}
       initialFlashSaleProduct={toPlainObject(flashSaleProduct)}
       initialFlashSaleOffers={toPlainObject(flashSaleOffers)}
       initialBestSellers={toPlainObject(bestSellers)}

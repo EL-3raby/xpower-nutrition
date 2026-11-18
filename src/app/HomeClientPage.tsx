@@ -7,7 +7,7 @@ import ScrollReveal from '@/components/site/ScrollReveal';
 import BestSellersSlider from '@/components/site/BestSellersSlider';
 import AllProductsMarquee from '@/components/site/AllProductsMarquee';
 import { getProducts, subscribeToLiveProducts } from '@/lib/firebase/products';
-import { getSiteConfig, getCategories, subscribeToLiveSiteConfig } from '@/lib/firebase/admin-actions';
+import { getSiteConfig, getCategories, subscribeToLiveSiteConfig, getLocalCachedSiteConfig } from '@/lib/firebase/admin-actions';
 import { Product, Category, SiteConfig } from '@/lib/types';
 import { getOptimizedImageUrl } from '@/lib/utils/image';
 import AuthenticitySection from '@/components/site/AuthenticitySection';
@@ -17,25 +17,51 @@ import { isOfferExpired } from '@/lib/date-utils';
 import { onStoreUpdate } from '@/lib/sync/store-events';
 
 function HeroBanner({ settings, titleMain, titleAccent }: { settings: SiteConfig; titleMain: string; titleAccent: string }) {
-  const heroMobileImg = settings.heroBanner?.mobileImageUrl || settings.heroBanner?.imageUrl;
-  const heroDesktopImg = settings.heroBanner?.imageUrl;
+  const heroMobileRaw = settings.heroBanner?.mobileImageUrl || settings.heroBanner?.imageUrl;
+  const heroDesktopRaw = settings.heroBanner?.imageUrl;
+
+  const targetMobileImg = useMemo(() => getOptimizedImageUrl(heroMobileRaw, { width: 600, quality: '80' }), [heroMobileRaw]);
+  const targetDesktopImg = useMemo(() => getOptimizedImageUrl(heroDesktopRaw, { width: 1200, quality: '80' }), [heroDesktopRaw]);
+
+  const [activeMobileImg, setActiveMobileImg] = useState<string>(targetMobileImg);
+  const [activeDesktopImg, setActiveDesktopImg] = useState<string>(targetDesktopImg);
+
+  // Background preload to prevent blank flash when hero image changes dynamically
+  useEffect(() => {
+    if (!targetMobileImg || targetMobileImg === activeMobileImg) return;
+    const img = new Image();
+    img.src = targetMobileImg;
+    img.onload = () => {
+      setActiveMobileImg(targetMobileImg);
+    };
+  }, [targetMobileImg, activeMobileImg]);
+
+  useEffect(() => {
+    if (!targetDesktopImg || targetDesktopImg === activeDesktopImg) return;
+    const img = new Image();
+    img.src = targetDesktopImg;
+    img.onload = () => {
+      setActiveDesktopImg(targetDesktopImg);
+    };
+  }, [targetDesktopImg, activeDesktopImg]);
 
   return (
     <section className="relative w-full flex flex-col md:flex-row md:items-center md:justify-center md:min-h-[600px] md:h-[80vh] bg-transparent overflow-hidden border-b border-text-muted/10">
 
-      {/* MOBILE LAYOUT (Stacked) — Snappy, compact animation */}
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.96 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        className="w-full md:hidden flex justify-center bg-transparent"
-      >
-        <img
-          src={getOptimizedImageUrl(heroMobileImg, { width: 600, quality: '80' })}
+      {/* MOBILE LAYOUT (Stacked) — Preloaded & cross-faded */}
+      <div className="w-full md:hidden flex justify-center bg-transparent relative overflow-hidden">
+        <motion.img 
+          key={activeMobileImg}
+          src={activeMobileImg}
           alt="Hero Banner Mobile"
+          fetchPriority="high"
+          loading="eager"
+          initial={{ opacity: 0.85, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
           className="w-full h-auto object-contain"
         />
-      </motion.div>
+      </div>
 
       <div className="md:hidden relative z-10 w-full px-6 py-10 flex flex-col items-center text-center bg-transparent">
         <motion.h1 
@@ -97,17 +123,18 @@ function HeroBanner({ settings, titleMain, titleAccent }: { settings: SiteConfig
         </motion.div>
       </div>
 
-      {/* DESKTOP LAYOUT (Overlaid) — Cinematic, rich staggered motion */}
+      {/* DESKTOP LAYOUT (Overlaid) — Cinematic cross-fade without sudden blank spot */}
       <div className="hidden md:block absolute inset-0 z-0 overflow-hidden">
         <motion.img
-          src={getOptimizedImageUrl(heroDesktopImg, { width: 1200, quality: '80' })}
+          key={activeDesktopImg}
+          src={activeDesktopImg}
           alt="Hero Banner Desktop"
           fetchPriority="high"
           loading="eager"
           className="w-full h-full object-cover object-top opacity-50 pointer-events-none"
-          initial={{ scale: 1.12, opacity: 0 }}
-          animate={{ scale: 1.05, opacity: 0.5 }}
-          transition={{ duration: 1.3, ease: [0.16, 1, 0.3, 1] }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 0.5 }}
+          transition={{ duration: 0.6, ease: 'easeOut' }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-black/20 pointer-events-none h-full" />
       </div>
@@ -160,7 +187,7 @@ function HeroBanner({ settings, titleMain, titleAccent }: { settings: SiteConfig
 
 export interface FlashSaleOffer {
   product: Product;
-  endDateTime?: any;
+  endDateTime?: string | Date | { toDate: () => Date } | null;
   badgeText?: string;
 }
 
@@ -201,6 +228,18 @@ function getFeaturedProducts(prods: Product[], cfg?: SiteConfig): Product[] {
   return sortProductsForHome(prods).slice(0, 10);
 }
 
+function isBundle(p: Product): boolean {
+  return Boolean(
+    p.isBundle ||
+    p.category === 'bundles' ||
+    p.category === 'باقات التوفير' ||
+    p.slug?.includes('bundle') ||
+    p.slug?.includes('bundel') ||
+    p.name?.includes('باقة') ||
+    p.name?.includes('باندل')
+  );
+}
+
 function getBundleProducts(prods: Product[], cfg?: SiteConfig): Product[] {
   if (cfg?.bundlesSection?.isActive === false) return [];
 
@@ -210,18 +249,6 @@ function getBundleProducts(prods: Product[], cfg?: SiteConfig): Product[] {
       .filter((p): p is Product => Boolean(p && p.isActive !== false));
     if (selected.length > 0) return selected;
   }
-
-  const isBundle = (p: Product) => {
-    return Boolean(
-      p.isBundle ||
-      p.category === 'bundles' ||
-      p.category === 'باقات التوفير' ||
-      p.slug?.includes('bundle') ||
-      p.slug?.includes('bundel') ||
-      p.name?.includes('باقة') ||
-      p.name?.includes('باندل')
-    );
-  };
 
   return prods
     .filter((p) => isBundle(p) && p.isActive !== false)
@@ -271,6 +298,7 @@ interface HomeClientPageProps {
   initialSettings: SiteConfig;
   initialCategories: Category[];
   initialProducts: Product[];
+  initialFeaturedProducts?: Product[];
   initialFlashSaleProduct: Product | null;
   initialFlashSaleOffers?: FlashSaleOffer[];
   initialBestSellers: Product[];
@@ -281,14 +309,20 @@ export default function HomeClientPage({
   initialSettings,
   initialCategories,
   initialProducts,
+  initialFeaturedProducts,
   initialFlashSaleProduct,
   initialFlashSaleOffers,
   initialBestSellers,
   initialBundleProducts,
 }: HomeClientPageProps) {
   const [settings, setSettings] = useState<SiteConfig>(initialSettings);
+  const [isInitialDataReady, setIsInitialDataReady] = useState(false);
   const [activeCategories, setActiveCategories] = useState<Category[]>(initialCategories || []);
-  const [displayProducts, setDisplayProducts] = useState<Product[]>(() => getFeaturedProducts(initialProducts || [], initialSettings));
+  const [displayProducts, setDisplayProducts] = useState<Product[]>(() =>
+    initialFeaturedProducts && initialFeaturedProducts.length > 0
+      ? initialFeaturedProducts
+      : getFeaturedProducts(initialProducts || [], initialSettings)
+  );
   const [bundleProducts, setBundleProducts] = useState<Product[]>(() =>
     initialBundleProducts || getBundleProducts(initialProducts || [], initialSettings)
   );
@@ -309,19 +343,24 @@ export default function HomeClientPage({
     }
     return [];
   });
-  const [flashSaleProduct, setFlashSaleProduct] = useState<Product | null>(initialFlashSaleProduct || null);
   const [bestSellers, setBestSellers] = useState<Product[]>(() =>
     initialBestSellers && initialBestSellers.length > 0
       ? initialBestSellers
       : getBestSellers(initialProducts || [], initialSettings)
   );
-  const [hasMounted, setHasMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(!initialProducts || initialProducts.length === 0);
 
   useEffect(() => {
-    setHasMounted(true);
-
     async function refreshData() {
+      // 1. Immediately apply cached live siteConfig if available to prevent any flash of build-time data
+      const cachedCfg = getLocalCachedSiteConfig();
+      if (cachedCfg) {
+        setSettings(cachedCfg);
+        setDisplayProducts((prev) => getFeaturedProducts(prev, cachedCfg));
+        setBundleProducts((prev) => getBundleProducts(prev, cachedCfg));
+        setBestSellers((prev) => getBestSellers(prev, cachedCfg));
+      }
+
       try {
         const [cfg, cats, prods] = await Promise.all([
           getSiteConfig(),
@@ -382,15 +421,14 @@ export default function HomeClientPage({
             }
           }
           setFlashSaleOffers(offers);
-          setFlashSaleProduct(offers[0]?.product || null);
         } else {
           setFlashSaleOffers([]);
-          setFlashSaleProduct(null);
         }
       } catch (err) {
         console.error('Error refreshing homepage data:', err);
       } finally {
         setIsLoading(false);
+        setIsInitialDataReady(true);
       }
     }
 
@@ -450,9 +488,14 @@ export default function HomeClientPage({
     return rawText || 'شحن سريع لجميع محافظات مصر والتوصيل لحد باب بيتك 🚚⚡';
   }, [settings.promoBanner?.text, settings.freeShipping]);
 
+  // Marquee products (strictly standalone products, excluding bundles)
+  const marqueeProducts = useMemo(() => {
+    return allProducts.filter((p) => !isBundle(p));
+  }, [allProducts]);
+
   return (
     <div className="bg-black text-text-primary overflow-x-hidden" dir="rtl">
-      <HomePreloader />
+      <HomePreloader isReady={isInitialDataReady} />
 
       {/* Hero Banner Section */}
       <HeroBanner settings={settings} titleMain={titleMain} titleAccent={titleAccent} />
@@ -595,7 +638,7 @@ export default function HomeClientPage({
       )}
 
       {/* Power Bundles & Stacks Section */}
-      {bundleProducts.length > 0 && (
+      {(settings.bundlesSection?.isActive ?? true) && bundleProducts.length > 0 && (
         <section className="py-10 md:py-20 px-6 max-w-7xl mx-auto w-full relative overflow-hidden bg-transparent border-t border-white/5">
           {/* Subtle Ambient Red Glow Backdrop */}
           <div className="absolute top-1/2 left-1/4 -translate-y-1/2 w-96 h-96 bg-accent-red/10 blur-[140px] rounded-full pointer-events-none -z-10" />
@@ -673,7 +716,7 @@ export default function HomeClientPage({
       {isLoading ? (
         <div className="w-full h-12 bg-white/5 animate-pulse my-8" />
       ) : (
-        <AllProductsMarquee products={allProducts} />
+        <AllProductsMarquee products={marqueeProducts} />
       )}
 
       {/* Why Choose Xpower */}

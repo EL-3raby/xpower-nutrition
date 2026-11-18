@@ -272,6 +272,35 @@ export const DEFAULT_SHIPPING_RATES: ShippingRate[] = [
   { id: 'rate27', cityName: 'الوادي الجديد', rate: 120, isActive: true }
 ];
 
+export const SITE_CONFIG_LOCAL_STORAGE_KEY = 'xpower_live_site_config';
+
+/**
+ * Synchronously retrieves cached site configuration from localStorage if available in browser context.
+ * Prevents hydration flashes / layout pops across all pages.
+ */
+export function getLocalCachedSiteConfig(): SiteConfig | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(SITE_CONFIG_LOCAL_STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as SiteConfig;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Safely persists live site configuration to localStorage.
+ */
+export function setLocalCachedSiteConfig(config: SiteConfig): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(SITE_CONFIG_LOCAL_STORAGE_KEY, JSON.stringify(config));
+  } catch {
+    // Ignore storage quota limits silently
+  }
+}
+
 export async function getSiteConfig(options?: CacheOptions): Promise<SiteConfig> {
   if (isDummyFirebase) {
     return DEFAULT_CONFIG;
@@ -282,7 +311,7 @@ export async function getSiteConfig(options?: CacheOptions): Promise<SiteConfig>
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
         const data = docSnap.data();
-        return {
+        const mergedConfig = {
           ...DEFAULT_CONFIG,
           ...data,
           freeShipping: {
@@ -302,18 +331,37 @@ export async function getSiteConfig(options?: CacheOptions): Promise<SiteConfig>
             ...(data.bulkDiscount || {})
           }
         } as SiteConfig;
+
+        setLocalCachedSiteConfig(mergedConfig);
+        return mergedConfig;
       }
     } catch (error) {
       console.error('Error fetching site config:', error);
+      const cached = getLocalCachedSiteConfig();
+      if (cached) return cached;
     }
-    // If config does not exist or fetch fails, return default config
-    return DEFAULT_CONFIG;
+    // If config does not exist or fetch fails, check local cache first, else return default config
+    return getLocalCachedSiteConfig() || DEFAULT_CONFIG;
   }, options);
 }
 
 export async function updateSiteConfig(config: Partial<SiteConfig>) {
   const docRef = doc(db, 'settings', 'siteConfig');
   await setDoc(docRef, config, { merge: true });
+
+  // Update local storage synchronously so immediate refresh has 0ms fresh config
+  const currentCached = getLocalCachedSiteConfig() || DEFAULT_CONFIG;
+  const updatedMerged: SiteConfig = {
+    ...currentCached,
+    ...config,
+    heroBanner: config.heroBanner ? { ...currentCached.heroBanner, ...config.heroBanner } : currentCached.heroBanner,
+    freeShipping: config.freeShipping ? { ...currentCached.freeShipping, ...config.freeShipping } : currentCached.freeShipping,
+    paymentMethodsEnabled: config.paymentMethodsEnabled ? { ...currentCached.paymentMethodsEnabled, ...config.paymentMethodsEnabled } : currentCached.paymentMethodsEnabled,
+    maintenanceMode: config.maintenanceMode ? { ...currentCached.maintenanceMode, ...config.maintenanceMode } : currentCached.maintenanceMode,
+    bulkDiscount: config.bulkDiscount ? { ...currentCached.bulkDiscount, ...config.bulkDiscount } : currentCached.bulkDiscount,
+  };
+  setLocalCachedSiteConfig(updatedMerged);
+
   invalidateCache('siteConfig');
   notifyAdminUpdate('siteConfig');
   await logAdminActivity('updated site config', 'siteConfig');
@@ -355,6 +403,7 @@ export function subscribeToLiveSiteConfig(
               ...(data.bulkDiscount || {})
             }
           } as SiteConfig;
+          setLocalCachedSiteConfig(config);
           invalidateCache('siteConfig');
           callback(config);
         }

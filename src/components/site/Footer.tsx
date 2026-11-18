@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { getSiteConfig, getCategories } from '@/lib/firebase/admin-actions';
+import { getSiteConfig, getCategories, getLocalCachedSiteConfig } from '@/lib/firebase/admin-actions';
 import { SiteConfig, Category } from '@/lib/types';
 import Logo from '@/components/site/Logo';
 
@@ -17,7 +17,7 @@ export default function Footer() {
   }, []);
 
   const isHomePage = hasMounted && pathname === '/';
-  const [settings, setSettings] = useState<SiteConfig | null>(null);
+  const [settings, setSettings] = useState<SiteConfig | null>(() => getLocalCachedSiteConfig());
   const [categories, setCategories] = useState<Category[]>([]);
 
   useEffect(() => {

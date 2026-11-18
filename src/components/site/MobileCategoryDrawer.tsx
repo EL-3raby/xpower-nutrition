@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Logo from '@/components/site/Logo';
-import { getCategories, getSiteConfig } from '@/lib/firebase/admin-actions';
+import { getCategories, getSiteConfig, getLocalCachedSiteConfig } from '@/lib/firebase/admin-actions';
 import { Category, SiteConfig } from '@/lib/types';
 
 interface MobileCategoryDrawerProps {
@@ -23,7 +23,7 @@ export default function MobileCategoryDrawer({ isOpen, onClose }: MobileCategory
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
   const [categories, setCategories] = useState<Category[]>(DEFAULT_FALLBACK_CATEGORIES);
-  const [siteConfig, setSiteConfig] = useState<SiteConfig | null>(null);
+  const [siteConfig, setSiteConfig] = useState<SiteConfig | null>(() => getLocalCachedSiteConfig());
   
   // Accordion for categories: default open for ease of browsing
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(true);

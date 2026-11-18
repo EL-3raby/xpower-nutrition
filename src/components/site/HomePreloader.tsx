@@ -3,29 +3,42 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export default function HomePreloader() {
+interface HomePreloaderProps {
+  isReady?: boolean;
+}
+
+export default function HomePreloader({ isReady = true }: HomePreloaderProps) {
   const [isLoading, setIsLoading] = useState(true);
+  const [fontsLoaded, setFontsLoaded] = useState(false);
 
   useEffect(() => {
-    // Wait for fonts and DOM hydration to settle
-    let timer: NodeJS.Timeout;
-
     if (typeof window !== 'undefined' && 'fonts' in document) {
       document.fonts.ready.then(() => {
-        timer = setTimeout(() => {
-          setIsLoading(false);
-        }, 500);
+        setFontsLoaded(true);
       });
     } else {
-      timer = setTimeout(() => {
-        setIsLoading(false);
-      }, 600);
+      setFontsLoaded(true);
     }
 
+    // Safety fallback: Dismiss preloader after max 1300ms so screen is never blocked
+    const safetyTimer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1300);
+
     return () => {
-      if (timer) clearTimeout(timer);
+      clearTimeout(safetyTimer);
     };
   }, []);
+
+  useEffect(() => {
+    // Only dismiss once both fonts are ready AND fresh site data is ready
+    if (fontsLoaded && isReady) {
+      const dismissTimer = setTimeout(() => {
+        setIsLoading(false);
+      }, 100);
+      return () => clearTimeout(dismissTimer);
+    }
+  }, [fontsLoaded, isReady]);
 
   return (
     <AnimatePresence>
@@ -33,7 +46,7 @@ export default function HomePreloader() {
         <motion.div
           key="home-preloader"
           initial={{ opacity: 1 }}
-          exit={{ opacity: 0, transition: { duration: 0.5, ease: 'easeInOut' } }}
+          exit={{ opacity: 0, transition: { duration: 0.45, ease: 'easeInOut' } }}
           className="fixed inset-0 z-[99999] bg-[#050505] flex flex-col items-center justify-center pointer-events-auto select-none"
         >
           {/* Ambient Glowing Background Aura */}

@@ -3,13 +3,13 @@
 import React from 'react';
 import Link from 'next/link';
 import { useCart } from '@/hooks/useCart';
-import { getSiteConfig } from '@/lib/firebase/admin-actions';
+import { getSiteConfig, getLocalCachedSiteConfig } from '@/lib/firebase/admin-actions';
 import { SiteConfig } from '@/lib/types';
 import { getVariantTerminology } from '@/lib/utils/product-variants';
 
 export default function CartDrawer() {
   const { cart, removeFromCart, updateQuantity, getCartTotal, isDrawerOpen, setIsDrawerOpen, lastAddedItemId } = useCart();
-  const [siteConfig, setSiteConfig] = React.useState<SiteConfig | null>(null);
+  const [siteConfig, setSiteConfig] = React.useState<SiteConfig | null>(() => getLocalCachedSiteConfig());
 
   React.useEffect(() => {
     if (isDrawerOpen && !siteConfig) {

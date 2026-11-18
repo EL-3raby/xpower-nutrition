@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db, isDummyFirebase } from '@/lib/firebase/client';
-import { getSiteConfig, getCategories } from '@/lib/firebase/admin-actions';
+import { getSiteConfig, getCategories, getLocalCachedSiteConfig } from '@/lib/firebase/admin-actions';
 import { SiteConfig, Category } from '@/lib/types';
 import { getEgyptTime } from '@/lib/date-utils';
 import { onStoreUpdate } from '@/lib/sync/store-events';
@@ -80,7 +80,7 @@ const MARQUEE_THEMES: Record<BarThemeKey, ThemeStyles> = {
 
 export default function DiscountTopBar({ initialConfig }: DiscountTopBarProps) {
   const [hasMounted, setHasMounted] = useState(false);
-  const [config, setConfig] = useState<SiteConfig | null>(initialConfig || null);
+  const [config, setConfig] = useState<SiteConfig | null>(() => initialConfig || getLocalCachedSiteConfig());
   const [categories, setCategories] = useState<Category[]>([]);
   const [isDismissed, setIsDismissed] = useState<boolean>(false);
   const [timeLeft, setTimeLeft] = useState<{

@@ -12,10 +12,23 @@ export default function AllProductsMarquee({ products }: AllProductsMarqueeProps
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isHovered, setIsHovered] = useState(false);
 
-  // Duplicate max once if less than 6 items to ensure track is full
-  // We duplicate it multiple times to ensure infinite scroll illusion
-  const displayList = products && products.length > 0
-    ? [...products, ...products, ...products, ...products]
+  // Strictly filter out bundle products so "All Products" strip only showcases standalone products
+  const standaloneProducts = (products || []).filter(
+    (p) =>
+      !Boolean(
+        p.isBundle ||
+        p.category === 'bundles' ||
+        p.category === 'باقات التوفير' ||
+        p.slug?.includes('bundle') ||
+        p.slug?.includes('bundel') ||
+        p.name?.includes('باقة') ||
+        p.name?.includes('باندل')
+      )
+  );
+
+  // Duplicate to ensure infinite seamless scrolling track
+  const displayList = standaloneProducts && standaloneProducts.length > 0
+    ? [...standaloneProducts, ...standaloneProducts, ...standaloneProducts, ...standaloneProducts]
     : [];
 
   useEffect(() => {
@@ -52,7 +65,7 @@ export default function AllProductsMarquee({ products }: AllProductsMarqueeProps
   }, [isHovered, displayList.length]);
 
   // Early return AFTER all hooks
-  if (!products || products.length === 0) return null;
+  if (!standaloneProducts || standaloneProducts.length === 0) return null;
 
   return (
     <section className="py-10 md:py-20 w-full overflow-hidden bg-transparent border-y border-text-muted/5 relative">
